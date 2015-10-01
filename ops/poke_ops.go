@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "flag"
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/defaults"
     "github.com/aws/aws-sdk-go/service/ec2"
@@ -70,29 +71,31 @@ func terminate(svc *ec2.EC2) {
     }
 }
 
-func usage() {
-    fmt.Println(os.Args[0], "status|boot|terminate")
-    os.Exit(0)
-}
-
 func main() {
-    defaults.DefaultConfig.Region = aws.String("us-west-2")
-    defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
-    svc := ec2.New(nil)
-
-
-    if len(os.Args) < 2 {
-        usage()
+    flag.Usage = func() {
+        fmt.Fprintf(os.Stderr, "%s: status|boot|terminate\n", os.Args[0])
+        flag.PrintDefaults()
     }
 
-    switch os.Args[1] {
-    case "status":
-        status(svc)
-    case "boot":
-        boot(svc)
-    case "terminate":
-        terminate(svc)
-    default:
-        usage()
+    var verbose = flag.Bool("v", false, "Turn on verbose log messaging.")
+    flag.Parse()
+
+    if *verbose {
+        defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
+    }
+    defaults.DefaultConfig.Region = aws.String("us-west-2")
+
+    svc := ec2.New(nil)
+    for _, arg := range flag.Args() {
+        switch arg {
+        case "status":
+            status(svc)
+        case "boot":
+            boot(svc)
+        case "terminate":
+            terminate(svc)
+        default:
+            fmt.Fprintf(os.Stderr, "Unknown Command: %s\n", arg)
+        }
     }
 }
