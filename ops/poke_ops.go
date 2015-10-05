@@ -3,14 +3,25 @@ package main
 import (
     "fmt"
     "os"
+    "flag"
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/defaults"
     "github.com/aws/aws-sdk-go/service/ec2"
 )
 
+const TAGKEY string = "poke"
+
 func describe_instances(svc *ec2.EC2) *ec2.DescribeInstancesOutput {
-    /* XXX: Scope to a tag. */
-    resp, err := svc.DescribeInstances(nil)
+
+    resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput {
+        Filters: []*ec2.Filter {
+            &ec2.Filter {
+                Name: aws.String("tag-key"),
+                Values: []*string{aws.String(TAGKEY)},
+            },
+        },
+    })
+
     if err != nil {
         panic(err)
     }
@@ -28,7 +39,11 @@ func status(svc *ec2.EC2) {
             fmt.Println("    InstanceType:", *inst.InstanceType)
             fmt.Println("      LaunchTime:", inst.LaunchTime)
             fmt.Println("           State:", *inst.State.Name)
-            fmt.Println("}")
+            fmt.Print("            Tags:")
+            for _, tag:= range inst.Tags {
+                fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
+            }
+            fmt.Println("\n}")
         }
     }
 }
@@ -42,12 +57,29 @@ func boot(svc *ec2.EC2) {
         MaxCount: &count,
     }
 
-    _, err := svc.RunInstances(params)
+    res, err := svc.RunInstances(params)
     if err != nil {
         panic(err)
     }
 
-    /* XXX: tag the instances with "DI" so we know they aren't Panda's. */
+    tag_params := ec2.CreateTagsInput {
+        Resources: nil,
+        Tags: []*ec2.Tag {
+            &ec2.Tag {
+                Key: aws.String(TAGKEY),
+                Value: aws.String("production"),
+            },
+        },
+    }
+
+    for _, inst := range res.Instances {
+        tag_params.Resources = append(tag_params.Resources, inst.InstanceId)
+    }
+
+    _, err = svc.CreateTags(&tag_params)
+    if err != nil {
+        panic("Failed to tag Instaces")
+    }
 }
 
 func terminate(svc *ec2.EC2) {
@@ -70,29 +102,31 @@ func terminate(svc *ec2.EC2) {
     }
 }
 
-func usage() {
-    fmt.Println(os.Args[0], "status|boot|terminate")
-    os.Exit(0)
-}
-
 func main() {
-    defaults.DefaultConfig.Region = aws.String("us-west-2")
-    defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
-    svc := ec2.New(nil)
-
-
-    if len(os.Args) < 2 {
-        usage()
+    flag.Usage = func() {
+        fmt.Fprintf(os.Stderr, "%s: status|boot|terminate\n", os.Args[0])
+        flag.PrintDefaults()
     }
 
-    switch os.Args[1] {
-    case "status":
-        status(svc)
-    case "boot":
-        boot(svc)
-    case "terminate":
-        terminate(svc)
-    default:
-        usage()
+    var verbose = flag.Bool("v", false, "Turn on verbose log messaging.")
+    flag.Parse()
+
+    if *verbose {
+        defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
+    }
+    defaults.DefaultConfig.Region = aws.String("us-west-2")
+
+    svc := ec2.New(nil)
+    for _, arg := range flag.Args() {
+        switch arg {
+        case "status":
+            status(svc)
+        case "boot":
+            boot(svc)
+        case "terminate":
+            terminate(svc)
+        default:
+            fmt.Fprintf(os.Stderr, "Unknown Command: %s\n", arg)
+        }
     }
 }
