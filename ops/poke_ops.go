@@ -11,6 +11,8 @@ import (
 
 const TAGKEY string = "poke"
 
+var verbose bool = false
+
 func describe_instances(svc *ec2.EC2) *ec2.DescribeInstancesOutput {
 
     resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput {
@@ -34,16 +36,20 @@ func status(svc *ec2.EC2) {
 
     for _, res := range resp.Reservations {
         for _, inst := range res.Instances {
-            fmt.Println("{")
-            fmt.Println("      InstanceId:", *inst.InstanceId)
-            fmt.Println("    InstanceType:", *inst.InstanceType)
-            fmt.Println("      LaunchTime:", inst.LaunchTime)
-            fmt.Println("           State:", *inst.State.Name)
-            fmt.Print("            Tags:")
-            for _, tag:= range inst.Tags {
-                fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
+            if verbose {
+                fmt.Println(*inst)
+            } else {
+                fmt.Println("{")
+                fmt.Println("      InstanceId:", *inst.InstanceId)
+                fmt.Println("    InstanceType:", *inst.InstanceType)
+                fmt.Println("      LaunchTime:", inst.LaunchTime)
+                fmt.Println("           State:", *inst.State.Name)
+                fmt.Print(  "            Tags:")
+                for _, tag:= range inst.Tags {
+                    fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
+                }
+                fmt.Println("\n}")
             }
-            fmt.Println("\n}")
         }
     }
 }
@@ -108,10 +114,11 @@ func main() {
         flag.PrintDefaults()
     }
 
-    var verbose = flag.Bool("v", false, "Turn on verbose log messaging.")
+    var vp = flag.Bool("v", false, "Turn on verbose log messaging.")
     flag.Parse()
+    verbose = *vp
 
-    if *verbose {
+    if verbose {
         defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
     }
     defaults.DefaultConfig.Region = aws.String("us-west-2")
