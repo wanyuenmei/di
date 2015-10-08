@@ -41,6 +41,12 @@ func status(svc *ec2.EC2) {
             } else {
                 fmt.Println("{")
                 fmt.Println("      InstanceId:", *inst.InstanceId)
+                if inst.PublicIpAddress != nil {
+                    fmt.Println(" PublicIPAddress:", *inst.PublicIpAddress)
+                }
+                if inst.PrivateIpAddress != nil {
+                    fmt.Println("PrivateIPAddress:", *inst.PrivateIpAddress)
+                }
                 fmt.Println("    InstanceType:", *inst.InstanceType)
                 fmt.Println("      LaunchTime:", inst.LaunchTime)
                 fmt.Println("           State:", *inst.State.Name)
