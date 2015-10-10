@@ -1,9 +1,10 @@
 package main
 
 import (
+    "flag"
     "fmt"
     "os"
-    "flag"
+
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/defaults"
     "github.com/aws/aws-sdk-go/service/ec2"
@@ -90,7 +91,7 @@ func boot(svc *ec2.EC2) {
 
     _, err = svc.CreateTags(&tag_params)
     if err != nil {
-        panic("Failed to tag Instaces")
+        panic(err)
     }
 }
 
