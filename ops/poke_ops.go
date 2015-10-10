@@ -3,6 +3,8 @@ package main
 import (
     "flag"
     "fmt"
+    "io/ioutil"
+    "net/http"
     "os"
 
     "github.com/aws/aws-sdk-go/aws"
@@ -61,6 +63,22 @@ func status(svc *ec2.EC2) {
     }
 }
 
+func get_my_ip() string {
+    resp, err := http.Get("http://checkip.amazonaws.com/")
+    if err != nil {
+        panic(err)
+    }
+
+    defer resp.Body.Close()
+    body_byte, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    body := string(body_byte)
+    return body[:len(body) - 1]
+}
+
 func boot(svc *ec2.EC2) {
     count := int64(4)
     params := &ec2.RunInstancesInput {
@@ -93,6 +111,22 @@ func boot(svc *ec2.EC2) {
     if err != nil {
         panic(err)
     }
+
+    subnets := []string{get_my_ip() + "/32", "128.32.37.0/8"}
+    for _, subnet := range subnets {
+        /* Adding everything to "default" is no good. as it persists between
+        * runs.  Instead, we should be creating a unique security group for
+        * each boot we do.  This requires a bit more though about the best way
+        * to organize it unfortunately.  For now, just attempt the add, and
+        * fail.  This at least gives devs access to the systems. */
+        _, err = svc.AuthorizeSecurityGroupIngress(
+            &ec2.AuthorizeSecurityGroupIngressInput {
+                CidrIp: aws.String(subnet),
+                GroupName: aws.String("Default"),
+                IpProtocol: aws.String("-1"),
+            })
+    }
+
 }
 
 func terminate(svc *ec2.EC2) {
