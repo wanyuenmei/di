@@ -16,8 +16,8 @@ coreos:
 		public-ip: #for inter-host communication
 
 	update: #coreos updates automatically, this option defines what will happen when an update occurs
-		reboot-strategy: "best-effort" #ensures that some clusters are still available
-		group: "master" #the channel that should be used for automatic updates, version of image initially downloaded
+		reboot-strategy: "off" #not going to update
+		group: "master"
 
 	units: #services to start
 		- name: "docker.service"
@@ -34,3 +34,4 @@ coreos:
 
 ssh-authorized-keys:
 hostname:
+users:
