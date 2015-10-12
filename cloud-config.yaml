@@ -1,0 +1,37 @@
+#cloud-config
+
+coreos:
+	etcd2:
+		discovery: #discovery url for bootstrapping cluster
+		initial-cluster: #initial cluster configuration for bootstrapping
+		listen-peer-urls: #list of URLs to listen on for peer traffic
+		listen-client-urls: #list of URLs to listen on for client traffic
+		advertise-client-urls: #list of member's client URLs to advertise to the rest of the cluster
+		initial-advertise-peer-urls: #list of member's peer URLs to advertise to the rest of the cluster [used to communicate etcd data around the cluster]
+
+	fleet: #systemd at cluster layer
+		public_ip: #IP address that should used for inter-host communication
+
+	flannel: #routing layer for fleet and etcd2
+		public-ip: #for inter-host communication
+
+	update: #coreos updates automatically, this option defines what will happen when an update occurs
+		reboot-strategy: "off" #not going to update
+		group: "master"
+
+	units: #services to start
+		- name: "docker.service"
+			command: "start"
+			content: |
+				[Service]
+				Environment=DOCKER_OPTS=''
+		- name: "etcd2.service"
+			command: "start"
+		- name: "fleet.service"
+			command: "start"
+		- name: "flannel.service"
+			command: "start"
+
+ssh-authorized-keys:
+hostname:
+users:
