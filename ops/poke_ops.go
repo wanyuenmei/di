@@ -1,15 +1,20 @@
 package main
 
 import (
-    "fmt"
-    "os"
     "flag"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+    "os"
+
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/defaults"
     "github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const TAGKEY string = "poke"
+
+var verbose bool = false
 
 func describe_instances(svc *ec2.EC2) *ec2.DescribeInstancesOutput {
 
@@ -34,18 +39,44 @@ func status(svc *ec2.EC2) {
 
     for _, res := range resp.Reservations {
         for _, inst := range res.Instances {
-            fmt.Println("{")
-            fmt.Println("      InstanceId:", *inst.InstanceId)
-            fmt.Println("    InstanceType:", *inst.InstanceType)
-            fmt.Println("      LaunchTime:", inst.LaunchTime)
-            fmt.Println("           State:", *inst.State.Name)
-            fmt.Print("            Tags:")
-            for _, tag:= range inst.Tags {
-                fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
+            if verbose {
+                fmt.Println(*inst)
+            } else {
+                fmt.Println("{")
+                fmt.Println("      InstanceId:", *inst.InstanceId)
+                if inst.PublicIpAddress != nil {
+                    fmt.Println(" PublicIPAddress:", *inst.PublicIpAddress)
+                }
+                if inst.PrivateIpAddress != nil {
+                    fmt.Println("PrivateIPAddress:", *inst.PrivateIpAddress)
+                }
+                fmt.Println("    InstanceType:", *inst.InstanceType)
+                fmt.Println("      LaunchTime:", inst.LaunchTime)
+                fmt.Println("           State:", *inst.State.Name)
+                fmt.Print(  "            Tags:")
+                for _, tag:= range inst.Tags {
+                    fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
+                }
+                fmt.Println("\n}")
             }
-            fmt.Println("\n}")
         }
     }
+}
+
+func get_my_ip() string {
+    resp, err := http.Get("http://checkip.amazonaws.com/")
+    if err != nil {
+        panic(err)
+    }
+
+    defer resp.Body.Close()
+    body_byte, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    body := string(body_byte)
+    return body[:len(body) - 1]
 }
 
 func boot(svc *ec2.EC2) {
@@ -78,8 +109,24 @@ func boot(svc *ec2.EC2) {
 
     _, err = svc.CreateTags(&tag_params)
     if err != nil {
-        panic("Failed to tag Instaces")
+        panic(err)
     }
+
+    subnets := []string{get_my_ip() + "/32", "128.32.37.0/8"}
+    for _, subnet := range subnets {
+        /* Adding everything to "default" is no good. as it persists between
+        * runs.  Instead, we should be creating a unique security group for
+        * each boot we do.  This requires a bit more though about the best way
+        * to organize it unfortunately.  For now, just attempt the add, and
+        * fail.  This at least gives devs access to the systems. */
+        _, err = svc.AuthorizeSecurityGroupIngress(
+            &ec2.AuthorizeSecurityGroupIngressInput {
+                CidrIp: aws.String(subnet),
+                GroupName: aws.String("Default"),
+                IpProtocol: aws.String("-1"),
+            })
+    }
+
 }
 
 func terminate(svc *ec2.EC2) {
@@ -108,10 +155,11 @@ func main() {
         flag.PrintDefaults()
     }
 
-    var verbose = flag.Bool("v", false, "Turn on verbose log messaging.")
+    var vp = flag.Bool("v", false, "Turn on verbose log messaging.")
     flag.Parse()
+    verbose = *vp
 
-    if *verbose {
+    if verbose {
         defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
     }
     defaults.DefaultConfig.Region = aws.String("us-west-2")
