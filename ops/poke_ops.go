@@ -13,17 +13,18 @@ import (
     "github.com/aws/aws-sdk-go/service/ec2"
 )
 
-const TAGKEY string = "poke"
-
 var verbose bool = false
 
+
+/* All this should be abstracted in an Instance class that goes all the way
+* from "spot request" to fulfilled. */
 func describe_instances(svc *ec2.EC2) *ec2.DescribeInstancesOutput {
 
     resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput {
         Filters: []*ec2.Filter {
             &ec2.Filter {
-                Name: aws.String("tag-key"),
-                Values: []*string{aws.String(TAGKEY)},
+                Name: aws.String("instance.group-name"),
+                Values: []*string{aws.String("DI")},
             },
         },
     })
@@ -37,7 +38,6 @@ func describe_instances(svc *ec2.EC2) *ec2.DescribeInstancesOutput {
 
 func status(svc *ec2.EC2) {
     resp := describe_instances(svc)
-
     for _, res := range resp.Reservations {
         for _, inst := range res.Instances {
             if verbose {
@@ -54,10 +54,6 @@ func status(svc *ec2.EC2) {
                 fmt.Println("    InstanceType:", *inst.InstanceType)
                 fmt.Println("      LaunchTime:", inst.LaunchTime)
                 fmt.Println("           State:", *inst.State.Name)
-                fmt.Print(  "            Tags:")
-                for _, tag:= range inst.Tags {
-                    fmt.Printf(" (%s, %s)", *tag.Key, *tag.Value)
-                }
                 fmt.Println("\n}")
             }
         }
@@ -90,54 +86,43 @@ func get_cloud_config() string {
 }
 
 func boot(svc *ec2.EC2) {
-    count := int64(4)
-    params := &ec2.RunInstancesInput {
-        ImageId: aws.String("ami-ed8b90dd"),
-        InstanceType: aws.String("t2.micro"),
-        UserData: aws.String(get_cloud_config()),
-        MinCount: &count,
-        MaxCount: &count,
-    }
+    svc.CreateSecurityGroup(&ec2.CreateSecurityGroupInput {
+        Description: aws.String("Declarative Infrastructure Group"),
+        GroupName:   aws.String("DI"),
+    })
 
-    res, err := svc.RunInstances(params)
-    if err != nil {
-        panic(err)
-    }
 
-    tag_params := ec2.CreateTagsInput {
-        Resources: nil,
-        Tags: []*ec2.Tag {
-            &ec2.Tag {
-                Key: aws.String(TAGKEY),
-                Value: aws.String("production"),
-            },
-        },
-    }
-
-    for _, inst := range res.Instances {
-        tag_params.Resources = append(tag_params.Resources, inst.InstanceId)
-    }
-
-    _, err = svc.CreateTags(&tag_params)
-    if err != nil {
-        panic(err)
-    }
-
+    /* XXX: Adding everything to "DI" is no good. as it persists between runs.
+     * Instead, we should be creating a unique security group for each boot we
+     * do.  This requires a bit more thought about the best way to organize it
+     * unfortunately.  For now, just attempt the add, and fail.  This at least
+     * gives devs access to the systems. */
     subnets := []string{get_my_ip() + "/32", "128.32.37.0/8"}
     for _, subnet := range subnets {
-        /* Adding everything to "default" is no good. as it persists between
-        * runs.  Instead, we should be creating a unique security group for
-        * each boot we do.  This requires a bit more though about the best way
-        * to organize it unfortunately.  For now, just attempt the add, and
-        * fail.  This at least gives devs access to the systems. */
-        _, err = svc.AuthorizeSecurityGroupIngress(
+        svc.AuthorizeSecurityGroupIngress(
             &ec2.AuthorizeSecurityGroupIngressInput {
                 CidrIp: aws.String(subnet),
-                GroupName: aws.String("Default"),
+                GroupName: aws.String("DI"),
                 IpProtocol: aws.String("-1"),
             })
     }
 
+    count := int64(4)
+    params := &ec2.RequestSpotInstancesInput {
+        SpotPrice: aws.String("0.02"),
+        LaunchSpecification: &ec2.RequestSpotLaunchSpecification {
+            ImageId: aws.String("ami-ef8b90df"),
+            InstanceType: aws.String("t1.micro"),
+            UserData: aws.String(get_cloud_config()),
+            SecurityGroups: []*string{aws.String("DI")},
+        },
+        InstanceCount: &count,
+    }
+
+    _, err := svc.RequestSpotInstances(params)
+    if err != nil {
+        panic(err)
+    }
 }
 
 func terminate(svc *ec2.EC2) {
