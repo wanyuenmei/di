@@ -1,6 +1,7 @@
 package main
 
 import (
+    "encoding/base64"
     "flag"
     "fmt"
     "io/ioutil"
@@ -79,11 +80,21 @@ func get_my_ip() string {
     return body[:len(body) - 1]
 }
 
+func get_cloud_config() string {
+    file, err := ioutil.ReadFile("cloud-config.yaml")
+    if err != nil {
+        panic(err)
+    }
+
+    return base64.StdEncoding.EncodeToString(file)
+}
+
 func boot(svc *ec2.EC2) {
     count := int64(4)
     params := &ec2.RunInstancesInput {
-        ImageId: aws.String("ami-9ff7e8af"),
+        ImageId: aws.String("ami-ed8b90dd"),
         InstanceType: aws.String("t2.micro"),
+        UserData: aws.String(get_cloud_config()),
         MinCount: &count,
         MaxCount: &count,
     }
