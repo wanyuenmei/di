@@ -1,3 +1,5 @@
 all:
-%:
-	$(MAKE) -C ops $@
+	go build
+
+install:
+	go install
