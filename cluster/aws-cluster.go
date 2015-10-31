@@ -26,7 +26,9 @@ type aws_cluster struct {
 
 /* Constructor and Cluster interface functions. */
 func new_aws(region string) Cluster {
-    session := session.New(&aws.Config{Region: &region})
+    session := session.New()
+    session.Config.Region = &region
+
     cluster := aws_cluster {
         config_chan: make(chan Config),
         status_chan: make(chan string),
