@@ -9,12 +9,9 @@ import (
     "os"
 
     "github.com/aws/aws-sdk-go/aws"
-    "github.com/aws/aws-sdk-go/aws/defaults"
+    "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/ec2"
 )
-
-var verbose bool = false
-
 
 /* All this should be abstracted in an Instance class that goes all the way
 * from "spot request" to fulfilled. */
@@ -40,22 +37,18 @@ func status(svc *ec2.EC2) {
     resp := describe_instances(svc)
     for _, res := range resp.Reservations {
         for _, inst := range res.Instances {
-            if verbose {
-                fmt.Println(*inst)
-            } else {
-                fmt.Println("{")
-                fmt.Println("      InstanceId:", *inst.InstanceId)
-                if inst.PublicIpAddress != nil {
-                    fmt.Println(" PublicIPAddress:", *inst.PublicIpAddress)
-                }
-                if inst.PrivateIpAddress != nil {
-                    fmt.Println("PrivateIPAddress:", *inst.PrivateIpAddress)
-                }
-                fmt.Println("    InstanceType:", *inst.InstanceType)
-                fmt.Println("      LaunchTime:", inst.LaunchTime)
-                fmt.Println("           State:", *inst.State.Name)
-                fmt.Println("\n}")
+            fmt.Println("{")
+            fmt.Println("      InstanceId:", *inst.InstanceId)
+            if inst.PublicIpAddress != nil {
+                fmt.Println(" PublicIPAddress:", *inst.PublicIpAddress)
             }
+            if inst.PrivateIpAddress != nil {
+                fmt.Println("PrivateIPAddress:", *inst.PrivateIpAddress)
+            }
+            fmt.Println("    InstanceType:", *inst.InstanceType)
+            fmt.Println("      LaunchTime:", inst.LaunchTime)
+            fmt.Println("           State:", *inst.State.Name)
+            fmt.Println("\n}")
         }
     }
 }
@@ -151,16 +144,9 @@ func main() {
         flag.PrintDefaults()
     }
 
-    var vp = flag.Bool("v", false, "Turn on verbose log messaging.")
     flag.Parse()
-    verbose = *vp
 
-    if verbose {
-        defaults.DefaultConfig.LogLevel = aws.LogLevel(aws.LogDebug)
-    }
-    defaults.DefaultConfig.Region = aws.String("us-west-2")
-
-    svc := ec2.New(nil)
+    svc := ec2.New(session.New(&aws.Config{Region: aws.String("us-west-2")}))
     for _, arg := range flag.Args() {
         switch arg {
         case "status":
