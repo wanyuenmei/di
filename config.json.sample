@@ -1,6 +1,7 @@
 {
     "RedCount": 8,
     "BlueCount": 9,
-    "InstanceCount": 5,
-    "CloudConfig": "cloud-config.yaml"
+    "HostCount": 3,
+    "CloudConfig": "cloud-config.yaml",
+    "Region": "us-west-2"
 }
