@@ -22,7 +22,7 @@ type Instance struct {
 type Config struct {
     InstanceCount int  /* Number of instances within the cluster. */
     Region string      /* AWS Availability zone. */
-    CloudConfig []byte /* Cloud-config to use when booting instances. */
+    CloudConfig string /* Cloud-config to use when booting instances. */
 }
 
 /* Available choices of CloudProvider. */

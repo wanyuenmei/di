@@ -44,12 +44,13 @@ func parseConfig(config_path string) *cluster.Config {
     * is crazy. */
     config.InstanceCount = temp_config.HostCount
     config.Region = temp_config.Region
-    config.CloudConfig, err = ioutil.ReadFile(temp_config.CloudConfig)
+    cfg, err := ioutil.ReadFile(temp_config.CloudConfig)
     if err != nil {
         log.Warning("Error reading cloud config")
         log.Warning(err.Error())
         return nil
     }
+    config.CloudConfig = string(cfg)
 
     return &config
 }
@@ -67,18 +68,19 @@ func watchConfigForUpdates(config_path string,
         panic(err)
     }
 
-    /* Read initial config */
-    new_config := parseConfig(config_path)
-    if new_config != nil {
-        config_chan <- *new_config
+    old_config := parseConfig(config_path)
+    if old_config != nil {
+        config_chan <- *old_config
     }
 
     for {
         select {
             case e := <-watcher.Events:
                 new_config := parseConfig(e.Name)
-                if new_config != nil {
+                if new_config != nil &&
+                    (old_config == nil || *old_config != *new_config) {
                     config_chan <- *new_config
+                    old_config = new_config
                 }
 
                 /* XXX: Some editors (e.g. vim) trigger a rename event, even
