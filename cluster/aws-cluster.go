@@ -2,10 +2,11 @@ package cluster
 
 import (
     "encoding/base64"
+    "fmt"
     "io/ioutil"
     "net/http"
+    "sort"
     "time"
-    "fmt"
 
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
@@ -61,6 +62,7 @@ func get_status(clst *aws_cluster) string {
         status += fmt.Sprintln(len(spots), "outstanding spot requests.")
     }
 
+    sort.Sort(ByInstId(instances))
     for _, inst := range(instances) {
         status += fmt.Sprintln(inst)
     }

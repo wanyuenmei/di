@@ -58,3 +58,18 @@ func (inst Instance) String() string {
 
     return fmt.Sprintf("Host<%s, %s, %s>", inst.Id, ip, ready)
 }
+
+/* ByInstId implements the sort interface on Instance. */
+type ByInstId []Instance
+
+func (insts ByInstId) Len() int {
+    return len(insts)
+}
+
+func (insts ByInstId) Swap(i, j int) {
+    insts[i], insts[j] = insts[j], insts[i]
+}
+
+func (insts ByInstId) Less(i, j int) bool {
+    return insts[i].Id < insts[j].Id
+}

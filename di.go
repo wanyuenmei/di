@@ -26,12 +26,21 @@ func main() {
     aws := cluster.New(cluster.AWS, the_config.Region)
     aws.UpdateConfig(the_config)
 
+    old_status := aws.GetStatus()
+    fmt.Println(old_status)
+
+    timeout := time.Tick(10 * time.Second)
     for {
         select {
             case the_config = <-config_chan:
                 aws.UpdateConfig(the_config)
+
+            case <-timeout:
+                status := aws.GetStatus()
+                if status != old_status {
+                    old_status = status
+                    fmt.Println(status)
+                }
         }
-        fmt.Println(aws.GetStatus())
-        time.Sleep(10 * time.Second)
     }
 }
