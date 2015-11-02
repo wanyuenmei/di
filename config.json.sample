@@ -1,0 +1,6 @@
+{
+    "RedCount": 8,
+    "BlueCount": 9,
+    "InstanceCount": 5,
+    "CloudConfig": "cloud-config.yaml"
+}

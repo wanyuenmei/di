@@ -21,6 +21,7 @@ type Instance struct {
 /* Configuration for a Cluster modified by UpdateConfig(). */
 type Config struct {
     InstanceCount int  /* Number of instances within the cluster. */
+    Region string      /* AWS Availability zone. */
     CloudConfig []byte /* Cloud-config to use when booting instances. */
 }
 
@@ -57,4 +58,3 @@ func (inst Instance) String() string {
 
     return fmt.Sprintf("Host<%s, %s, %s>", inst.Id, ip, ready)
 }
-
