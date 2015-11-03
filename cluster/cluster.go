@@ -27,10 +27,10 @@ const (
 type CloudProvider int
 
 /* Create a new cluster using 'provider' to host the cluster at 'region' */
-func New(provider CloudProvider, region string) Cluster {
+func New(provider CloudProvider, cfg config.Config) Cluster {
     switch (provider) {
     case AWS:
-        return new_aws(region)
+        return new_aws(cfg.Region, cfg.Namespace)
     default:
         panic("Cluster request for an unknown cloud provider.")
     }

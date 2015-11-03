@@ -20,19 +20,21 @@ var log = logging.MustGetLogger("aws-cluster")
 type aws_cluster struct {
     config_chan chan config.Config
     status_chan chan string
+    namespace string
 
     /* Only used by aws_thread(). */
     ec2 *ec2.EC2
 }
 
 /* Constructor and Cluster interface functions. */
-func new_aws(region string) Cluster {
+func new_aws(region string, namespace string) Cluster {
     session := session.New()
     session.Config.Region = &region
 
     cluster := aws_cluster {
         config_chan: make(chan config.Config),
         status_chan: make(chan string),
+        namespace: namespace,
         ec2: ec2.New(session),
     }
 
@@ -129,7 +131,7 @@ func get_instances(clst *aws_cluster) ([]Instance, []string) {
         Filters: []*ec2.Filter {
             &ec2.Filter {
                 Name: aws.String("instance.group-name"),
-                Values: []*string{aws.String("DI")},
+                Values: []*string{aws.String(clst.namespace)},
             },
         },
     })
@@ -155,7 +157,15 @@ func get_instances(clst *aws_cluster) ([]Instance, []string) {
         }
     }
 
-    resp, err := clst.ec2.DescribeSpotInstanceRequests(nil)
+    resp, err := clst.ec2.DescribeSpotInstanceRequests(
+        &ec2.DescribeSpotInstanceRequestsInput {
+            Filters: []*ec2.Filter {
+                &ec2.Filter {
+                    Name: aws.String("tag-key"),
+                    Values: []*string{aws.String(clst.namespace)},
+                },
+            },
+        })
 
     if err != nil {
         /* XXX: Do something reasonable instead. */
@@ -211,14 +221,14 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
     * module. */
     clst.ec2.CreateSecurityGroup(&ec2.CreateSecurityGroupInput {
         Description: aws.String("Declarative Infrastructure Group"),
-        GroupName:   aws.String("DI"),
+        GroupName:   aws.String(clst.namespace),
     })
 
-    /* XXX: Adding everything to "DI" is no good. as it persists between runs.
-     * Instead, we should be creating a unique security group for each boot we
-     * do.  This requires a bit more thought about the best way to organize it
-     * unfortunately.  For now, just attempt the add, and fail.  This at least
-     * gives devs access to the systems. */
+    /* XXX: Adding everything to clst.namespace is no good. as it persists
+    * between runs.  Instead, we should be creating a unique security group for
+    * each boot we do.  This requires a bit more thought about the best way to
+    * organize it unfortunately.  For now, just attempt the add, and fail.
+    * This at least gives devs access to the systems. */
      /* XXX: Really this needs to be in the policy layer somehow.  We need
      * network access policy for VMs which is distinct from what the containers
      * have. */
@@ -227,7 +237,7 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
         clst.ec2.AuthorizeSecurityGroupIngress(
             &ec2.AuthorizeSecurityGroupIngressInput {
                 CidrIp: aws.String(subnet),
-                GroupName: aws.String("DI"),
+                GroupName: aws.String(clst.namespace),
                 IpProtocol: aws.String("-1"),
             })
     }
@@ -241,14 +251,30 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
             ImageId: aws.String("ami-ef8b90df"),
             InstanceType: aws.String("t1.micro"),
             UserData: aws.String(cloud_config64),
-            SecurityGroups: []*string{aws.String("DI")},
+            SecurityGroups: []*string{aws.String(clst.namespace)},
         },
         InstanceCount: &count,
     }
 
-    _, err := clst.ec2.RequestSpotInstances(params)
+    resp, err := clst.ec2.RequestSpotInstances(params)
     if err != nil {
         panic(err)
+    }
+
+    var resources []*string
+    for _, request := range resp.SpotInstanceRequests {
+        resources = append(resources, request.SpotInstanceRequestId)
+    }
+
+    _, err = clst.ec2.CreateTags(&ec2.CreateTagsInput{
+        Tags: []*ec2.Tag { {
+            Key: aws.String(clst.namespace),
+            Value: aws.String("") } },
+        Resources: resources,
+    })
+
+    if (err != nil) {
+        log.Warning("Failed to create tag: ", err)
     }
 }
 

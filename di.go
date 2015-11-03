@@ -22,9 +22,9 @@ func main() {
 
     log.Info("Starting")
     config_chan := config.WatchConfig(*config_path)
-    the_config := <-config_chan
-    aws := cluster.New(cluster.AWS, the_config.Region)
-    aws.UpdateConfig(the_config)
+    config := <-config_chan
+    aws := cluster.New(cluster.AWS, config)
+    aws.UpdateConfig(config)
 
     old_status := aws.GetStatus()
     fmt.Println(old_status)
@@ -32,8 +32,8 @@ func main() {
     timeout := time.Tick(10 * time.Second)
     for {
         select {
-            case the_config = <-config_chan:
-                aws.UpdateConfig(the_config)
+            case config = <-config_chan:
+                aws.UpdateConfig(config)
 
             case <-timeout:
                 status := aws.GetStatus()

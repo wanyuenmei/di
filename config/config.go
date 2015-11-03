@@ -10,6 +10,8 @@ import (
 )
 
 type Config struct {
+    Namespace string
+
     RedCount int
     BlueCount int
     HostCount int           /* Number of VMs */
@@ -25,8 +27,9 @@ var log = logging.MustGetLogger("config")
 
 /* Convert 'cfg' its string representation. */
 func (cfg Config) String() string {
-    str := fmt.Sprintf("{\n\tHostCount: %d,\n\tRegion: %s\n}", cfg.HostCount,
-                       cfg.Region)
+    str := fmt.Sprintf(
+        "{\n\tNamespace: %s,\n\tHostCount: %d,\n\tRegion: %s\n}",
+        cfg.Namespace, cfg.HostCount, cfg.Region)
     return str
 }
 
