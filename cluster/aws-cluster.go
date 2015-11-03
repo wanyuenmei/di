@@ -8,17 +8,17 @@ import (
     "sort"
     "time"
 
+    "github.com/NetSys/di/config"
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/ec2"
-
     "github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("aws-cluster")
 
 type aws_cluster struct {
-    config_chan chan Config
+    config_chan chan config.Config
     status_chan chan string
 
     /* Only used by aws_thread(). */
@@ -31,7 +31,7 @@ func new_aws(region string) Cluster {
     session.Config.Region = &region
 
     cluster := aws_cluster {
-        config_chan: make(chan Config),
+        config_chan: make(chan config.Config),
         status_chan: make(chan string),
         ec2: ec2.New(session),
     }
@@ -40,7 +40,7 @@ func new_aws(region string) Cluster {
     return &cluster
 }
 
-func (clst *aws_cluster) UpdateConfig(cfg Config) {
+func (clst *aws_cluster) UpdateConfig(cfg config.Config) {
     clst.config_chan <- cfg
 }
 
@@ -91,17 +91,17 @@ func aws_thread(clst *aws_cluster) {
     }
 }
 
-func run(clst *aws_cluster, cfg Config) {
+func run(clst *aws_cluster, cfg config.Config) {
     instances, spots := get_instances(clst)
 
     total := len(instances) + len(spots)
-    if (total < cfg.InstanceCount) {
-        boot_instances(clst, cfg, cfg.InstanceCount - total)
+    if (total < cfg.HostCount) {
+        boot_instances(clst, cfg, cfg.HostCount - total)
         return
     }
 
-    if (total > cfg.InstanceCount) {
-        diff := total - cfg.InstanceCount
+    if (total > cfg.HostCount) {
+        diff := total - cfg.HostCount
 
         if (len(spots) > 0) {
             n_spots := len(spots)
@@ -204,7 +204,7 @@ func get_my_ip() string {
     return body[:len(body) - 1]
 }
 
-func boot_instances(clst *aws_cluster, cfg Config, n_boot int) {
+func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
     log.Info("Booting %d instances", n_boot)
 
     /* XXX: EWWWWWWWW.  This security group stuff should be handled in another

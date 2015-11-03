@@ -2,26 +2,36 @@ package config
 
 import (
     "encoding/json"
+    "fmt"
     "io/ioutil"
 
     "gopkg.in/fsnotify.v1"
     "github.com/op/go-logging"
-    "github.com/NetSys/di/cluster"
 )
 
-type di_config struct {
+type Config struct {
     RedCount int
     BlueCount int
     HostCount int           /* Number of VMs */
-    CloudConfig string      /* Path to cloud config */
     Region string           /* AWS availability zone */
+
+    /* Path to cloud config in the json file.  Contents of the cloud config
+    * when used outside of this module. */
+    CloudConfig string
 }
 
 var log = logging.MustGetLogger("config")
 
-func parseConfig(config_path string) *cluster.Config {
-    var temp_config di_config
-    var config cluster.Config
+
+/* Convert 'cfg' its string representation. */
+func (cfg Config) String() string {
+    str := fmt.Sprintf("{\n\tHostCount: %d,\n\tRegion: %s\n}", cfg.HostCount,
+                       cfg.Region)
+    return str
+}
+
+func parseConfig(config_path string) *Config {
+    var config Config
 
     config_file, err := ioutil.ReadFile(config_path)
     if err != nil {
@@ -30,21 +40,14 @@ func parseConfig(config_path string) *cluster.Config {
         return nil
     }
 
-    err = json.Unmarshal(config_file, &temp_config)
+    err = json.Unmarshal(config_file, &config)
     if err != nil {
         log.Warning("Malformed config")
         log.Warning(err.Error())
         return nil
     }
 
-    /* XXX: There's research in this somewhere.  How do we validate inputs into
-    * the policy?  What do we do with a policy that's wrong?  Also below, we
-    * want someone to be able to say "limit the number of instances for cost
-    * reasons" ... look at what's going on in amp for example.  100k in a month
-    * is crazy. */
-    config.InstanceCount = temp_config.HostCount
-    config.Region = temp_config.Region
-    cfg, err := ioutil.ReadFile(temp_config.CloudConfig)
+    cfg, err := ioutil.ReadFile(config.CloudConfig)
     if err != nil {
         log.Warning("Error reading cloud config")
         log.Warning(err.Error())
@@ -52,11 +55,16 @@ func parseConfig(config_path string) *cluster.Config {
     }
     config.CloudConfig = string(cfg)
 
+    /* XXX: There's research in this somewhere.  How do we validate inputs into
+    * the policy?  What do we do with a policy that's wrong?  Also below, we
+    * want someone to be able to say "limit the number of instances for cost
+    * reasons" ... look at what's going on in amp for example.  100k in a month
+    * is crazy. */
+
     return &config
 }
 
-func watchConfigForUpdates(config_path string,
-                           config_chan chan cluster.Config) {
+func watchConfigForUpdates(config_path string, config_chan chan Config) {
     watcher, err := fsnotify.NewWatcher()
     if err != nil {
         panic(err)
@@ -99,8 +107,8 @@ func watchConfigForUpdates(config_path string,
     }
 }
 
-func WatchConfig(config_path string) chan cluster.Config {
-    config_chan := make(chan cluster.Config)
+func WatchConfig(config_path string) chan Config {
+    config_chan := make(chan Config)
     go watchConfigForUpdates(config_path, config_chan)
     return config_chan
 }
