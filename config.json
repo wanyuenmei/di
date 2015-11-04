@@ -1,5 +1,6 @@
 {
     "Namespace": "DI",
+    "AdminACL": ["local"],
     "RedCount": 8,
     "BlueCount": 9,
     "HostCount": 3,

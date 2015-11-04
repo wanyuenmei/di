@@ -3,10 +3,9 @@ package cluster
 import (
     "encoding/base64"
     "fmt"
-    "io/ioutil"
-    "net/http"
     "sort"
     "time"
+    "errors"
 
     "github.com/NetSys/di/config"
     "github.com/aws/aws-sdk-go/aws"
@@ -94,8 +93,9 @@ func aws_thread(clst *aws_cluster) {
 }
 
 func run(clst *aws_cluster, cfg config.Config) {
-    instances, spots := get_instances(clst)
+    updateSecurityGroups(clst, cfg)
 
+    instances, spots := get_instances(clst)
     total := len(instances) + len(spots)
     if (total < cfg.HostCount) {
         boot_instances(clst, cfg, cfg.HostCount - total)
@@ -124,6 +124,99 @@ func run(clst *aws_cluster, cfg config.Config) {
             terminate_instances(clst, ids[:diff])
         }
     }
+}
+
+func updateSecurityGroups(clst *aws_cluster, cfg config.Config) error {
+    group_name := clst.namespace
+
+    resp, err := clst.ec2.DescribeSecurityGroups(
+        &ec2.DescribeSecurityGroupsInput {
+            Filters: []*ec2.Filter {
+                &ec2.Filter {
+                    Name: aws.String("group-name"),
+                    Values: []*string{aws.String(group_name)},
+                },
+            },
+        })
+
+    if err != nil {
+        return err
+    }
+
+    ingress := []*ec2.IpPermission{}
+    groups := resp.SecurityGroups
+    if len(groups) > 1 {
+        return errors.New("Multiple Security Groups with the same name: " +
+                          group_name)
+    } else if len(groups) == 0 {
+        clst.ec2.CreateSecurityGroup(&ec2.CreateSecurityGroupInput {
+            Description: aws.String("Declarative Infrastructure Group"),
+            GroupName:   aws.String(group_name),
+        })
+
+    } else {
+        /* XXX: Deal with egress rules. */
+        ingress = groups[0].IpPermissions
+    }
+
+    perm_map := make(map[string]bool)
+    for _, acl := range cfg.AdminACL {
+        perm_map[acl] = true
+    }
+
+    for i, p := range ingress {
+        if i > 0 || p.FromPort != nil || p.ToPort != nil ||
+        *p.IpProtocol != "-1" {
+            log.Info("Revoke Ingress Security Group: %s", *p)
+            _, err = clst.ec2.RevokeSecurityGroupIngress(
+                &ec2.RevokeSecurityGroupIngressInput {
+                    GroupName: aws.String(group_name),
+                    IpPermissions: []*ec2.IpPermission{p},})
+            if err != nil {
+                return err
+            }
+
+            continue
+        }
+
+        for _, ipr := range p.IpRanges {
+            ip := *ipr.CidrIp
+            if !perm_map[ip] {
+                log.Info("Revoke Ingress Security Group CidrIp: %s", ip)
+                _, err = clst.ec2.RevokeSecurityGroupIngress(
+                    &ec2.RevokeSecurityGroupIngressInput {
+                        GroupName: aws.String(group_name),
+                        CidrIp: aws.String(ip),
+                        FromPort: p.FromPort,
+                        IpProtocol: p.IpProtocol,
+                        ToPort: p.ToPort,})
+                if err != nil {
+                    return err
+                }
+            } else {
+                perm_map[ip] = false
+            }
+        }
+    }
+
+    for perm, install := range perm_map {
+        if !install {
+            continue
+        }
+
+        log.Info("Add ACL: %s", perm)
+        _, err = clst.ec2.AuthorizeSecurityGroupIngress(
+            &ec2.AuthorizeSecurityGroupIngressInput {
+                CidrIp: aws.String(perm),
+                GroupName: aws.String(group_name),
+                IpProtocol: aws.String("-1"),})
+
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 func get_instances(clst *aws_cluster) ([]Instance, []string) {
@@ -198,49 +291,8 @@ func get_instances(clst *aws_cluster) ([]Instance, []string) {
     return instances, spots
 }
 
-func get_my_ip() string {
-    resp, err := http.Get("http://checkip.amazonaws.com/")
-    if err != nil {
-        panic(err)
-    }
-
-    defer resp.Body.Close()
-    body_byte, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        panic(err)
-    }
-
-    body := string(body_byte)
-    return body[:len(body) - 1]
-}
-
 func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
     log.Info("Booting %d instances", n_boot)
-
-    /* XXX: EWWWWWWWW.  This security group stuff should be handled in another
-    * module. */
-    clst.ec2.CreateSecurityGroup(&ec2.CreateSecurityGroupInput {
-        Description: aws.String("Declarative Infrastructure Group"),
-        GroupName:   aws.String(clst.namespace),
-    })
-
-    /* XXX: Adding everything to clst.namespace is no good. as it persists
-    * between runs.  Instead, we should be creating a unique security group for
-    * each boot we do.  This requires a bit more thought about the best way to
-    * organize it unfortunately.  For now, just attempt the add, and fail.
-    * This at least gives devs access to the systems. */
-     /* XXX: Really this needs to be in the policy layer somehow.  We need
-     * network access policy for VMs which is distinct from what the containers
-     * have. */
-    subnets := []string{get_my_ip() + "/32", "128.32.37.0/8"}
-    for _, subnet := range subnets {
-        clst.ec2.AuthorizeSecurityGroupIngress(
-            &ec2.AuthorizeSecurityGroupIngressInput {
-                CidrIp: aws.String(subnet),
-                GroupName: aws.String(clst.namespace),
-                IpProtocol: aws.String("-1"),
-            })
-    }
 
     count := int64(n_boot)
     cloud_config64 := base64.StdEncoding.EncodeToString(

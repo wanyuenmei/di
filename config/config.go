@@ -4,6 +4,8 @@ import (
     "encoding/json"
     "fmt"
     "io/ioutil"
+    "net/http"
+    "reflect"
 
     "gopkg.in/fsnotify.v1"
     "github.com/op/go-logging"
@@ -16,6 +18,8 @@ type Config struct {
     BlueCount int
     HostCount int           /* Number of VMs */
     Region string           /* AWS availability zone */
+
+    AdminACL []string
 
     /* Path to cloud config in the json file.  Contents of the cloud config
     * when used outside of this module. */
@@ -31,6 +35,22 @@ func (cfg Config) String() string {
         "{\n\tNamespace: %s,\n\tHostCount: %d,\n\tRegion: %s\n}",
         cfg.Namespace, cfg.HostCount, cfg.Region)
     return str
+}
+
+func getMyIp () string {
+    resp, err := http.Get("http://checkip.amazonaws.com/")
+    if err != nil {
+        panic(err)
+    }
+
+    defer resp.Body.Close()
+    body_byte, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    body := string(body_byte)
+    return body[:len(body) - 1]
 }
 
 func parseConfig(config_path string) *Config {
@@ -57,6 +77,12 @@ func parseConfig(config_path string) *Config {
         return nil
     }
     config.CloudConfig = string(cfg)
+
+    for i, acl := range config.AdminACL {
+        if acl == "local" {
+            config.AdminACL[i] = getMyIp() + "/32"
+        }
+    }
 
     /* XXX: There's research in this somewhere.  How do we validate inputs into
     * the policy?  What do we do with a policy that's wrong?  Also below, we
@@ -89,7 +115,8 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
             case e := <-watcher.Events:
                 new_config := parseConfig(e.Name)
                 if new_config != nil &&
-                    (old_config == nil || *old_config != *new_config) {
+                    (old_config == nil ||
+                     !reflect.DeepEqual(*old_config, *new_config)) {
                     config_chan <- *new_config
                     old_config = new_config
                 }
