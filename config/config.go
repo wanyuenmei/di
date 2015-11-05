@@ -131,8 +131,6 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
                 }
             case err := <-watcher.Errors:
                 panic(err)
-            default:
-                continue
         }
     }
 }
