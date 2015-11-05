@@ -6,8 +6,8 @@ import (
     "io/ioutil"
     "net/http"
     "reflect"
+    "time"
 
-    "gopkg.in/fsnotify.v1"
     "github.com/op/go-logging"
 )
 
@@ -94,44 +94,18 @@ func parseConfig(config_path string) *Config {
 }
 
 func watchConfigForUpdates(config_path string, config_chan chan Config) {
-    watcher, err := fsnotify.NewWatcher()
-    if err != nil {
-        panic(err)
-    }
-    defer watcher.Close()
+    var old_config *Config
 
-    err = watcher.Add(config_path)
-    if err != nil {
-        panic(err)
-    }
-
-    old_config := parseConfig(config_path)
-    if old_config != nil {
-        config_chan <- *old_config
-    }
+    old_config = nil
 
     for {
-        select {
-            case e := <-watcher.Events:
-                new_config := parseConfig(e.Name)
-                if new_config != nil &&
-                    (old_config == nil ||
-                     !reflect.DeepEqual(*old_config, *new_config)) {
-                    config_chan <- *new_config
-                    old_config = new_config
-                }
-
-                /* XXX: Some editors (e.g. vim) trigger a rename event, even
-                 * if the filename doesn't actually change. This results in the
-                 * old listener becoming stale. If there's a cleaner way to do
-                 * this, let's replace this. */
-                if e.Op == fsnotify.Rename {
-                    watcher.Remove(e.Name)
-                    watcher.Add(config_path)
-                }
-            case err := <-watcher.Errors:
-                panic(err)
+        new_config := parseConfig(config_path)
+        if new_config != nil && (old_config == nil ||
+        !reflect.DeepEqual(*old_config, *new_config)) {
+            config_chan <- *new_config
+            old_config = new_config
         }
+        time.Sleep(2 * time.Second)
     }
 }
 
