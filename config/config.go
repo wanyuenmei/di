@@ -20,10 +20,7 @@ type Config struct {
     Region string           /* AWS availability zone */
 
     AdminACL []string
-
-    /* Path to cloud config in the json file.  Contents of the cloud config
-    * when used outside of this module. */
-    CloudConfig string
+    SSHAuthorizedKeys []string
 }
 
 var log = logging.MustGetLogger("config")
@@ -70,14 +67,6 @@ func parseConfig(config_path string) *Config {
         return nil
     }
 
-    cfg, err := ioutil.ReadFile(config.CloudConfig)
-    if err != nil {
-        log.Warning("Error reading cloud config")
-        log.Warning(err.Error())
-        return nil
-    }
-    config.CloudConfig = string(cfg)
-
     for i, acl := range config.AdminACL {
         if acl == "local" {
             config.AdminACL[i] = getMyIp() + "/32"
@@ -107,6 +96,31 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
         }
         time.Sleep(2 * time.Second)
     }
+}
+
+func CloudConfig(cfg Config) string {
+    cloud_config := "#cloud-config\n\n"
+
+    if len(cfg.SSHAuthorizedKeys) > 0 {
+        cloud_config += "ssh_authorized_keys:\n"
+        for _, key := range cfg.SSHAuthorizedKeys {
+            cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
+        }
+    }
+
+    cloud_config += `
+coreos:
+    etcd2:
+        discovery: "https://discovery.etcd.io/cc25c65bd08bf8b95f0a96dff290930c"
+        addr: $private_ipv4:4001
+        peer-addr: $private_ipv4:7001
+    units:
+        - name: etcd2.service
+          command: start
+        - name: fleet.service
+          command: start
+`
+    return cloud_config
 }
 
 func WatchConfig(config_path string) chan Config {

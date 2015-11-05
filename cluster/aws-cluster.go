@@ -296,7 +296,7 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
 
     count := int64(n_boot)
     cloud_config64 := base64.StdEncoding.EncodeToString(
-        []byte(cfg.CloudConfig))
+        []byte(config.CloudConfig(cfg)))
     params := &ec2.RequestSpotInstancesInput {
         SpotPrice: aws.String("0.02"),
         LaunchSpecification: &ec2.RequestSpotLaunchSpecification {
