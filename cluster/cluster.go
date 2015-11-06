@@ -32,7 +32,7 @@ type CloudProvider int
 func New(provider CloudProvider, cfg config.Config) Cluster {
     switch (provider) {
     case AWS:
-        return new_aws(cfg.Region, cfg.Namespace)
+        return newAws(cfg.Region, cfg.Namespace)
     default:
         panic("Cluster request for an unknown cloud provider.")
     }

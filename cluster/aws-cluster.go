@@ -21,12 +21,12 @@ type aws_cluster struct {
     status_chan chan string
     namespace string
 
-    /* Only used by aws_thread(). */
+    /* Only used by awsThread(). */
     ec2 *ec2.EC2
 }
 
 /* Constructor and Cluster interface functions. */
-func new_aws(region string, namespace string) Cluster {
+func newAws(region string, namespace string) Cluster {
     session := session.New()
     session.Config.Region = &region
 
@@ -37,7 +37,7 @@ func new_aws(region string, namespace string) Cluster {
         ec2: ec2.New(session),
     }
 
-    go aws_thread(&cluster)
+    go awsThread(&cluster)
     return &cluster
 }
 
@@ -52,9 +52,9 @@ func (clst *aws_cluster) GetStatus() string {
 
 /* Helpers. */
 /* XXX: Too many if statements here. Need to reorganize. */
-func get_status(clst *aws_cluster) string {
-    m_instances, m_spots := get_instances(clst, true)
-    w_instances, w_spots := get_instances(clst, false)
+func getStatus(clst *aws_cluster) string {
+    m_instances, m_spots := getInstances(clst, true)
+    w_instances, w_spots := getInstances(clst, false)
     status := ""
 
     if len(m_spots) == 0 && len(m_instances) == 0 {
@@ -87,7 +87,7 @@ func get_status(clst *aws_cluster) string {
     return status
 }
 
-func aws_thread(clst *aws_cluster) {
+func awsThread(clst *aws_cluster) {
     cfg := <-clst.config_chan
     log.Info("Initialized with Config: %s", cfg)
 
@@ -100,7 +100,7 @@ func aws_thread(clst *aws_cluster) {
             run(clst, cfg)
 
         case <-clst.status_chan:
-            clst.status_chan <- get_status(clst)
+            clst.status_chan <- getStatus(clst)
 
         case <-timeout:
             run(clst, cfg)
@@ -120,14 +120,14 @@ func run(clst *aws_cluster, cfg config.Config) {
             target = cfg.WorkerCount
         }
 
-        instances, spots := get_instances(clst, master)
+        instances, spots := getInstances(clst, master)
         total := len(instances) + len(spots)
         if (total < target) {
             /* Wait for leader before booting workers. */
             if !master && master_ip == "_" {
                 return
             }
-            boot_instances(clst, cfg, target - total, master, master_ip)
+            bootInstances(clst, cfg, target - total, master, master_ip)
             return
         }
 
@@ -141,7 +141,7 @@ func run(clst *aws_cluster, cfg config.Config) {
                 }
                 diff -= n_spots
 
-                cancel_spot_requests(clst, spots[:n_spots])
+                cancelSpotRequests(clst, spots[:n_spots])
             }
 
             if (diff > 0) {
@@ -150,7 +150,7 @@ func run(clst *aws_cluster, cfg config.Config) {
                 for _, inst := range instances {
                     ids = append(ids, inst.Id)
                 }
-                terminate_instances(clst, ids[:diff])
+                terminateInstances(clst, ids[:diff])
             }
         }
 
@@ -268,7 +268,7 @@ func updateSecurityGroups(clst *aws_cluster, cfg config.Config,
     return nil
 }
 
-func get_instances(clst *aws_cluster, master bool) ([]Instance, []string) {
+func getInstances(clst *aws_cluster, master bool) ([]Instance, []string) {
     var group_name string
     if master {
         group_name = clst.namespace + "_Masters"
@@ -353,7 +353,7 @@ func get_instances(clst *aws_cluster, master bool) ([]Instance, []string) {
     return instances, spots
 }
 
-func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int,
+func bootInstances(clst *aws_cluster, cfg config.Config, n_boot int,
                     master bool, master_ip string) {
     log.Info("Booting %d instances", n_boot)
 
@@ -411,7 +411,7 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int,
     }
 }
 
-func cancel_spot_requests(clst *aws_cluster, spots []string) {
+func cancelSpotRequests(clst *aws_cluster, spots []string) {
     log.Info("Cancel %d spot requests", len(spots))
 
     /* XXX: Handle Errors. */
@@ -420,7 +420,7 @@ func cancel_spot_requests(clst *aws_cluster, spots []string) {
     })
 }
 
-func terminate_instances(clst *aws_cluster, ids []string) {
+func terminateInstances(clst *aws_cluster, ids []string) {
     log.Info("Terminate %d instances", len(ids))
 
     /* XXX: Handle Errors. */
