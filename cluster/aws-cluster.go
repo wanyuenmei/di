@@ -16,7 +16,7 @@ import (
 
 var log = logging.MustGetLogger("aws-cluster")
 
-type aws_cluster struct {
+type awsCluster struct {
     config_chan chan config.Config
     status_chan chan string
     namespace string
@@ -30,7 +30,7 @@ func newAws(region string, namespace string) Cluster {
     session := session.New()
     session.Config.Region = &region
 
-    cluster := aws_cluster {
+    cluster := awsCluster {
         config_chan: make(chan config.Config),
         status_chan: make(chan string),
         namespace: namespace,
@@ -41,18 +41,18 @@ func newAws(region string, namespace string) Cluster {
     return &cluster
 }
 
-func (clst *aws_cluster) UpdateConfig(cfg config.Config) {
+func (clst *awsCluster) UpdateConfig(cfg config.Config) {
     clst.config_chan <- cfg
 }
 
-func (clst *aws_cluster) GetStatus() string {
+func (clst *awsCluster) GetStatus() string {
     clst.status_chan <- ""
     return <-clst.status_chan
 }
 
 /* Helpers. */
 /* XXX: Too many if statements here. Need to reorganize. */
-func getStatus(clst *aws_cluster) string {
+func getStatus(clst *awsCluster) string {
     m_instances, m_spots := getInstances(clst, true)
     w_instances, w_spots := getInstances(clst, false)
     status := ""
@@ -87,7 +87,7 @@ func getStatus(clst *aws_cluster) string {
     return status
 }
 
-func awsThread(clst *aws_cluster) {
+func awsThread(clst *awsCluster) {
     cfg := <-clst.config_chan
     log.Info("Initialized with Config: %s", cfg)
 
@@ -108,7 +108,7 @@ func awsThread(clst *aws_cluster) {
     }
 }
 
-func run(clst *aws_cluster, cfg config.Config) {
+func run(clst *awsCluster, cfg config.Config) {
     var master_ip string
     var target int
     master_ip = "_"
@@ -169,7 +169,7 @@ func run(clst *aws_cluster, cfg config.Config) {
     }
 }
 
-func updateSecurityGroups(clst *aws_cluster, cfg config.Config,
+func updateSecurityGroups(clst *awsCluster, cfg config.Config,
                           master bool) error {
     var group_name string
     if master {
@@ -268,7 +268,7 @@ func updateSecurityGroups(clst *aws_cluster, cfg config.Config,
     return nil
 }
 
-func getInstances(clst *aws_cluster, master bool) ([]Instance, []string) {
+func getInstances(clst *awsCluster, master bool) ([]Instance, []string) {
     var group_name string
     if master {
         group_name = clst.namespace + "_Masters"
@@ -353,7 +353,7 @@ func getInstances(clst *aws_cluster, master bool) ([]Instance, []string) {
     return instances, spots
 }
 
-func bootInstances(clst *aws_cluster, cfg config.Config, n_boot int,
+func bootInstances(clst *awsCluster, cfg config.Config, n_boot int,
                     master bool, master_ip string) {
     log.Info("Booting %d instances", n_boot)
 
@@ -411,7 +411,7 @@ func bootInstances(clst *aws_cluster, cfg config.Config, n_boot int,
     }
 }
 
-func cancelSpotRequests(clst *aws_cluster, spots []string) {
+func cancelSpotRequests(clst *awsCluster, spots []string) {
     log.Info("Cancel %d spot requests", len(spots))
 
     /* XXX: Handle Errors. */
@@ -420,7 +420,7 @@ func cancelSpotRequests(clst *aws_cluster, spots []string) {
     })
 }
 
-func terminateInstances(clst *aws_cluster, ids []string) {
+func terminateInstances(clst *awsCluster, ids []string) {
     log.Info("Terminate %d instances", len(ids))
 
     /* XXX: Handle Errors. */
