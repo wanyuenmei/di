@@ -51,21 +51,37 @@ func (clst *aws_cluster) GetStatus() string {
 }
 
 /* Helpers. */
+/* XXX: Too many if statements here. Need to reorganize. */
 func get_status(clst *aws_cluster) string {
-    instances, spots := get_instances(clst)
+    m_instances, m_spots := get_instances(clst, true)
+    w_instances, w_spots := get_instances(clst, false)
     status := ""
 
-    if len(spots) == 0 && len(instances) == 0 {
-        return "No Instances"
+    if len(m_spots) == 0 && len(m_instances) == 0 {
+        status += "No Masters\n"
     }
 
-    if len(spots) > 0 {
-        status += fmt.Sprintln(len(spots), "outstanding spot requests.")
+    if len(w_spots) == 0 && len(w_instances) == 0 {
+        status += "No Workers\n"
     }
 
-    sort.Sort(ByInstId(instances))
-    for _, inst := range(instances) {
-        status += fmt.Sprintln(inst)
+    if len(m_spots) > 0 {
+        status += fmt.Sprintln(len(m_spots), "outstanding master spot requests.")
+    }
+
+    if len(w_spots) > 0 {
+        status += fmt.Sprintln(len(w_spots), "outstanding worker spot requests.")
+    }
+
+    sort.Sort(ByInstId(m_instances))
+    sort.Sort(ByInstId(w_instances))
+    status += "Masters\n"
+    for _, inst := range(m_instances) {
+        status += fmt.Sprintln("\t",inst)
+    }
+    status += "Workers\n"
+    for _, inst := range(w_instances) {
+        status += fmt.Sprintln("\t",inst)
     }
 
     return status
@@ -93,41 +109,74 @@ func aws_thread(clst *aws_cluster) {
 }
 
 func run(clst *aws_cluster, cfg config.Config) {
-    updateSecurityGroups(clst, cfg)
-
-    instances, spots := get_instances(clst)
-    total := len(instances) + len(spots)
-    if (total < cfg.HostCount) {
-        boot_instances(clst, cfg, cfg.HostCount - total)
-        return
-    }
-
-    if (total > cfg.HostCount) {
-        diff := total - cfg.HostCount
-
-        if (len(spots) > 0) {
-            n_spots := len(spots)
-            if (diff < n_spots) {
-                n_spots = diff
-            }
-            diff -= n_spots
-
-            cancel_spot_requests(clst, spots[:n_spots])
+    var master_ip string
+    var target int
+    master_ip = "_"
+    for _, master := range []bool{true,false} {
+        updateSecurityGroups(clst, cfg, master)
+        if master {
+            target = cfg.MasterCount
+        } else {
+            target = cfg.WorkerCount
         }
 
-        if (diff > 0) {
-            var ids []string
-
-            for _, inst := range instances {
-                ids = append(ids, inst.Id)
+        instances, spots := get_instances(clst, master)
+        total := len(instances) + len(spots)
+        if (total < target) {
+            /* Wait for leader before booting workers. */
+            if !master && master_ip == "_" {
+                return
             }
-            terminate_instances(clst, ids[:diff])
+            boot_instances(clst, cfg, target - total, master, master_ip)
+            return
+        }
+
+        if (total > target) {
+            diff := total - target
+
+            if (len(spots) > 0) {
+                n_spots := len(spots)
+                if (diff < n_spots) {
+                    n_spots = diff
+                }
+                diff -= n_spots
+
+                cancel_spot_requests(clst, spots[:n_spots])
+            }
+
+            if (diff > 0) {
+                var ids []string
+
+                for _, inst := range instances {
+                    ids = append(ids, inst.Id)
+                }
+                terminate_instances(clst, ids[:diff])
+            }
+        }
+
+        /* XXX: Select a master instance to be the leader. This will change, but
+         * for now we just pick the instance with the lexographically greatest
+         * IP. */
+        /* XXX: Fix this for the case when a new master comes online and is
+         * picked as the leader, i.e. update the already running workers.
+         * this probably requires some kind of daemon to run on the workers. */
+        if master && len(instances) > 0 {
+            sort.Sort(ByInstIP(instances))
+            master_ip = *instances[0].PrivateIP
+        } else if master && len(instances) == 0 {
+            master_ip = "_"
         }
     }
 }
 
-func updateSecurityGroups(clst *aws_cluster, cfg config.Config) error {
-    group_name := clst.namespace
+func updateSecurityGroups(clst *aws_cluster, cfg config.Config,
+                          master bool) error {
+    var group_name string
+    if master {
+        group_name = clst.namespace + "_Masters"
+    } else {
+        group_name = clst.namespace + "_Workers"
+    }
 
     resp, err := clst.ec2.DescribeSecurityGroups(
         &ec2.DescribeSecurityGroupsInput {
@@ -219,12 +268,18 @@ func updateSecurityGroups(clst *aws_cluster, cfg config.Config) error {
     return nil
 }
 
-func get_instances(clst *aws_cluster) ([]Instance, []string) {
-   inst_resp, err := clst.ec2.DescribeInstances(&ec2.DescribeInstancesInput {
+func get_instances(clst *aws_cluster, master bool) ([]Instance, []string) {
+    var group_name string
+    if master {
+        group_name = clst.namespace + "_Masters"
+    } else {
+        group_name = clst.namespace + "_Workers"
+    }
+    inst_resp, err := clst.ec2.DescribeInstances(&ec2.DescribeInstancesInput {
         Filters: []*ec2.Filter {
             &ec2.Filter {
                 Name: aws.String("instance.group-name"),
-                Values: []*string{aws.String(clst.namespace)},
+                Values: []*string{aws.String(group_name)},
             },
         },
     })
@@ -245,17 +300,24 @@ func get_instances(clst *aws_cluster) ([]Instance, []string) {
             instance_map[id] = Instance {
                 Id: id,
                 PublicIP: inst.PublicIpAddress,
+                PrivateIP: inst.PrivateIpAddress,
                 Ready: ready,
             }
         }
     }
 
+    var tag string
+    if master {
+        tag = clst.namespace + "_Master"
+    } else {
+        tag = clst.namespace + "_Worker"
+    }
     resp, err := clst.ec2.DescribeSpotInstanceRequests(
         &ec2.DescribeSpotInstanceRequestsInput {
             Filters: []*ec2.Filter {
                 &ec2.Filter {
                     Name: aws.String("tag-key"),
-                    Values: []*string{aws.String(clst.namespace)},
+                    Values: []*string{aws.String(tag)},
                 },
             },
         })
@@ -291,19 +353,28 @@ func get_instances(clst *aws_cluster) ([]Instance, []string) {
     return instances, spots
 }
 
-func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
+func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int,
+                    master bool, master_ip string) {
     log.Info("Booting %d instances", n_boot)
 
     count := int64(n_boot)
     cloud_config64 := base64.StdEncoding.EncodeToString(
-        []byte(config.CloudConfig(cfg)))
+        []byte(config.CloudConfig(cfg, master, master_ip)))
+
+    var group_name string
+    if master {
+        group_name = clst.namespace + "_Masters"
+    } else {
+        group_name = clst.namespace + "_Workers"
+    }
+
     params := &ec2.RequestSpotInstancesInput {
         SpotPrice: aws.String("0.02"),
         LaunchSpecification: &ec2.RequestSpotLaunchSpecification {
             ImageId: aws.String("ami-d95d49b8"),
             InstanceType: aws.String("t1.micro"),
             UserData: aws.String(cloud_config64),
-            SecurityGroups: []*string{aws.String(clst.namespace)},
+            SecurityGroups: []*string{aws.String(group_name)},
         },
         InstanceCount: &count,
     }
@@ -318,10 +389,20 @@ func boot_instances(clst *aws_cluster, cfg config.Config, n_boot int) {
         resources = append(resources, request.SpotInstanceRequestId)
     }
 
+    var class_tag string
+    if master {
+        class_tag = clst.namespace + "_Master"
+    } else {
+        class_tag = clst.namespace + "_Worker"
+    }
+
     _, err = clst.ec2.CreateTags(&ec2.CreateTagsInput{
         Tags: []*ec2.Tag { {
             Key: aws.String(clst.namespace),
-            Value: aws.String("") } },
+            Value: aws.String("") },
+            { Key: aws.String(class_tag),
+            Value: aws.String("") },
+         },
         Resources: resources,
     })
 

@@ -2,6 +2,7 @@ package cluster
 
 import (
     "fmt"
+    "strings"
 
     "github.com/NetSys/di/config"
 )
@@ -18,6 +19,7 @@ type Instance struct {
 
     Ready bool /* True of the intance is up, otherwise false. */
     PublicIP *string /* IP address of the instance, or nil. */
+    PrivateIP *string /* Private IP address of the instance, or nil. */
 }
 
 /* Available choices of CloudProvider. */
@@ -51,6 +53,7 @@ func (inst Instance) String() string {
 
 /* ByInstId implements the sort interface on Instance. */
 type ByInstId []Instance
+type ByInstIP []Instance
 
 func (insts ByInstId) Len() int {
     return len(insts)
@@ -62,4 +65,17 @@ func (insts ByInstId) Swap(i, j int) {
 
 func (insts ByInstId) Less(i, j int) bool {
     return insts[i].Id < insts[j].Id
+}
+
+/* So does ByInstIP. */
+func (insts ByInstIP) Len() int {
+    return len(insts)
+}
+
+func (insts ByInstIP) Swap(i, j int) {
+    insts[i], insts[j] = insts[j], insts[i]
+}
+
+func (insts ByInstIP) Less(i, j int) bool {
+    return strings.Compare(*insts[i].PrivateIP,*insts[j].PrivateIP) == -1
 }
