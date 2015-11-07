@@ -2,7 +2,6 @@ package cluster
 
 import (
     "fmt"
-    "strings"
 
     "github.com/NetSys/di/config"
 )
@@ -15,11 +14,14 @@ type Cluster interface {
 
 /* A particular virtual machine within the Cluster. */
 type Instance struct {
-    Id string /* Opaque indentifier of the Instance. */
+    Id string
+    SpotId *string
+    InstId *string
 
-    Ready bool /* True of the intance is up, otherwise false. */
+    Ready bool
     PublicIP *string /* IP address of the instance, or nil. */
     PrivateIP *string /* Private IP address of the instance, or nil. */
+    Master bool
 }
 
 /* Available choices of CloudProvider. */
@@ -40,42 +42,55 @@ func New(provider CloudProvider, cfg config.Config) Cluster {
 
 /* Convert 'inst' to its string representation. */
 func (inst Instance) String() string {
-    ready := "Down"
-    ip := "<no IP>"
+    result := ""
 
-    if inst.Ready {
-        ready = "Up"
-        ip = *inst.PublicIP
+    role := "Master"
+    if !inst.Master {
+        role = "Worker"
     }
 
-    return fmt.Sprintf("Host<%s, %s, %s>", inst.Id, ip, ready)
+    spot := "Spot"
+    if inst.SpotId == nil {
+        spot = "Reserved"
+    }
+
+    ready := "Down"
+    if inst.Ready {
+        ready = "Up"
+    }
+
+    result += fmt.Sprintf("%s{%s, %s, %s", role, spot, inst.Id, ready)
+    if inst.Ready {
+        result += ", " + *inst.PublicIP + ", " + *inst.PrivateIP
+    }
+    result += "}"
+
+    return result
 }
 
-/* ByInstId implements the sort interface on Instance. */
-type ByInstId []Instance
-type ByInstIP []Instance
+/* ByInstPriority implements the sort interface on Instance. */
+type ByInstPriority []Instance
 
-func (insts ByInstId) Len() int {
+func (insts ByInstPriority) Len() int {
     return len(insts)
 }
 
-func (insts ByInstId) Swap(i, j int) {
+func (insts ByInstPriority) Swap(i, j int) {
     insts[i], insts[j] = insts[j], insts[i]
 }
 
-func (insts ByInstId) Less(i, j int) bool {
+func (insts ByInstPriority) Less(i, j int) bool {
+    if insts[i].Master != insts[j].Master {
+        return insts[i].Master
+    }
+
+    if insts[i].Ready != insts[j].Ready {
+        return insts[i].Ready
+    }
+
+    if (insts[i].SpotId == nil) != (insts[j].SpotId == nil) {
+        return insts[i].SpotId == nil
+    }
+
     return insts[i].Id < insts[j].Id
-}
-
-/* So does ByInstIP. */
-func (insts ByInstIP) Len() int {
-    return len(insts)
-}
-
-func (insts ByInstIP) Swap(i, j int) {
-    insts[i], insts[j] = insts[j], insts[i]
-}
-
-func (insts ByInstIP) Less(i, j int) bool {
-    return strings.Compare(*insts[i].PrivateIP,*insts[j].PrivateIP) == -1
 }

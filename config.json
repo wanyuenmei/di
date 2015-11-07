@@ -2,7 +2,8 @@
     "Namespace": "DI",
     "RedCount": 8,
     "BlueCount": 9,
-    "HostCount": 3,
+    "MasterCount": 3,
+    "WorkerCount": 3,
     "CloudConfig": "cloud-config.yaml",
     "Region": "us-west-2",
 
