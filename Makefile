@@ -1,5 +1,6 @@
 all:
-	go build
+	# A Go build bug causes it to behave badly with symlinks.
+	cd -P . && go build
 
 install:
-	go install
+	cd -P . && go install
