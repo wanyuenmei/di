@@ -99,17 +99,52 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
     }
 }
 
-func CloudConfig(cfg Config, master bool, master_ip string) string {
-    cloud_config := "#cloud-config\n\n"
+func MasterCloudConfig(cfg Config) string {
+    role_config := `
+        - name: ovn.service
+          command: start
+          content: |
+            [Unit]
+            Description=Open vSwitch virtual network
+            After=docker.service
 
-    if len(cfg.SSHAuthorizedKeys) > 0 {
-        cloud_config += "ssh_authorized_keys:\n"
-        for _, key := range cfg.SSHAuthorizedKeys {
-            cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
-        }
-    }
+            [Service]
+            Restart=always
+            ExecStartPre=/opt/docker pull melvinw/ubuntu-ovn
+            ExecStart=/opt/docker run -itd \
+                --privileged --net=host --name=ovn \
+                -v /etc/docker:/etc/docker:rw \
+                -v /var/run/docker.sock:/var/run/docker.sock:rw \
+                melvinw/ubuntu-ovn
+            ExecStartPost=/usr/bin/sleep 5
+            ExecStartPost=/opt/docker start ovn
+            ExecStartPost=/opt/docker exec ovn \
+                 mkdir -p /usr/local/var/log/openvswitch \
+                /usr/local/var/lib/openvswitch \
+                /usr/local/var/lib/openvswitch/pki \
+                /usr/local/var/run/openvswitch \
+                /usr/local/etc/openvswitch
+            ExecStartPost=/opt/docker exec ovn \
+                ovsdb-tool create /usr/local/etc/openvswitch/conf.db \
+                /usr/local/share/openvswitch/vswitch.ovsschema
+            ExecStartPost=/opt/docker exec ovn ovsdb-server \
+                --remote=punix:/usr/local/var/run/openvswitch/db.sock \
+                --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+                --log-file=/usr/local/var/log/openvswitch/ovsdb-server.log \
+                --pidfile --detach
+            ExecStartPost=/opt/docker exec ovn ovs-appctl -t ovsdb-server \
+                ovsdb-server/add-remote ptcp:6640
+            ExecStartPost=/opt/docker exec ovn \
+                /usr/local/share/openvswitch/scripts/ovn-ctl start_northd
+            ExecStartPost=/opt/docker exec ovn \
+                ovn-nbctl --db=unix:/usr/local/var/run/openvswitch/db.sock \
+                lswitch-add di_net`
 
-    ovn_worker := `
+    return cloudConfig(cfg, role_config, "localhost")
+}
+
+func WorkerCloudConfig(cfg Config, master_ip string) string {
+    role_config := `
         - name: ovs.service
           command: start
           content: |
@@ -165,46 +200,21 @@ func CloudConfig(cfg Config, master bool, master_ip string) string {
                 /usr/local/share/openvswitch/scripts/ovn-ctl start_controller
             ExecStartPost=/opt/docker exec ovn \
                 /opt/ovn-docker/ovn-docker-overlay-driver --detach`
+    role_config = fmt.Sprintf(role_config, master_ip)
+    return cloudConfig(cfg, role_config, master_ip)
+}
 
-    ovn_master := `
-        - name: ovn.service
-          command: start
-          content: |
-            [Unit]
-            Description=Open vSwitch virtual network
-            After=docker.service
 
-            [Service]
-            Restart=always
-            ExecStartPre=/opt/docker pull melvinw/ubuntu-ovn
-            ExecStart=/opt/docker run -itd \
-                --privileged --net=host --name=ovn \
-                -v /etc/docker:/etc/docker:rw \
-                -v /var/run/docker.sock:/var/run/docker.sock:rw \
-                melvinw/ubuntu-ovn
-            ExecStartPost=/usr/bin/sleep 5
-            ExecStartPost=/opt/docker start ovn
-            ExecStartPost=/opt/docker exec ovn \
-                 mkdir -p /usr/local/var/log/openvswitch \
-                /usr/local/var/lib/openvswitch \
-                /usr/local/var/lib/openvswitch/pki \
-                /usr/local/var/run/openvswitch \
-                /usr/local/etc/openvswitch
-            ExecStartPost=/opt/docker exec ovn \
-                ovsdb-tool create /usr/local/etc/openvswitch/conf.db \
-                /usr/local/share/openvswitch/vswitch.ovsschema
-            ExecStartPost=/opt/docker exec ovn ovsdb-server \
-                --remote=punix:/usr/local/var/run/openvswitch/db.sock \
-                --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
-                --log-file=/usr/local/var/log/openvswitch/ovsdb-server.log \
-                --pidfile --detach
-            ExecStartPost=/opt/docker exec ovn ovs-appctl -t ovsdb-server \
-                ovsdb-server/add-remote ptcp:6640
-            ExecStartPost=/opt/docker exec ovn \
-                /usr/local/share/openvswitch/scripts/ovn-ctl start_northd
-            ExecStartPost=/opt/docker exec ovn \
-                ovn-nbctl --db=unix:/usr/local/var/run/openvswitch/db.sock \
-                lswitch-add di_net`
+
+func cloudConfig(cfg Config, role_config string, master_ip string) string {
+    cloud_config := "#cloud-config\n\n"
+
+    if len(cfg.SSHAuthorizedKeys) > 0 {
+        cloud_config += "ssh_authorized_keys:\n"
+        for _, key := range cfg.SSHAuthorizedKeys {
+            cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
+        }
+    }
 
     cloud_config += `
 coreos:
@@ -233,14 +243,8 @@ coreos:
             ExecStartPre=/usr/bin/chmod a+x /opt/docker
             ExecStart=/opt/docker daemon --cluster-store=etcd://%s:4001`
 
-    if master {
-        cloud_config = fmt.Sprintf(cloud_config, "$private_ipv4")
-        cloud_config += ovn_master
-    } else {
-        cloud_config = fmt.Sprintf(cloud_config, master_ip)
-        cloud_config += fmt.Sprintf(ovn_worker, master_ip)
-    }
-
+    cloud_config += role_config
+    cloud_config = fmt.Sprintf(cloud_config, master_ip)
     return cloud_config
 }
 

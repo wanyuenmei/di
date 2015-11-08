@@ -358,8 +358,15 @@ func bootInstances(clst *awsCluster, cfg config.Config, n_boot int,
     log.Info("Booting %d instances", n_boot)
 
     count := int64(n_boot)
-    cloud_config64 := base64.StdEncoding.EncodeToString(
-        []byte(config.CloudConfig(cfg, master, master_ip)))
+
+    cloud_config := ""
+    if master {
+        cloud_config = config.MasterCloudConfig(cfg)
+    } else {
+        cloud_config = config.WorkerCloudConfig(cfg, master_ip)
+    }
+
+    cloud_config64 := base64.StdEncoding.EncodeToString([]byte(cloud_config))
 
     var group_name string
     if master {
