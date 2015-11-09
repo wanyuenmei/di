@@ -91,7 +91,53 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
 }
 
 func MasterCloudConfig(cfg Config) string {
-    role_config := `
+    return cloudConfig(cfg, true, "localhost")
+}
+
+func WorkerCloudConfig(cfg Config, master_ip string) string {
+    return cloudConfig(cfg, false, master_ip)
+}
+
+func cloudConfig(cfg Config, master bool, master_ip string) string {
+    cloud_config := "#cloud-config\n\n"
+
+    if len(cfg.SSHAuthorizedKeys) > 0 {
+        cloud_config += "ssh_authorized_keys:\n"
+        for _, key := range cfg.SSHAuthorizedKeys {
+            cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
+        }
+    }
+
+    cloud_config += `
+coreos:
+    etcd2:
+        addr: $private_ipv4:4001
+        peer-addr: $private_ipv4:7001
+    units:
+        - name: etcd2.service
+          command: start
+        - name: fleet.service
+          command: start
+        - name: docker.service
+          command: start
+          content: |
+            [Unit]
+            Description=Docker
+            After=etcd2.service
+            Requires=etcd2.service
+
+            [Service]
+            ExecStartPre=/usr/bin/mkdir /opt
+            ExecStartPre=/usr/bin/chmod 777 /opt
+            ExecStartPre=/usr/bin/wget \
+                https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
+                -O /opt/docker
+            ExecStartPre=/usr/bin/chmod a+x /opt/docker
+            ExecStart=/opt/docker daemon --cluster-store=etcd://%s:4001`
+    cloud_config = fmt.Sprintf(cloud_config, master_ip)
+
+    if master {
+        cloud_config += `
         - name: ovn.service
           command: start
           content: |
@@ -131,11 +177,8 @@ func MasterCloudConfig(cfg Config) string {
                 ovn-nbctl --db=unix:/usr/local/var/run/openvswitch/db.sock \
                 lswitch-add di_net`
 
-    return cloudConfig(cfg, role_config, "localhost")
-}
-
-func WorkerCloudConfig(cfg Config, master_ip string) string {
-    role_config := `
+    } else {
+        cloud_config += `
         - name: ovs.service
           command: start
           content: |
@@ -191,51 +234,8 @@ func WorkerCloudConfig(cfg Config, master_ip string) string {
                 /usr/local/share/openvswitch/scripts/ovn-ctl start_controller
             ExecStartPost=/opt/docker exec ovn \
                 /opt/ovn-docker/ovn-docker-overlay-driver --detach`
-    role_config = fmt.Sprintf(role_config, master_ip)
-    return cloudConfig(cfg, role_config, master_ip)
-}
-
-
-
-func cloudConfig(cfg Config, role_config string, master_ip string) string {
-    cloud_config := "#cloud-config\n\n"
-
-    if len(cfg.SSHAuthorizedKeys) > 0 {
-        cloud_config += "ssh_authorized_keys:\n"
-        for _, key := range cfg.SSHAuthorizedKeys {
-            cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
-        }
     }
 
-    cloud_config += `
-coreos:
-    etcd2:
-        addr: $private_ipv4:4001
-        peer-addr: $private_ipv4:7001
-    units:
-        - name: etcd2.service
-          command: start
-        - name: fleet.service
-          command: start
-        - name: docker.service
-          command: start
-          content: |
-            [Unit]
-            Description=Docker
-            After=etcd2.service
-            Requires=etcd2.service
-
-            [Service]
-            ExecStartPre=/usr/bin/mkdir /opt
-            ExecStartPre=/usr/bin/chmod 777 /opt
-            ExecStartPre=/usr/bin/wget \
-                https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
-                -O /opt/docker
-            ExecStartPre=/usr/bin/chmod a+x /opt/docker
-            ExecStart=/opt/docker daemon --cluster-store=etcd://%s:4001`
-
-    cloud_config += role_config
-    cloud_config = fmt.Sprintf(cloud_config, master_ip)
     return cloud_config
 }
 
