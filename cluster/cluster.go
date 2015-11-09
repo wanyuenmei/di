@@ -18,10 +18,10 @@ type Instance struct {
     SpotId *string
     InstId *string
 
-    Ready bool
     PublicIP *string /* IP address of the instance, or nil. */
     PrivateIP *string /* Private IP address of the instance, or nil. */
     Master bool
+    State string
 }
 
 /* Available choices of CloudProvider. */
@@ -54,15 +54,15 @@ func (inst Instance) String() string {
         spot = "Reserved"
     }
 
-    ready := "Down"
-    if inst.Ready {
-        ready = "Up"
+    result += fmt.Sprintf("%s{%s, %s, %s", role, spot, inst.Id, inst.State)
+    if inst.PublicIP != nil {
+        result += ", " + *inst.PublicIP
     }
 
-    result += fmt.Sprintf("%s{%s, %s, %s", role, spot, inst.Id, ready)
-    if inst.Ready {
-        result += ", " + *inst.PublicIP + ", " + *inst.PrivateIP
+    if inst.PrivateIP != nil {
+        result += ", " + *inst.PrivateIP
     }
+
     result += "}"
 
     return result
@@ -84,8 +84,12 @@ func (insts ByInstPriority) Less(i, j int) bool {
         return insts[i].Master
     }
 
-    if insts[i].Ready != insts[j].Ready {
-        return insts[i].Ready
+    if (insts[i].PublicIP == nil) != (insts[j].PublicIP == nil) {
+        return insts[i].PublicIP != nil
+    }
+
+    if (insts[i].PrivateIP == nil) != (insts[j].PrivateIP == nil) {
+        return insts[i].PrivateIP != nil
     }
 
     if (insts[i].SpotId == nil) != (insts[j].SpotId == nil) {

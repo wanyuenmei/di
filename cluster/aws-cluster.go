@@ -52,20 +52,15 @@ func (clst *awsCluster) GetStatus() string {
 
 /* Helpers. */
 func getStatus(clst *awsCluster) string {
-    masters, workers, err := getInstances(clst)
+    instances, err := getInstances(clst)
     if err != nil {
         log.Warning("Failed to get instances: %s", err)
         return "Failed to get status"
     }
 
-    status := "Masters:\n"
-    for _, inst := range(masters) {
-        status += fmt.Sprintln("\t",inst)
-    }
-
-    status += "Workers:\n"
-    for _, inst := range(workers) {
-        status += fmt.Sprintln("\t",inst)
+    status := ""
+    for _, inst := range(instances) {
+        status += fmt.Sprintln(inst)
     }
 
     return status
@@ -120,42 +115,36 @@ func updateMasters(clst *awsCluster, cfg config.Config,
     * avoid confusing etcd. .  In order to avoid race conditions, after booting
     * we wait until the new nodes are actually visible form the API. */
     bootMasters(clst, cfg, cfg.MasterCount)
-    for i := 0; i < 30; i++ {
-        masters, _, err := getInstances(clst)
-        if err == nil && len(masters) == cfg.MasterCount {
-            log.Info("Successfully booted master cluster.")
-            return nil
-        }
-        time.Sleep(5 * time.Second)
-    }
-
-    log.Warning("Timed out attempting to boot master cluster.")
-    masters, workers, err := getInstances(clst)
-    if err != nil {
-        stopInstances(clst, masters)
-        stopInstances(clst, workers)
-    }
     return nil
 }
 
 func run(clst *awsCluster, cfg config.Config) {
-    masters, workers, err := getInstances(clst)
+    instances, err := getInstances(clst)
     if err != nil {
         log.Warning("Failed to get instances: %s", err)
         return
     }
 
     if (cfg.MasterCount == 0 || cfg.WorkerCount == 0) {
-        if (len(masters) != 0 || len(workers) != 0) {
+        if (len(instances) != 0) {
             log.Info("Must have at least 1 master and 1 worker." +
             " Stopping everything.")
-            stopInstances(clst, masters)
-            stopInstances(clst, workers)
+            stopInstances(clst, instances)
         }
         return
     }
 
     updateSecurityGroups(clst, cfg)
+
+    var masters []Instance
+    var workers []Instance
+    for _, inst := range instances {
+        if inst.Master {
+            masters = append(masters, inst)
+        } else {
+            workers = append(workers, inst)
+        }
+    }
 
     master_ip := updateMasters(clst, cfg, masters, workers)
     if master_ip == nil {
@@ -272,7 +261,7 @@ func tagsIsMaster(tags []*ec2.Tag) bool {
 
 /* Returns the list of master and worker nodes each sorted by priortity.
 * Otherwise returns an error. */
-func getInstances(clst *awsCluster) ([]Instance, []Instance, error) {
+func getInstances(clst *awsCluster) ([]Instance, error) {
     instances := []Instance{}
 
     instance_map := make(map[string]*ec2.Instance)
@@ -289,7 +278,7 @@ func getInstances(clst *awsCluster) ([]Instance, []Instance, error) {
     })
 
     if err != nil {
-        return instances, instances, err
+        return instances, err
     }
 
     spot_resp, err := clst.ec2.DescribeSpotInstanceRequests(
@@ -303,7 +292,7 @@ func getInstances(clst *awsCluster) ([]Instance, []Instance, error) {
         })
 
     if err != nil {
-        return instances, instances, err
+        return instances, err
     }
 
     /* Build the instance_map and spot_map. */
@@ -346,6 +335,7 @@ func getInstances(clst *awsCluster) ([]Instance, []Instance, error) {
             Id: *spot.SpotInstanceRequestId,
             SpotId: spot.SpotInstanceRequestId,
             InstId: spot.InstanceId,
+            State: *spot.State,
             Master: tagsIsMaster(spot.Tags),
         })
     }
@@ -363,44 +353,60 @@ func getInstances(clst *awsCluster) ([]Instance, []Instance, error) {
     }
 
     /* Finish and sort the Instance structs. */
-    masters := []Instance{}
-    workers := []Instance{}
-    for _, instance := range(instances) {
-        if instance.InstId != nil {
-            inst := instance_map[*instance.InstId]
+    for i, _ := range(instances) {
+        if instances[i].InstId != nil {
+            inst := instance_map[*instances[i].InstId]
             if inst != nil {
-                instance.PrivateIP = inst.PrivateIpAddress
-                instance.PublicIP = inst.PublicIpAddress
-                instance.Ready = instance.PrivateIP != nil &&
-                                 instance.PublicIP != nil
+                instances[i].PrivateIP = inst.PrivateIpAddress
+                instances[i].PublicIP = inst.PublicIpAddress
+                instances[i].State = *inst.State.Name
             }
-        }
-
-        if instance.Master {
-            masters = append(masters, instance)
-        } else {
-            workers = append(workers, instance)
         }
     }
 
-    sort.Sort(ByInstPriority(masters))
-    sort.Sort(ByInstPriority(workers))
-    return masters, workers, nil
+    sort.Sort(ByInstPriority(instances))
+    return instances, nil
 }
 
 func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) {
     log.Info("Booting %d Master Instances", n_boot)
-    bootInstances(clst, n_boot, config.MasterCloudConfig(cfg), true)
+    bootInstances(clst, n_boot, config.MasterCloudConfig(cfg), "master")
 }
 
 func bootWorkers(clst *awsCluster, cfg config.Config, master_ip string,
                  n_boot int) {
     log.Info("Booting %d Workers Instances", n_boot)
     bootInstances(clst, n_boot, config.WorkerCloudConfig(cfg, master_ip),
-                  false)
+                  "worker")
 }
 
-func bootInstances(clst *awsCluster, n_boot int, config string, master bool) {
+func waitForInstances(clst *awsCluster, ids []*string) error {
+OuterLoop:
+    for i := 0; i < 30; i++ {
+        resp, err := clst.ec2.DescribeSpotInstanceRequests(nil)
+        if err != nil {
+            return err
+        }
+
+        rmap := make(map[string]bool)
+        for _, request := range resp.SpotInstanceRequests {
+            rmap[*request.SpotInstanceRequestId] = true
+        }
+
+        for _, id := range ids {
+            if !rmap[*id] {
+                time.Sleep(5 * time.Second)
+                continue OuterLoop
+            }
+        }
+
+        return nil
+    }
+
+    return errors.New("Timed out")
+}
+
+func bootInstances(clst *awsCluster, n_boot int, config string, role string) {
     count := int64(n_boot)
     cloud_config64 := base64.StdEncoding.EncodeToString([]byte(config))
 
@@ -421,29 +427,48 @@ func bootInstances(clst *awsCluster, n_boot int, config string, master bool) {
         return
     }
 
-    var resources []*string
+    var spotIds []*string
     for _, request := range resp.SpotInstanceRequests {
-        resources = append(resources, request.SpotInstanceRequestId)
+        spotIds = append(spotIds, request.SpotInstanceRequestId)
     }
 
-    tags := []*ec2.Tag {{
-        Key: aws.String(clst.namespace),
-        Value: aws.String("")},}
-
-    if master {
-        tags = append(tags, &ec2.Tag {
-            Key: aws.String("master"),
-            Value: aws.String(""),
+    for i := 0; ; i++ {
+        _, err = clst.ec2.CreateTags(&ec2.CreateTagsInput {
+            Tags: []*ec2.Tag {
+                &ec2.Tag { Key: aws.String(role), Value: aws.String(""), },
+                &ec2.Tag { Key: aws.String(clst.namespace),
+                Value: aws.String(""), },
+            },
+            Resources: spotIds,
         })
+
+        if err == nil {
+            log.Info("Successfully Tagged Instances")
+            break
+        }
+
+        if (i >= 30) {
+            log.Warning("Failed to tag spot requests: %s." +
+                        "Cancelling spot requests.", err)
+
+            _, err := clst.ec2.CancelSpotInstanceRequests(
+                &ec2.CancelSpotInstanceRequestsInput {
+                    SpotInstanceRequestIds: spotIds,
+            })
+
+            if err != nil {
+                log.Warning("Failed to cancel spot requests: %s", err)
+            }
+            return
+        }
+
+        time.Sleep(5 * time.Second)
     }
 
-    _, err = clst.ec2.CreateTags(&ec2.CreateTagsInput{
-        Tags: tags,
-        Resources: resources,
-    })
-
-    if (err != nil) {
-        log.Warning("Failed to tag spot requests: %s", err)
+    err = waitForInstances(clst, spotIds)
+    if err != nil {
+        log.Warning("Error waiting for new spot requests: %s", err)
+        return
     }
 }
 
