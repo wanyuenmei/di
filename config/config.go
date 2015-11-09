@@ -4,11 +4,12 @@ import (
     "encoding/json"
     "fmt"
     "io/ioutil"
-    "net/http"
     "reflect"
     "time"
 
     "github.com/op/go-logging"
+
+    "github.com/NetSys/di/util"
 )
 
 type Config struct {
@@ -35,22 +36,6 @@ func (cfg Config) String() string {
     return str
 }
 
-func getMyIp () string {
-    resp, err := http.Get("http://checkip.amazonaws.com/")
-    if err != nil {
-        panic(err)
-    }
-
-    defer resp.Body.Close()
-    body_byte, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        panic(err)
-    }
-
-    body := string(body_byte)
-    return body[:len(body) - 1]
-}
-
 func parseConfig(config_path string) *Config {
     var config Config
 
@@ -70,7 +55,13 @@ func parseConfig(config_path string) *Config {
 
     for i, acl := range config.AdminACL {
         if acl == "local" {
-            config.AdminACL[i] = getMyIp() + "/32"
+            ip, err := util.MyIp()
+            if err != nil {
+                log.Warning("Failed to get local IP address. Skipping ACL: %s",
+                            err)
+            } else {
+                config.AdminACL[i] = ip + "/32"
+            }
         }
     }
 
