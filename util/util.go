@@ -25,3 +25,8 @@ func httpRequest(url string) (string, error){
 func MyIp() (string, error) {
     return httpRequest("http://checkip.amazonaws.com/")
 }
+
+func NewDiscoveryToken(memberCount int) (string, error) {
+    return httpRequest("https://discovery.etcd.io/new?size=" +
+                       string(memberCount))
+}

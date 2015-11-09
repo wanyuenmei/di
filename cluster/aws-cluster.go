@@ -8,6 +8,7 @@ import (
     "errors"
 
     "github.com/NetSys/di/config"
+    "github.com/NetSys/di/util"
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/ec2"
@@ -114,7 +115,10 @@ func updateMasters(clst *awsCluster, cfg config.Config,
     /* It is absolutely critical that we boot the master cluster properly to
     * avoid confusing etcd. .  In order to avoid race conditions, after booting
     * we wait until the new nodes are actually visible form the API. */
-    bootMasters(clst, cfg, cfg.MasterCount)
+    err := bootMasters(clst, cfg, cfg.MasterCount)
+    if err != nil {
+        log.Warning("Failed to boot master cluster: %s", err)
+    }
     return nil
 }
 
@@ -368,9 +372,16 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
     return instances, nil
 }
 
-func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) {
+func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) error {
+    token, err := util.NewDiscoveryToken(n_boot)
+    if err != nil {
+        return err
+    }
+
     log.Info("Booting %d Master Instances", n_boot)
-    bootInstances(clst, n_boot, config.MasterCloudConfig(cfg), "master")
+    cloud_config := config.MasterCloudConfig(cfg, token)
+    bootInstances(clst, n_boot, cloud_config, "master")
+    return nil
 }
 
 func bootWorkers(clst *awsCluster, cfg config.Config, master_ip string,
@@ -406,7 +417,7 @@ OuterLoop:
     return errors.New("Timed out")
 }
 
-func bootInstances(clst *awsCluster, n_boot int, config string, role string) {
+func bootInstances(clst *awsCluster, n_boot int, config, role string) error {
     count := int64(n_boot)
     cloud_config64 := base64.StdEncoding.EncodeToString([]byte(config))
 
@@ -423,8 +434,7 @@ func bootInstances(clst *awsCluster, n_boot int, config string, role string) {
 
     resp, err := clst.ec2.RequestSpotInstances(params)
     if err != nil {
-        log.Warning("Failed to boot Spot Insances: ", err)
-        return
+        return err
     }
 
     var spotIds []*string
@@ -458,8 +468,8 @@ func bootInstances(clst *awsCluster, n_boot int, config string, role string) {
 
             if err != nil {
                 log.Warning("Failed to cancel spot requests: %s", err)
+                return err
             }
-            return
         }
 
         time.Sleep(5 * time.Second)
@@ -468,8 +478,10 @@ func bootInstances(clst *awsCluster, n_boot int, config string, role string) {
     err = waitForInstances(clst, spotIds)
     if err != nil {
         log.Warning("Error waiting for new spot requests: %s", err)
-        return
+        return err
     }
+
+    return nil
 }
 
 func stopInstances(clst *awsCluster, insts []Instance) {

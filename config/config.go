@@ -90,15 +90,15 @@ func watchConfigForUpdates(config_path string, config_chan chan Config) {
     }
 }
 
-func MasterCloudConfig(cfg Config) string {
-    return cloudConfig(cfg, true, "localhost")
+func MasterCloudConfig(cfg Config, token string) string {
+    return cloudConfig(cfg, true, token, "localhost")
 }
 
 func WorkerCloudConfig(cfg Config, master_ip string) string {
-    return cloudConfig(cfg, false, master_ip)
+    return cloudConfig(cfg, false, "", master_ip)
 }
 
-func cloudConfig(cfg Config, master bool, master_ip string) string {
+func cloudConfig(cfg Config, master bool, token, master_ip string) string {
     cloud_config := "#cloud-config\n\n"
 
     if len(cfg.SSHAuthorizedKeys) > 0 {
@@ -110,9 +110,25 @@ func cloudConfig(cfg Config, master bool, master_ip string) string {
 
     cloud_config += `
 coreos:
-    etcd2:
+    etcd2:`
+
+    if master {
+        cloud_config += fmt.Sprintf(`
+        discovery: %s
+        advertise-client-urls: http://$private_ipv4:2379,http://$private_ipv4:4001
+        initial-advertise-peer-urls: http://$private_ipv4:2380
+        listen-client-urls: http://0.0.0.0:2379,http://0.0.0.0:4001
+        listen-peer-urls: http://$private_ipv4:2380
+        `, token)
+    } else {
+        /* TODO this is wrong. */
+        cloud_config += `
         addr: $private_ipv4:4001
         peer-addr: $private_ipv4:7001
+        `
+    }
+
+    cloud_config += `
     units:
         - name: etcd2.service
           command: start
