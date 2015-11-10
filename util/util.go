@@ -1,8 +1,10 @@
 package util
 
 import (
-    "net/http"
+    "fmt"
     "io/ioutil"
+    "net/http"
+    "strings"
 )
 
 func httpRequest(url string) (string, error){
@@ -13,13 +15,12 @@ func httpRequest(url string) (string, error){
 
     defer resp.Body.Close()
 
-    body_byte, err := ioutil.ReadAll(resp.Body)
+    body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         return "<error>", err
     }
 
-    body := string(body_byte)
-    return body[:len(body) - 1], nil
+    return strings.TrimSpace(string(body)), err
 }
 
 func MyIp() (string, error) {
@@ -27,6 +28,6 @@ func MyIp() (string, error) {
 }
 
 func NewDiscoveryToken(memberCount int) (string, error) {
-    return httpRequest("https://discovery.etcd.io/new?size=" +
-                       string(memberCount))
+    return httpRequest(fmt.Sprintf("https://discovery.etcd.io/new?size=%d",
+                       memberCount))
 }
