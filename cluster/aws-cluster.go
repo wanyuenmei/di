@@ -158,7 +158,10 @@ func run(clst *awsCluster, cfg config.Config) {
     if len(workers) > cfg.WorkerCount {
         stopInstances(clst, workers[cfg.WorkerCount:])
     } else if len(workers) < cfg.WorkerCount {
-        bootWorkers(clst, cfg, *master_ip, cfg.WorkerCount - len(workers))
+        err := bootWorkers(clst, cfg, *master_ip, cfg.WorkerCount - len(workers))
+        if err != nil {
+            log.Warning("Failed to boot workers: %s", err)
+        }
     }
 }
 
@@ -380,15 +383,14 @@ func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) error {
 
     log.Info("Booting %d Master Instances", n_boot)
     cloud_config := config.MasterCloudConfig(cfg, token)
-    bootInstances(clst, n_boot, cloud_config, "master")
-    return nil
+    return bootInstances(clst, n_boot, cloud_config, "master")
 }
 
 func bootWorkers(clst *awsCluster, cfg config.Config, master_ip string,
-                 n_boot int) {
+                 n_boot int) error {
     log.Info("Booting %d Workers Instances", n_boot)
-    bootInstances(clst, n_boot, config.WorkerCloudConfig(cfg, master_ip),
-                  "worker")
+    return bootInstances(clst, n_boot, config.WorkerCloudConfig(cfg, master_ip),
+                         "worker")
 }
 
 func waitForInstances(clst *awsCluster, ids []*string) error {
