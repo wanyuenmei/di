@@ -190,7 +190,6 @@ func updateSecurityGroups(clst *awsCluster, cfg config.Config) error {
             Description: aws.String("Declarative Infrastructure Group"),
             GroupName:   aws.String(clst.namespace),
         })
-
     } else {
         /* XXX: Deal with egress rules. */
         ingress = groups[0].IpPermissions
@@ -201,9 +200,10 @@ func updateSecurityGroups(clst *awsCluster, cfg config.Config) error {
         perm_map[acl] = true
     }
 
+    groupIngressExists := false
     for i, p := range ingress {
-        if i > 0 || p.FromPort != nil || p.ToPort != nil ||
-        *p.IpProtocol != "-1" {
+        if (i > 0 || p.FromPort != nil || p.ToPort != nil ||
+        *p.IpProtocol != "-1") && p.UserIdGroupPairs == nil {
             log.Info("Revoke Ingress Security Group: %s", *p)
             _, err = clst.ec2.RevokeSecurityGroupIngress(
                 &ec2.RevokeSecurityGroupIngressInput {
@@ -234,6 +234,32 @@ func updateSecurityGroups(clst *awsCluster, cfg config.Config) error {
                 perm_map[ip] = false
             }
         }
+
+        if len(groups) > 0 {
+            for _, grp := range p.UserIdGroupPairs {
+                if *grp.GroupId != *groups[0].GroupId {
+                    log.Info("Revoke Ingress Security Group GroupID: %s",
+                             *grp.GroupId)
+                    _, err = clst.ec2.RevokeSecurityGroupIngress(
+                        &ec2.RevokeSecurityGroupIngressInput {
+                            GroupName: aws.String(clst.namespace),
+                            SourceSecurityGroupName: grp.GroupName,})
+                    if err != nil {
+                        return err
+                    }
+                } else {
+                    groupIngressExists = true
+                }
+            }
+        }
+    }
+
+    if !groupIngressExists {
+        log.Info("Add intragroup ACL")
+        _, err = clst.ec2.AuthorizeSecurityGroupIngress(
+            &ec2.AuthorizeSecurityGroupIngressInput {
+                GroupName: aws.String(clst.namespace),
+                SourceSecurityGroupName: aws.String(clst.namespace),})
     }
 
     for perm, install := range perm_map {
