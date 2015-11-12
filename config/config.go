@@ -149,7 +149,19 @@ coreos:
                 https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
                 -O /opt/docker
             ExecStartPre=/usr/bin/chmod a+x /opt/docker
-            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:4001`
+            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:4001
+        - name: di-minion.service
+          command: start
+          content: |
+            [Unit]
+            Description=DI Minion
+            After=docker.service
+            Requires=docker.service
+            After=systemd-networkd.service
+
+            [Service]
+            ExecStart=/opt/docker run -d --privileged --net=host \
+                      --name=minion ethanjjackson/di-minion`
 
     if master {
         cloud_config += `
