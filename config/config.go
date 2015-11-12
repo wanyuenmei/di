@@ -117,7 +117,7 @@ coreos:
         discovery: %s
         advertise-client-urls: http://$private_ipv4:2379,http://$private_ipv4:4001
         initial-advertise-peer-urls: http://$private_ipv4:2380
-        listen-client-urls: http://0.0.0.0:2379,http://0.0.0.0:4001
+        listen-client-urls: http://$private_ipv4:2379,http://127.0.0.1:2379
         listen-peer-urls: http://$private_ipv4:2380
         `, token)
     } else {
