@@ -94,8 +94,8 @@ func MasterCloudConfig(cfg Config, token string) string {
     return cloudConfig(cfg, true, token, "localhost")
 }
 
-func WorkerCloudConfig(cfg Config, master_ip string) string {
-    return cloudConfig(cfg, false, "", master_ip)
+func WorkerCloudConfig(cfg Config, token, master_ip string) string {
+    return cloudConfig(cfg, false, token, master_ip)
 }
 
 func cloudConfig(cfg Config, master bool, token, master_ip string) string {
@@ -121,11 +121,11 @@ coreos:
         listen-peer-urls: http://$private_ipv4:2380
         `, token)
     } else {
-        /* TODO this is wrong. */
-        cloud_config += `
-        addr: $private_ipv4:4001
-        peer-addr: $private_ipv4:7001
-        `
+        cloud_config += fmt.Sprintf(`
+        proxy: on
+        discovery: %s
+        listen-client-urls: http://127.0.0.1:4001,http://127.0.0.1:2379
+        `, token)
     }
 
     cloud_config += `
@@ -149,8 +149,7 @@ coreos:
                 https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
                 -O /opt/docker
             ExecStartPre=/usr/bin/chmod a+x /opt/docker
-            ExecStart=/opt/docker daemon --cluster-store=etcd://%s:4001`
-    cloud_config = fmt.Sprintf(cloud_config, master_ip)
+            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:4001`
 
     if master {
         cloud_config += `

@@ -21,6 +21,7 @@ type awsCluster struct {
     config_chan chan config.Config
     status_chan chan string
     namespace string
+    token string
 
     /* Only used by awsThread(). */
     ec2 *ec2.EC2
@@ -406,17 +407,17 @@ func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) error {
     if err != nil {
         return err
     }
-
+    clst.token = token
     log.Info("Booting %d Master Instances", n_boot)
-    cloud_config := config.MasterCloudConfig(cfg, token)
+    cloud_config := config.MasterCloudConfig(cfg, clst.token)
     return bootInstances(clst, n_boot, cloud_config, "master")
 }
 
 func bootWorkers(clst *awsCluster, cfg config.Config, master_ip string,
                  n_boot int) error {
     log.Info("Booting %d Workers Instances", n_boot)
-    return bootInstances(clst, n_boot, config.WorkerCloudConfig(cfg, master_ip),
-                         "worker")
+    cloud_config := config.WorkerCloudConfig(cfg, clst.token, master_ip)
+    return bootInstances(clst, n_boot, cloud_config, "worker")
 }
 
 func waitForInstances(clst *awsCluster, ids []*string) error {
