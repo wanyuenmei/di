@@ -130,6 +130,30 @@ func run(clst *awsCluster, cfg config.Config) {
         return
     }
 
+     /* If getInstances returned nothing we are likely booting a new cluster,
+      * and need to generate a new discovery token. Otherwise, if DI has been
+      * rebooted, consult the results for the token. In all other cases, stop
+      * any instances that don't match the current token. */
+    if len(instances) == 0 {
+        token, err := util.NewDiscoveryToken(cfg.MasterCount)
+        if err != nil {
+            return
+        }
+        clst.token = token
+    } else if clst.token == "" {
+        clst.token = instances[0].Token
+    }
+
+    toStop := make([]Instance,0)
+    for _, inst := range instances {
+        if inst.Token != clst.token {
+            toStop = append(toStop, inst)
+        }
+    }
+
+    stopInstances(clst, toStop)
+
+    /* All instances beyond this point are using the same discovery token. */
     if (cfg.MasterCount == 0 || cfg.WorkerCount == 0) {
         if (len(instances) != 0) {
             log.Info("Must have at least 1 master and 1 worker." +
@@ -293,6 +317,15 @@ func tagsIsMaster(tags []*ec2.Tag) bool {
     return false
 }
 
+func tokenTag(tags []*ec2.Tag) string {
+    for _, tag := range tags {
+        if *tag.Key == "token" {
+            return *tag.Value
+        }
+    }
+    return ""
+}
+
 /* Returns the list of master and worker nodes each sorted by priortity.
 * Otherwise returns an error. */
 func getInstances(clst *awsCluster) ([]Instance, error) {
@@ -371,6 +404,7 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
             InstId: spot.InstanceId,
             State: *spot.State,
             Master: tagsIsMaster(spot.Tags),
+            Token: tokenTag(spot.Tags),
         })
     }
 
@@ -382,6 +416,7 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
                 SpotId: nil,
                 InstId: inst.InstanceId,
                 Master: tagsIsMaster(inst.Tags),
+                Token: tokenTag(inst.Tags),
             })
         }
     }
@@ -403,11 +438,6 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
 }
 
 func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) error {
-    token, err := util.NewDiscoveryToken(n_boot)
-    if err != nil {
-        return err
-    }
-    clst.token = token
     log.Info("Booting %d Master Instances", n_boot)
     cloud_config := config.MasterCloudConfig(cfg, clst.token)
     return bootInstances(clst, n_boot, cloud_config, "master")
@@ -477,6 +507,8 @@ func bootInstances(clst *awsCluster, n_boot int, config, role string) error {
                 &ec2.Tag { Key: aws.String(role), Value: aws.String(""), },
                 &ec2.Tag { Key: aws.String(clst.namespace),
                 Value: aws.String(""), },
+                &ec2.Tag { Key: aws.String("token"),
+                Value: aws.String(clst.token), },
             },
             Resources: spotIds,
         })

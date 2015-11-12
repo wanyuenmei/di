@@ -22,6 +22,7 @@ type Instance struct {
     PrivateIP *string /* Private IP address of the instance, or nil. */
     Master bool
     State string
+    Token string
 }
 
 /* Available choices of CloudProvider. */
