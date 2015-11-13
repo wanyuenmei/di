@@ -143,7 +143,7 @@ coreos:
             Requires=etcd2.service
 
             [Service]
-            ExecStartPre=/usr/bin/mkdir /opt
+            ExecStartPre=/usr/bin/mkdir -p /opt
             ExecStartPre=/usr/bin/chmod 777 /opt
             ExecStartPre=/usr/bin/wget \
                 https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
