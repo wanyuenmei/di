@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+service Minion {
+    rpc SetMinionConfig(MinionConfig) returns (Reply) {}
+}
+
+message MinionConfig {
+    string EtcdToken = 1;
+    string PrivateIP = 2;
+    enum Role {
+        MASTER = 0;
+        WORKER = 1;
+    }
+    Role role = 3;
+}
+
+message Reply {
+    bool Success = 1;
+    string Error = 2;
+}

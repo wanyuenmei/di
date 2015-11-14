@@ -2,8 +2,13 @@ package cluster
 
 import (
     "fmt"
+    "time"
+
+    "golang.org/x/net/context"
+    "google.golang.org/grpc"
 
     "github.com/NetSys/di/config"
+    "github.com/NetSys/di/minion/proto"
 )
 
 /* A group of virtual machines within a fault domain. */
@@ -43,11 +48,54 @@ func GetStatus(clst Cluster) string {
     return status
 }
 
+/* XXX: Pull me into my own module. */
+func updateMinions(clst Cluster) {
+    booting := make(map[string]bool)
+
+    for {
+        instances := clst.GetInstances()
+
+        for _, inst := range instances {
+            if booting[inst.Id] || inst.PublicIP == nil || inst.PrivateIP == nil {
+                continue
+            }
+
+            config := proto.MinionConfig {
+                EtcdToken: inst.Token,
+                PrivateIP: *inst.PrivateIP,
+            }
+
+            if inst.Master {
+                config.Role = proto.MinionConfig_MASTER
+            } else {
+                config.Role = proto.MinionConfig_WORKER
+            }
+
+            conn, err := grpc.Dial(*inst.PublicIP + ":8080", grpc.WithInsecure())
+            if err != nil {
+                continue
+            }
+            client := proto.NewMinionClient(conn)
+            go func() {
+                client.SetMinionConfig(context.Background(), &config)
+                log.Info("Updated Minion Config %s, %s", inst, config)
+                conn.Close()
+            }()
+            booting[inst.Id] = true
+        }
+
+        time.Sleep(5 * time.Second)
+    }
+}
+
 /* Create a new cluster using 'provider' to host the cluster at 'region' */
 func New(provider CloudProvider, cfg config.Config) Cluster {
+
     switch (provider) {
     case AWS:
-        return newAws(cfg.Region, cfg.Namespace)
+        clst := newAws(cfg.Region, cfg.Namespace)
+        go updateMinions(clst)
+        return clst
     default:
         panic("Cluster request for an unknown cloud provider.")
     }

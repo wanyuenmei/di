@@ -110,37 +110,12 @@ func cloudConfig(cfg Config, master bool, token, master_ip string) string {
 
     cloud_config += `
 coreos:
-    etcd2:`
-
-    if master {
-        cloud_config += fmt.Sprintf(`
-        discovery: %s
-        advertise-client-urls: http://$private_ipv4:2379,http://$private_ipv4:4001
-        initial-advertise-peer-urls: http://$private_ipv4:2380
-        listen-client-urls: http://$private_ipv4:2379,http://127.0.0.1:2379
-        listen-peer-urls: http://$private_ipv4:2380
-        `, token)
-    } else {
-        cloud_config += fmt.Sprintf(`
-        proxy: on
-        discovery: %s
-        listen-client-urls: http://127.0.0.1:4001,http://127.0.0.1:2379
-        `, token)
-    }
-
-    cloud_config += `
     units:
-        - name: etcd2.service
-          command: start
-        - name: fleet.service
-          command: start
         - name: docker.service
           command: start
           content: |
             [Unit]
             Description=Docker
-            After=etcd2.service
-            Requires=etcd2.service
 
             [Service]
             ExecStartPre=/usr/bin/mkdir -p /opt
@@ -149,7 +124,7 @@ coreos:
                 https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
                 -O /opt/docker
             ExecStartPre=/usr/bin/chmod a+x /opt/docker
-            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:4001
+            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:2379
         - name: di-minion.service
           command: start
           content: |
@@ -157,11 +132,10 @@ coreos:
             Description=DI Minion
             After=docker.service
             Requires=docker.service
-            After=systemd-networkd.service
 
             [Service]
-            ExecStart=/opt/docker run -d --privileged --net=host \
-                      --name=minion ethanjjackson/di-minion`
+            ExecStart=/opt/docker run -itd --net=host --name=minion --privileged \
+            -v /var/run/docker.sock:/var/run/docker.sock ethanjjackson/di-minion`
 
     if master {
         cloud_config += `
