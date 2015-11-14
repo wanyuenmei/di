@@ -4,14 +4,14 @@ import (
     "fmt"
     "net"
 
-    pb "github.com/NetSys/di/di-minion/rpc"
+    pb "github.com/NetSys/di/minion/rpc"
 
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     "github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("di-minion")
+var log = logging.MustGetLogger("minion")
 
 type server struct {
     name string
