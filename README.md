@@ -23,3 +23,15 @@ And finally to build the project run:
     go install github.com/NetSys/di
 
 Or alternatively just "go install" if you're in the repo.
+
+## Protobufs
+If you change any of the proto files, you'll need to regenerate the protobuf
+code.  This requres you to install the protobuf compiler found
+[here](https://developers.google.com/protocol-buffers/).  And alls
+proto-gen-go.
+
+    go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
+
+To generate the protobufs simply call:
+
+    make proto
