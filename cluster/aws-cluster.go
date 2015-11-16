@@ -19,7 +19,7 @@ var log = logging.MustGetLogger("aws-cluster")
 
 type awsCluster struct {
     config_chan chan config.Config
-    status_chan chan string
+    insts_chan chan chan []Instance
     namespace string
     token string
 
@@ -34,7 +34,7 @@ func newAws(region string, namespace string) Cluster {
 
     cluster := awsCluster {
         config_chan: make(chan config.Config),
-        status_chan: make(chan string),
+        insts_chan: make(chan chan []Instance),
         namespace: namespace,
         ec2: ec2.New(session),
     }
@@ -47,25 +47,10 @@ func (clst *awsCluster) UpdateConfig(cfg config.Config) {
     clst.config_chan <- cfg
 }
 
-func (clst *awsCluster) GetStatus() string {
-    clst.status_chan <- ""
-    return <-clst.status_chan
-}
-
-/* Helpers. */
-func getStatus(clst *awsCluster) string {
-    instances, err := getInstances(clst)
-    if err != nil {
-        log.Warning("Failed to get instances: %s", err)
-        return "Failed to get status"
-    }
-
-    status := ""
-    for _, inst := range(instances) {
-        status += fmt.Sprintln(inst)
-    }
-
-    return status
+func (clst *awsCluster) GetInstances() []Instance{
+    result_chan := make(chan []Instance)
+    clst.insts_chan <- result_chan
+    return <-result_chan
 }
 
 func awsThread(clst *awsCluster) {
@@ -80,9 +65,12 @@ func awsThread(clst *awsCluster) {
             log.Info("Config changed: %s", cfg)
             run(clst, cfg)
 
-        case <-clst.status_chan:
-            clst.status_chan <- getStatus(clst)
-
+        case chn := <-clst.insts_chan:
+            insts, err := getInstances(clst)
+            if err != nil {
+                log.Warning("Failed to get instances: %s", err)
+            }
+            chn <- insts
         case <-timeout:
             run(clst, cfg)
         }

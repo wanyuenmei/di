@@ -26,7 +26,7 @@ func main() {
     aws := cluster.New(cluster.AWS, config)
     aws.UpdateConfig(config)
 
-    old_status := aws.GetStatus()
+    old_status := cluster.GetStatus(aws)
     fmt.Println(old_status)
 
     timeout := time.Tick(10 * time.Second)
@@ -36,7 +36,7 @@ func main() {
                 aws.UpdateConfig(config)
 
             case <-timeout:
-                status := aws.GetStatus()
+                status := cluster.GetStatus(aws)
                 if status != old_status {
                     old_status = status
                     fmt.Println(status)

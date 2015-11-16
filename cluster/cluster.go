@@ -9,7 +9,7 @@ import (
 /* A group of virtual machines within a fault domain. */
 type Cluster interface {
     UpdateConfig(cfg config.Config)
-    GetStatus() string
+    GetInstances() []Instance
 }
 
 /* A particular virtual machine within the Cluster. */
@@ -30,6 +30,18 @@ const (
     AWS = iota
 )
 type CloudProvider int
+
+/* Helpers. */
+func GetStatus(clst Cluster) string {
+    instances := clst.GetInstances()
+
+    status := ""
+    for _, inst := range(instances) {
+        status += fmt.Sprintln(inst)
+    }
+
+    return status
+}
 
 /* Create a new cluster using 'provider' to host the cluster at 'region' */
 func New(provider CloudProvider, cfg config.Config) Cluster {
