@@ -484,7 +484,7 @@ func bootInstances(clst *awsCluster, n_boot int, config, role string) error {
         SpotPrice: aws.String("0.02"),
         LaunchSpecification: &ec2.RequestSpotLaunchSpecification {
             ImageId: aws.String("ami-d95d49b8"),
-            InstanceType: aws.String("t1.micro"),
+            InstanceType: aws.String("m3.medium"),
             UserData: aws.String(cloud_config64),
             SecurityGroups: []*string{aws.String(clst.namespace)},
         },
