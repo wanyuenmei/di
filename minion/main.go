@@ -13,6 +13,8 @@ var log = logging.MustGetLogger("main")
 func main() {
 	log.Info("Minion Start")
 
+	PullImages()
+
 	var cfg proto.MinionConfig
 	for {
 		cfgChan, err := NewConfigChannel()

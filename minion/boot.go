@@ -10,12 +10,37 @@ import (
 const ETCD = "quay.io/coreos/etcd:v2.1.3"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
-func runContainer(client *docker.Client, name, image string,
-	binds []string, args []string) error {
-	err := client.PullImage(docker.PullImageOptions{
+func pullSingleImage(client *docker.Client, image string) error {
+	return client.PullImage(docker.PullImageOptions{
 		Repository:   image,
 		OutputStream: os.Stdout},
 		docker.AuthConfiguration{})
+}
+
+/* Pre-pulls the images necessary by the module so that when we get boot
+* instructions we can just go. */
+func PullImages() {
+	images := []string{ETCD}
+
+	client, err := docker.NewClient(DOCKER_SOCK_PATH)
+	if err != nil {
+		log.Warning("Failed to create docker client: %s", err)
+		return
+	}
+
+	for _, image := range images {
+		go func() {
+			err := pullSingleImage(client, image)
+			if err != nil {
+				log.Warning("Failed to pull docker image: %s", err)
+			}
+		}()
+	}
+}
+
+func runContainer(client *docker.Client, name, image string,
+	binds []string, args []string) error {
+	err := pullSingleImage(client, image)
 	if err != nil {
 		return err
 	}
