@@ -78,7 +78,7 @@ func awsThread(clst *awsCluster) {
 }
 
 func updateMasters(clst *awsCluster, cfg config.Config,
-	masters []Instance, workers []Instance) *string {
+	masters []Instance, workers []Instance) {
 	if len(masters) > 0 && len(masters) != cfg.MasterCount {
 		/* XXX: This is a very intresting case.  In theory we should be able to
 		 * recover, but doing so is quite involved.  Must address this
@@ -88,17 +88,10 @@ func updateMasters(clst *awsCluster, cfg config.Config,
 			cfg.MasterCount, len(masters))
 		stopInstances(clst, masters)
 		stopInstances(clst, workers)
-		return nil
 	}
 
 	if len(masters) > 0 {
-		return masters[0].PrivateIP
-	}
-
-	if len(workers) > 0 {
-		log.Info("About to boot a new master cluster." +
-			"  Terminating old workers first.")
-		stopInstances(clst, workers)
+		return
 	}
 
 	/* It is absolutely critical that we boot the master cluster properly to
@@ -108,7 +101,6 @@ func updateMasters(clst *awsCluster, cfg config.Config,
 	if err != nil {
 		log.Warning("Failed to boot master cluster: %s", err)
 	}
-	return nil
 }
 
 func run(clst *awsCluster, cfg config.Config) {
@@ -163,9 +155,31 @@ func run(clst *awsCluster, cfg config.Config) {
 		}
 	}
 
-	master_ip := updateMasters(clst, cfg, masters, workers)
-	if master_ip == nil {
-		return
+	if len(masters) > 0 && len(masters) != cfg.MasterCount {
+		/* XXX: This is a very intresting case.  In theory we should be able to
+		 * recover, but doing so is quite involved.  Must address this
+		 * eventually. */
+		log.Warning("Configured for %d masters when %d exist.  Either a"+
+			" master died or the configuration changed.",
+			cfg.MasterCount, len(masters))
+		stopInstances(clst, masters)
+		stopInstances(clst, workers)
+		masters = nil
+		workers = nil
+	}
+
+	if len(masters) == 0 {
+		if len(workers) > 0 {
+			log.Info("About to boot a new master cluster." +
+				"  Terminating old workers first.")
+			stopInstances(clst, workers)
+			workers = nil
+		}
+
+		err := bootInstances(clst, cfg, cfg.MasterCount, "master")
+		if err != nil {
+			log.Warning("Failed to boot master cluster: %s", err)
+		}
 	}
 
 	if len(workers) > cfg.WorkerCount {
