@@ -13,7 +13,7 @@ var ETCD = "quay.io/coreos/etcd:v2.1.3"
 var DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func runContainer(client *docker.Client, name, image string,
-	args []string) error {
+	binds []string, args []string) error {
 	err := client.PullImage(docker.PullImageOptions{
 		Repository:   image,
 		OutputStream: os.Stdout},
@@ -33,17 +33,12 @@ func runContainer(client *docker.Client, name, image string,
 	}
 
 	err = client.StartContainer(container.ID,
-		&docker.HostConfig{NetworkMode: "host"})
+		&docker.HostConfig{NetworkMode: "host", Binds: binds})
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func etcdArgs(etcdToken string, args ...string) []string {
-	return append(args, "--discovery="+etcdToken,
-		"-v /etc/ssl/certs:/etc/ssl/certs")
 }
 
 func BootWorker(etcdToken string) error {
@@ -54,7 +49,8 @@ func BootWorker(etcdToken string) error {
 
 	log.Info("Attempting to boot etcd-client")
 	err = runContainer(client, "etcd-client", ETCD,
-		etcdArgs(etcdToken, "--proxy=on"))
+		[]string{"/usr/share/ca-certificates:/etc/ssl/certs"},
+		[]string{"--discovery=" + etcdToken, "--proxy=on"})
 	if err != nil {
 		return err
 	}
@@ -75,14 +71,16 @@ func BootMaster(etcdToken string, ip string) error {
 	initialAdvertisePeer := fmt.Sprintf("http://%s:2380", ip)
 	listenPeer := fmt.Sprintf("http://%s:2380", ip)
 
-	args := etcdArgs(etcdToken,
-		"--advertise-client-urls="+advertiseClient,
-		"--initial-advertise-peer-urls="+initialAdvertisePeer,
-		"--listen-client-urls="+listenClient,
-		"--listen-peer-urls="+listenPeer)
+	args := []string{"--discovery=" + etcdToken,
+		"--advertise-client-urls=" + advertiseClient,
+		"--initial-advertise-peer-urls=" + initialAdvertisePeer,
+		"--listen-client-urls=" + listenClient,
+		"--listen-peer-urls=" + listenPeer}
+
+	binds := []string{"/usr/share/ca-certificates:/etc/ssl/certs"}
 
 	log.Info("Attempting to boot etcd-master")
-	err = runContainer(client, "etcd-master", ETCD, args)
+	err = runContainer(client, "etcd-master", ETCD, binds, args)
 	if err != nil {
 		return err
 	}
