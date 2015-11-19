@@ -9,8 +9,9 @@ import (
 )
 
 var log = logging.MustGetLogger("main")
-var ETCD = "quay.io/coreos/etcd:v2.1.3"
-var DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
+
+const ETCD = "quay.io/coreos/etcd:v2.1.3"
+const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func runContainer(client *docker.Client, name, image string,
 	binds []string, args []string) error {
