@@ -5,10 +5,7 @@ import (
 	"os"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("main")
 
 const ETCD = "quay.io/coreos/etcd:v2.1.3"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
