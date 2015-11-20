@@ -502,7 +502,6 @@ func bootInstances(clst *awsCluster, n_boot int, config, role string) error {
 		})
 
 		if err == nil {
-			log.Info("Successfully Tagged Instances")
 			break
 		}
 
