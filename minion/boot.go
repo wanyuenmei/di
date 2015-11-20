@@ -8,6 +8,10 @@ import (
 )
 
 const ETCD = "quay.io/coreos/etcd:v2.1.3"
+const OVN_NORTHD = "melvinw/ovn-northd"
+const OVN_CONTROLLER = "melvinw/ovn-controller"
+const OVS_VSWITCHD = "melvinw/ovs"
+const OVS_OVSDB = "melvinw/ovsdb"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func pullSingleImage(client *docker.Client, image string) error {
@@ -20,7 +24,8 @@ func pullSingleImage(client *docker.Client, image string) error {
 /* Pre-pulls the images necessary by the module so that when we get boot
 * instructions we can just go. */
 func PullImages() {
-	images := []string{ETCD}
+	images := []string{ETCD, OVN_NORTHD, OVN_CONTROLLER, OVS_VSWITCHD,
+		OVS_OVSDB}
 
 	client, err := docker.NewClient(DOCKER_SOCK_PATH)
 	if err != nil {
@@ -40,6 +45,7 @@ func PullImages() {
 
 func runContainer(client *docker.Client, name, image string,
 	binds []string, args []string) error {
+	log.Info("Attempting to boot %s", name)
 	err := pullSingleImage(client, image)
 	if err != nil {
 		return err
@@ -61,6 +67,7 @@ func runContainer(client *docker.Client, name, image string,
 		return err
 	}
 
+	log.Info("Successfully booted %s", name)
 	return nil
 }
 
@@ -70,15 +77,31 @@ func BootWorker(etcdToken string) error {
 		return err
 	}
 
-	log.Info("Attempting to boot etcd-client")
 	err = runContainer(client, "etcd-client", ETCD,
 		[]string{"/usr/share/ca-certificates:/etc/ssl/certs"},
 		[]string{"--discovery=" + etcdToken, "--proxy=on"})
+
 	if err != nil {
 		return err
 	}
 
-	log.Info("Successfully booted etcd-client")
+	ovs_binds := []string{"/var/run/ovs:/usr/local/var/run/openvswitch:rw"}
+
+	err = runContainer(client, "ovn-controller", OVN_CONTROLLER, ovs_binds, []string{})
+	if err != nil {
+		return err
+	}
+
+	err = runContainer(client, "ovs-vswitchd", OVS_VSWITCHD, ovs_binds, []string{})
+	if err != nil {
+		return err
+	}
+
+	err = runContainer(client, "ovsdb", OVS_OVSDB, ovs_binds, []string{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -102,12 +125,16 @@ func BootMaster(etcdToken string, ip string) error {
 
 	binds := []string{"/usr/share/ca-certificates:/etc/ssl/certs"}
 
-	log.Info("Attempting to boot etcd-master")
 	err = runContainer(client, "etcd-master", ETCD, binds, args)
 	if err != nil {
 		return err
 	}
 
-	log.Info("Successfully booted etcd-master")
-	return err
+	binds = []string{"/var/run/ovs:/usr/local/var/run/openvswitch:rw"}
+	err = runContainer(client, "ovn-northd", OVN_NORTHD, binds, []string{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -104,7 +104,7 @@ func updateMasters(clst *awsCluster, cfg config.Config,
 	/* It is absolutely critical that we boot the master cluster properly to
 	 * avoid confusing etcd. .  In order to avoid race conditions, after booting
 	 * we wait until the new nodes are actually visible form the API. */
-	err := bootMasters(clst, cfg, cfg.MasterCount)
+	err := bootInstances(clst, cfg, cfg.MasterCount, "master")
 	if err != nil {
 		log.Warning("Failed to boot master cluster: %s", err)
 	}
@@ -171,7 +171,7 @@ func run(clst *awsCluster, cfg config.Config) {
 	if len(workers) > cfg.WorkerCount {
 		stopInstances(clst, workers[cfg.WorkerCount:])
 	} else if len(workers) < cfg.WorkerCount {
-		err := bootWorkers(clst, cfg, *master_ip, cfg.WorkerCount-len(workers))
+		err := bootInstances(clst, cfg, cfg.WorkerCount-len(workers), "worker")
 		if err != nil {
 			log.Warning("Failed to boot workers: %s", err)
 		}
@@ -425,19 +425,6 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
 	return instances, nil
 }
 
-func bootMasters(clst *awsCluster, cfg config.Config, n_boot int) error {
-	log.Info("Booting %d Master Instances", n_boot)
-	cloud_config := config.MasterCloudConfig(cfg, clst.token)
-	return bootInstances(clst, n_boot, cloud_config, "master")
-}
-
-func bootWorkers(clst *awsCluster, cfg config.Config, master_ip string,
-	n_boot int) error {
-	log.Info("Booting %d Workers Instances", n_boot)
-	cloud_config := config.WorkerCloudConfig(cfg, clst.token, master_ip)
-	return bootInstances(clst, n_boot, cloud_config, "worker")
-}
-
 func waitForInstances(clst *awsCluster, ids []*string) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
@@ -464,9 +451,10 @@ OuterLoop:
 	return errors.New("Timed out")
 }
 
-func bootInstances(clst *awsCluster, n_boot int, config, role string) error {
+func bootInstances(clst *awsCluster, cfg config.Config, n_boot int, role string) error {
+	log.Info("Boot %d %s instances", n_boot, role)
 	count := int64(n_boot)
-	cloud_config64 := base64.StdEncoding.EncodeToString([]byte(config))
+	cloud_config64 := base64.StdEncoding.EncodeToString([]byte(config.CloudConfig(cfg)))
 
 	params := &ec2.RequestSpotInstancesInput{
 		SpotPrice: aws.String("0.02"),
