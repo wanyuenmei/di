@@ -61,7 +61,7 @@ func selectRows(ovs libovsdb.OvsdbClient, db string,
 
 func rwMutateOp(table string, column string, op string, condCol string,
 	condOp string, condVal interface{}, uuidname string) libovsdb.Operation {
-	mutateUuid := []libovsdb.UUID{libovsdb.UUID{uuidname}}
+	mutateUuid := []libovsdb.UUID{{uuidname}}
 	mutateSet, _ := libovsdb.NewOvsSet(mutateUuid)
 	mutation := libovsdb.NewMutation(column, op, mutateSet)
 	condition := libovsdb.NewCondition(condCol, condOp, condVal)

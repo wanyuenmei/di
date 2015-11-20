@@ -9,4 +9,4 @@ proto:
 	cd -P minion/proto &&  protoc proto.proto --go_out=plugins=grpc:.
 
 format:
-	gofmt -w .
+	gofmt -w -s .

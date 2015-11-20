@@ -196,7 +196,7 @@ func updateSecurityGroups(clst *awsCluster, cfg config.Config) error {
 	resp, err := clst.ec2.DescribeSecurityGroups(
 		&ec2.DescribeSecurityGroupsInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   aws.String("group-name"),
 					Values: []*string{aws.String(clst.namespace)},
 				},
@@ -339,7 +339,7 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
 	/* Query amazon for the instances and spot requests. */
 	inst_resp, err := clst.ec2.DescribeInstances(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name:   aws.String("instance.group-name"),
 				Values: []*string{aws.String(clst.namespace)},
 			},
@@ -353,7 +353,7 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
 	spot_resp, err := clst.ec2.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
-				&ec2.Filter{
+				{
 					Name:   aws.String("tag-key"),
 					Values: []*string{aws.String(clst.namespace)},
 				},
@@ -424,7 +424,7 @@ func getInstances(clst *awsCluster) ([]Instance, error) {
 	}
 
 	/* Finish and sort the Instance structs. */
-	for i, _ := range instances {
+	for i := range instances {
 		if instances[i].InstId != nil {
 			inst := instance_map[*instances[i].InstId]
 			if inst != nil {
@@ -494,10 +494,10 @@ func bootInstances(clst *awsCluster, cfg config.Config, n_boot int, role string)
 	for i := 0; ; i++ {
 		_, err = clst.ec2.CreateTags(&ec2.CreateTagsInput{
 			Tags: []*ec2.Tag{
-				&ec2.Tag{Key: aws.String(role), Value: aws.String("")},
-				&ec2.Tag{Key: aws.String(clst.namespace),
+				{Key: aws.String(role), Value: aws.String("")},
+				{Key: aws.String(clst.namespace),
 					Value: aws.String("")},
-				&ec2.Tag{Key: aws.String("token"),
+				{Key: aws.String("token"),
 					Value: aws.String(clst.token)},
 			},
 			Resources: spotIds,
