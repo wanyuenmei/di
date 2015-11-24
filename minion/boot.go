@@ -41,8 +41,8 @@ func PullImages() {
 	}
 }
 
-func runContainer(client *docker.Client, name, image string,
-	binds []string, args []string) error {
+func runContainer(client *docker.Client, name, image string, privileged bool,
+	args []string) error {
 	log.Info("Attempting to boot %s", name)
 	err := pullSingleImage(client, image)
 	if err != nil {
@@ -60,7 +60,14 @@ func runContainer(client *docker.Client, name, image string,
 	}
 
 	err = client.StartContainer(container.ID,
-		&docker.HostConfig{NetworkMode: "host", Binds: binds})
+		&docker.HostConfig{
+			NetworkMode: "host",
+			PidMode:     "host",
+			Privileged:  privileged,
+			Binds: []string{"/usr/share/ca-certificates:/etc/ssl/certs",
+				"/var/run/openvswitch:/usr/local/var/run/openvswitch",
+				"/var/log/openvswitch:/usr/local/var/log/openvswitch"},
+		})
 	if err != nil {
 		return err
 	}
@@ -75,27 +82,24 @@ func BootWorker(etcdToken string) error {
 		return err
 	}
 
-	err = runContainer(client, "etcd-client", ETCD,
-		[]string{"/usr/share/ca-certificates:/etc/ssl/certs"},
+	err = runContainer(client, "etcd-client", ETCD, false,
 		[]string{"--discovery=" + etcdToken, "--proxy=on"})
 
 	if err != nil {
 		return err
 	}
 
-	ovs_binds := []string{"/var/run/ovs:/usr/local/var/run/openvswitch:rw"}
-
-	err = runContainer(client, "ovn-controller", OVN_CONTROLLER, ovs_binds, []string{})
+	err = runContainer(client, "ovsdb", OVS_OVSDB, false, []string{})
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovs-vswitchd", OVS_VSWITCHD, ovs_binds, []string{})
+	err = runContainer(client, "ovs-vswitchd", OVS_VSWITCHD, true, []string{})
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovsdb", OVS_OVSDB, ovs_binds, []string{})
+	err = runContainer(client, "ovn-controller", OVN_CONTROLLER, false, []string{})
 	if err != nil {
 		return err
 	}
@@ -121,15 +125,17 @@ func BootMaster(etcdToken string, ip string) error {
 		"--listen-client-urls=" + listenClient,
 		"--listen-peer-urls=" + listenPeer}
 
-	binds := []string{"/usr/share/ca-certificates:/etc/ssl/certs"}
-
-	err = runContainer(client, "etcd-master", ETCD, binds, args)
+	err = runContainer(client, "etcd-master", ETCD, false, args)
 	if err != nil {
 		return err
 	}
 
-	binds = []string{"/var/run/ovs:/usr/local/var/run/openvswitch:rw"}
-	err = runContainer(client, "ovn-northd", OVN_NORTHD, binds, []string{})
+	err = runContainer(client, "ovsdb", OVS_OVSDB, false, []string{})
+	if err != nil {
+		return err
+	}
+
+	err = runContainer(client, "ovn-northd", OVN_NORTHD, false, []string{})
 	if err != nil {
 		return err
 	}
