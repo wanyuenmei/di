@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/fsouza/go-dockerclient"
 )
@@ -16,8 +15,7 @@ const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func pullSingleImage(client *docker.Client, image string) error {
 	return client.PullImage(docker.PullImageOptions{
-		Repository:   image,
-		OutputStream: os.Stdout},
+		Repository: image},
 		docker.AuthConfiguration{})
 }
 
