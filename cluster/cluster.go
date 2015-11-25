@@ -77,11 +77,11 @@ func updateMinions(clst Cluster) {
 				continue
 			}
 			client := proto.NewMinionClient(conn)
-			go func() {
+			go func(inst string) {
 				client.SetMinionConfig(context.Background(), &config)
 				log.Info("Updated Minion Config %s, %s", inst, config)
 				conn.Close()
-			}()
+			}(inst.String())
 			booting[inst.Id] = true
 		}
 
