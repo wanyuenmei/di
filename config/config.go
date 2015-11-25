@@ -116,14 +116,16 @@ coreos:
           content: |
             [Unit]
             Description=DI Minion
-            After=docker.service
             After=basic.target
+            Requires=basic.target
+            After=docker.service
+            Requires=docker.service
             ConditionPathExists=/var/run/docker.sock
 
             [Service]
-            TimeoutStartSec=300
-            ExecStart=/opt/docker run -itd --net=host --name=minion --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock ethanjjackson/di-minion
+            TimeoutStartSec=1000
+            ExecStart=/opt/docker run --net=host --name=minion --privileged \
+            -v /var/run/docker.sock:/var/run/docker.sock ethanj/di-minion
 
 `
 
