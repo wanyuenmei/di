@@ -10,7 +10,7 @@ const ETCD = "quay.io/coreos/etcd:v2.1.3"
 const OVN_NORTHD = "quay.io/netsys/ovn-northd"
 const OVN_CONTROLLER = "quay.io/netsys/ovn-controller"
 const OVS_VSWITCHD = "quay.io/netsys/ovs-vswitchd"
-const OVS_OVSDB = "quay.io/netsys/ovsdb"
+const OVS_OVSDB = "quay.io/netsys/ovsdb-server"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func pullSingleImage(client *docker.Client, image string) error {
@@ -41,7 +41,19 @@ func PullImages() {
 	}
 }
 
-func runContainer(client *docker.Client, name, image string, privileged bool,
+func defaultHC() *docker.HostConfig {
+	return &docker.HostConfig{
+		NetworkMode: "host",
+		Binds:       []string{"/usr/share/ca-certificates:/etc/ssl/certs"}}
+}
+
+func ovsHC() *docker.HostConfig {
+	hc := defaultHC()
+	hc.VolumesFrom = []string{"ovsdb-server"}
+	return hc
+}
+
+func runContainer(client *docker.Client, name, image string, hc *docker.HostConfig,
 	args []string) error {
 	log.Info("Attempting to boot %s", name)
 	err := pullSingleImage(client, image)
@@ -59,15 +71,7 @@ func runContainer(client *docker.Client, name, image string, privileged bool,
 		return err
 	}
 
-	err = client.StartContainer(container.ID,
-		&docker.HostConfig{
-			NetworkMode: "host",
-			PidMode:     "host",
-			Privileged:  privileged,
-			Binds: []string{"/usr/share/ca-certificates:/etc/ssl/certs",
-				"/var/run/openvswitch:/usr/local/var/run/openvswitch",
-				"/var/log/openvswitch:/usr/local/var/log/openvswitch"},
-		})
+	err = client.StartContainer(container.ID, hc)
 	if err != nil {
 		return err
 	}
@@ -82,24 +86,26 @@ func BootWorker(etcdToken string) error {
 		return err
 	}
 
-	err = runContainer(client, "etcd-client", ETCD, false,
+	err = runContainer(client, "etcd-client", ETCD, defaultHC(),
 		[]string{"--discovery=" + etcdToken, "--proxy=on"})
 
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovsdb", OVS_OVSDB, false, []string{})
+	err = runContainer(client, "ovsdb-server", OVS_OVSDB, ovsHC(), []string{})
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovs-vswitchd", OVS_VSWITCHD, true, []string{})
+	hc := ovsHC()
+	hc.Privileged = true
+	err = runContainer(client, "ovs-vswitchd", OVS_VSWITCHD, hc, []string{})
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovn-controller", OVN_CONTROLLER, false, []string{})
+	err = runContainer(client, "ovn-controller", OVN_CONTROLLER, ovsHC(), []string{})
 	if err != nil {
 		return err
 	}
@@ -125,17 +131,19 @@ func BootMaster(etcdToken string, ip string) error {
 		"--listen-client-urls=" + listenClient,
 		"--listen-peer-urls=" + listenPeer}
 
-	err = runContainer(client, "etcd-master", ETCD, false, args)
+	err = runContainer(client, "etcd-master", ETCD, defaultHC(), args)
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovsdb", OVS_OVSDB, false, []string{})
+	err = runContainer(client, "ovsdb-server", OVS_OVSDB, ovsHC(), []string{})
 	if err != nil {
 		return err
 	}
 
-	err = runContainer(client, "ovn-northd", OVN_NORTHD, false, []string{})
+	hc := ovsHC()
+	hc.Binds = append(hc.Binds, "/var/run/docker.sock")
+	err = runContainer(client, "ovn-northd", OVN_NORTHD, hc, []string{})
 	if err != nil {
 		return err
 	}
