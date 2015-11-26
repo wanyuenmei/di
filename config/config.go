@@ -125,7 +125,7 @@ coreos:
             [Service]
             TimeoutStartSec=1000
             ExecStart=/opt/docker run --net=host --name=minion --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock ethanj/di-minion
+            -v /var/run/docker.sock:/var/run/docker.sock quay.io/netsys/di-minion
 
 `
 

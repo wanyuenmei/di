@@ -7,10 +7,10 @@ import (
 )
 
 const ETCD = "quay.io/coreos/etcd:v2.1.3"
-const OVN_NORTHD = "melvinw/ovn-northd"
-const OVN_CONTROLLER = "melvinw/ovn-controller"
-const OVS_VSWITCHD = "melvinw/ovs-vswitchd"
-const OVS_OVSDB = "melvinw/ovsdb"
+const OVN_NORTHD = "quay.io/netsys/ovn-northd"
+const OVN_CONTROLLER = "quay.io/netsys/ovn-controller"
+const OVS_VSWITCHD = "quay.io/netsys/ovs-vswitchd"
+const OVS_OVSDB = "quay.io/netsys/ovsdb"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 func pullSingleImage(client *docker.Client, image string) error {
