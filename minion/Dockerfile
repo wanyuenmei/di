@@ -1,4 +1,5 @@
-From ubuntu:14.04
+From alpine
 Maintainer Ethan J. Jackson
-Copy ./minion /usr/local/bin/minion
+
+Copy ./minion /usr/bin/minion
 Entrypoint ["minion"]

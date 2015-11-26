@@ -10,3 +10,6 @@ proto:
 
 format:
 	gofmt -w -s .
+
+docker:
+	cd -P minion && CGO_ENABLED=0 go build . && docker build -t quay.io/netsys/di-minion .
