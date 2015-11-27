@@ -141,9 +141,7 @@ func BootMaster(etcdToken string, ip string) error {
 		return err
 	}
 
-	hc := ovsHC()
-	hc.Binds = append(hc.Binds, "/var/run/docker.sock")
-	err = runContainer(client, "ovn-northd", OVN_NORTHD, hc, []string{})
+	err = runContainer(client, "ovn-northd", OVN_NORTHD, ovsHC(), []string{})
 	if err != nil {
 		return err
 	}
