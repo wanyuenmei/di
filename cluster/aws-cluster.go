@@ -473,7 +473,7 @@ func bootInstances(clst *awsCluster, cfg config.Config, n_boot int, role string)
 	params := &ec2.RequestSpotInstancesInput{
 		SpotPrice: aws.String("0.02"),
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-			ImageId:        aws.String("ami-66d0c007"),
+			ImageId:        aws.String("ami-4ff8eb2e"),
 			InstanceType:   aws.String("m3.medium"),
 			UserData:       aws.String(cloud_config64),
 			SecurityGroups: []*string{aws.String(clst.namespace)},

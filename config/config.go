@@ -94,37 +94,19 @@ func CloudConfig(cfg Config) string {
 
 coreos:
     units:
-        - name: docker.service
-          command: start
-          content: |
-            [Unit]
-            Description=Docker
-            After=network.target
-            After=basic.target
-
-            [Service]
-            TimeoutStartSec=300
-            ExecStartPre=/usr/bin/mkdir -p /opt
-            ExecStartPre=/usr/bin/chmod 777 /opt
-            ExecStartPre=/usr/bin/wget \
-                https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 \
-                -O /opt/docker
-            ExecStartPre=/usr/bin/chmod a+x /opt/docker
-            ExecStart=/opt/docker daemon --cluster-store=etcd://127.0.0.1:2379 --storage-driver=overlay
         - name: minion.service
           command: start
           content: |
             [Unit]
             Description=DI Minion
-            After=basic.target
-            Requires=basic.target
             After=docker.service
             Requires=docker.service
-            ConditionPathExists=/var/run/docker.sock
 
             [Service]
-            TimeoutStartSec=1000
-            ExecStart=/opt/docker run --net=host --name=minion --privileged \
+            ExecStartPre=-/usr/bin/docker kill minion
+            ExecStartPre=-/usr/bin/docker rm minion
+            ExecStartPre=/usr/bin/docker pull quay.io/netsys/di-minion
+            ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock quay.io/netsys/di-minion
 
 `
