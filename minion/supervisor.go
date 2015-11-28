@@ -111,6 +111,23 @@ func (sv Supervisor) runContainer(name, image string, hc *docker.HostConfig,
 	return nil
 }
 
+func (sv Supervisor) removeContainer(name string) error {
+	log.Info("Remove Container: %s", name)
+
+	id := sv.getContainer(name)
+	if id == nil {
+		log.Info("Failed to stop missing container: %s", name)
+		return nil
+	}
+
+	err := sv.dk.RemoveContainer(docker.RemoveContainerOptions{ID: *id, Force: true})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (sv *Supervisor) Configure(cfg MinionConfig) error {
 	sv.cfg = cfg
 
@@ -140,11 +157,6 @@ func (sv *Supervisor) Configure(cfg MinionConfig) error {
 			"--listen-client-urls=" + listenClient,
 			"--listen-peer-urls=" + listenPeer}
 
-		err := sv.runContainer("ovn-northd", OVN_NORTHD, ovsHC(), nil)
-		if err != nil {
-			return err
-		}
-
 	case MinionConfig_WORKER:
 		etcdArgs = []string{"--discovery=" + cfg.EtcdToken, "--proxy=on"}
 
@@ -169,4 +181,27 @@ func (sv *Supervisor) Configure(cfg MinionConfig) error {
 	}
 
 	return nil
+}
+
+func (sv Supervisor) WatchLeaderChannel(leaderChan chan bool) {
+	if sv.cfg.Role != MinionConfig_MASTER {
+		panic("Can only watch leadership on master nodes.")
+	}
+
+	for {
+		if <-leaderChan {
+			err := sv.runContainer("ovn-northd", OVN_NORTHD, ovsHC(), nil)
+			if err != nil {
+				/* XXX: If we fail to boot ovn-northd, we should give up
+				* our leadership somehow.  This ties into the general
+				* problem of monitoring health. */
+				log.Warning("Failed to boot ovn-northd: %s", err)
+			}
+		} else {
+			err := sv.removeContainer("ovn-northd")
+			if err != nil {
+				log.Warning("Failed to remove ovn-northd: %s", err)
+			}
+		}
+	}
 }

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/NetSys/di/minion/elector"
 	. "github.com/NetSys/di/minion/proto"
 	"github.com/op/go-logging"
 )
@@ -34,5 +36,16 @@ func main() {
 		panic(err) /* XXX: Handle this properly. */
 	}
 
-	select {}
+	if cfg.Role == MinionConfig_WORKER {
+		select {}
+		return
+	}
+
+	/* Master Leader Election. */
+	leaderChan, err := elector.New(fmt.Sprintf("%s", cfg))
+	if err != nil {
+		panic(err) /* XXX: Do something reasonable. */
+	}
+
+	sv.WatchLeaderChannel(leaderChan)
 }
