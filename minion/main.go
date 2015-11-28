@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/NetSys/di/minion/proto"
+	. "github.com/NetSys/di/minion/proto"
 	"github.com/op/go-logging"
 )
 
@@ -13,9 +12,12 @@ var log = logging.MustGetLogger("main")
 func main() {
 	log.Info("Minion Start")
 
-	PullImages()
+	sv, err := NewSupervisor()
+	if err != nil {
+		panic(err) /* XXX: Do something reasonable. */
+	}
 
-	var cfg proto.MinionConfig
+	var cfg MinionConfig
 	for {
 		cfgChan, err := NewConfigChannel()
 		if err == nil {
@@ -23,26 +25,14 @@ func main() {
 			cfg = <-cfgChan
 			break
 		}
-		log.Warning("Failed to create new config channel")
+		log.Warning("Failed to create new config channel: %s", err)
 		time.Sleep(10 * time.Second)
 	}
 
 	log.Info("Received Configuration: %s", cfg)
-	if cfg.Role == proto.MinionConfig_MASTER {
-		err := BootMaster(cfg.EtcdToken, cfg.PrivateIP)
-		if err != nil {
-			panic(err) /* XXX: Handle this properly. */
-		}
-	} else if cfg.Role == proto.MinionConfig_WORKER {
-		err := BootWorker(cfg.EtcdToken)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		panic(fmt.Sprintf("Unknown minion rule: %s", cfg.Role))
+	if err := sv.Configure(cfg); err != nil {
+		panic(err) /* XXX: Handle this properly. */
 	}
 
-	for {
-		time.Sleep(5 * time.Second)
-	}
+	select {}
 }
