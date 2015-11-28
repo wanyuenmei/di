@@ -15,7 +15,7 @@ const OVS_OVSDB = "quay.io/netsys/ovsdb-server"
 const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 
 type Supervisor struct {
-	dk *docker.Client
+	dk  *docker.Client
 	cfg MinionConfig
 }
 
@@ -54,25 +54,56 @@ func NewSupervisor() (*Supervisor, error) {
 	return sv, nil
 }
 
+func (sv Supervisor) getContainer(name string) *string {
+	containers, err := sv.dk.ListContainers(docker.ListContainersOptions{All: true})
+	if err != nil {
+		log.Warning("Failed to list containers: %s", err)
+		return nil
+	}
+
+	name = "/" + name
+	for _, c := range containers {
+		for _, cname := range c.Names {
+			if name == cname {
+				return &c.ID
+			}
+		}
+	}
+
+	return nil
+}
+
 func (sv Supervisor) runContainer(name, image string, hc *docker.HostConfig,
 	args []string) error {
+	log.Info("Booting Container: %s", name)
 
 	if err := sv.pullImage(image); err != nil {
 		return err
 	}
 
-	container, err := sv.dk.CreateContainer(docker.CreateContainerOptions{
-		Name: name,
-		Config: &docker.Config{
-			Image: image,
-			Cmd:   args,
-		}})
-	if err != nil {
-		return err
+	id := sv.getContainer(name)
+	if id == nil {
+		container, err := sv.dk.CreateContainer(docker.CreateContainerOptions{
+			Name: name,
+			Config: &docker.Config{
+				Image: image,
+				Cmd:   args,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		id = &container.ID
 	}
 
-	if err = sv.dk.StartContainer(container.ID, hc); err != nil {
-		return err
+	err := sv.dk.StartContainer(*id, hc)
+	if err != nil {
+		if _, ok := err.(*docker.ContainerAlreadyRunning); ok {
+			log.Info("Container already running: %s", name)
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	log.Info("Successfully booted %s", name)
