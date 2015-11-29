@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	. "github.com/NetSys/di/minion/proto"
 	"github.com/fsouza/go-dockerclient"
@@ -113,6 +114,12 @@ func (sv Supervisor) runContainer(name, image string, hc *docker.HostConfig,
 func (sv *Supervisor) Configure(cfg MinionConfig) error {
 	sv.cfg = cfg
 
+	/* XXX: We should really being using an ID that we get from the master. */
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
 	if err := sv.runContainer("ovsdb-server", OVS_OVSDB, ovsHC(), nil); err != nil {
 		return err
 	}
@@ -126,7 +133,8 @@ func (sv *Supervisor) Configure(cfg MinionConfig) error {
 		initialAdvertisePeer := fmt.Sprintf("http://%s:2380", cfg.PrivateIP)
 		listenPeer := fmt.Sprintf("http://%s:2380", cfg.PrivateIP)
 
-		etcdArgs = []string{"--discovery=" + cfg.EtcdToken,
+		etcdArgs = []string{"--name=" + hostname,
+			"--discovery=" + cfg.EtcdToken,
 			"--advertise-client-urls=" + advertiseClient,
 			"--initial-advertise-peer-urls=" + initialAdvertisePeer,
 			"--listen-client-urls=" + listenClient,
