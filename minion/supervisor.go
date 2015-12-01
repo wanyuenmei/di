@@ -111,6 +111,27 @@ func (sv Supervisor) runContainer(name, image string, hc *docker.HostConfig,
 	return nil
 }
 
+func (sv Supervisor) execInContainer(name string, cmd []string) error {
+	log.Info("Executing in container: %s", name)
+
+	id := sv.getContainer(name)
+	exec, err := sv.dk.CreateExec(docker.CreateExecOptions{
+		Container: *id,
+		Cmd:       cmd})
+
+	if err != nil {
+		return err
+	}
+
+	err = sv.dk.StartExec(exec.ID, docker.StartExecOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (sv Supervisor) removeContainer(name string) error {
 	log.Info("Remove Container: %s", name)
 
@@ -183,18 +204,26 @@ func (sv *Supervisor) Configure(cfg MinionConfig) error {
 	return nil
 }
 
-func (sv Supervisor) WatchLeaderChannel(leaderChan chan bool) {
-	if sv.cfg.Role != MinionConfig_MASTER {
-		panic("Can only watch leadership on master nodes.")
-	}
-
+func (sv Supervisor) WatchLeaderChannel(leaderChan chan *string) {
 	for {
-		if <-leaderChan {
+		leaderIp := <-leaderChan
+		if leaderIp == nil {
+			log.Warning("Leader went away.")
+			/* XXX: Handle this. */
+			continue
+		}
+		/* XXX: update ovsdb, kubernetes, etc... */
+	}
+}
+
+func (sv Supervisor) WatchElectionChannel(electionChan chan bool) {
+	for {
+		if <-electionChan {
 			err := sv.runContainer("ovn-northd", OVN_NORTHD, ovsHC(), nil)
 			if err != nil {
 				/* XXX: If we fail to boot ovn-northd, we should give up
-				* our leadership somehow.  This ties into the general
-				* problem of monitoring health. */
+				 * our leadership somehow.  This ties into the general
+				 * problem of monitoring health. */
 				log.Warning("Failed to boot ovn-northd: %s", err)
 			}
 		} else {

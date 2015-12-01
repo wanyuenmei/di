@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/NetSys/di/minion/elector"
@@ -36,16 +35,20 @@ func main() {
 		panic(err) /* XXX: Handle this properly. */
 	}
 
-	if cfg.Role == MinionConfig_WORKER {
-		select {}
-		return
+	switch cfg.Role {
+	case MinionConfig_MASTER:
+		electionChan, err := elector.NewElectionChannel(cfg.PrivateIP)
+		if err != nil {
+			panic(err) /* XXX: Do something reasonable. */
+		}
+		sv.WatchElectionChannel(electionChan)
+	case MinionConfig_WORKER:
+		leaderChan, err := elector.NewLeaderChannel()
+		if err != nil {
+			panic(err) /* XXX: Do something reasonable. */
+		}
+		sv.WatchLeaderChannel(leaderChan)
+	default:
+		panic("Unknown minion role.") /* XXX: Error handling. */
 	}
-
-	/* Master Leader Election. */
-	leaderChan, err := elector.New(fmt.Sprintf("%s", cfg))
-	if err != nil {
-		panic(err) /* XXX: Do something reasonable. */
-	}
-
-	sv.WatchLeaderChannel(leaderChan)
 }
