@@ -27,6 +27,9 @@ type Config struct {
 
 var log = logging.MustGetLogger("config")
 
+var cfgChan chan chan Config
+var path string
+
 /* Convert 'cfg' its string representation. */
 func (cfg Config) String() string {
 	str := fmt.Sprintf(
@@ -73,19 +76,32 @@ func parseConfig(config_path string) *Config {
 	return &config
 }
 
-func watchConfigForUpdates(config_path string, config_chan chan Config) {
+func watchConfigRun() {
 	var old_config *Config
+	var chns [](chan Config)
 
 	old_config = nil
-
+	tick := time.Tick(2 * time.Second)
 	for {
-		new_config := parseConfig(config_path)
+		select {
+		case chn := <-cfgChan:
+			chns = append(chns, chn)
+			if old_config != nil {
+				chn <- *old_config
+			}
+			continue
+		case <-tick:
+		}
+
+		new_config := parseConfig(path)
 		if new_config != nil && (old_config == nil ||
 			!reflect.DeepEqual(*old_config, *new_config)) {
-			config_chan <- *new_config
 			old_config = new_config
+
+			for _, chn := range chns {
+				chn <- *new_config
+			}
 		}
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -121,8 +137,16 @@ coreos:
 	return cloud_config
 }
 
-func WatchConfig(config_path string) chan Config {
-	config_chan := make(chan Config)
-	go watchConfigForUpdates(config_path, config_chan)
-	return config_chan
+func Init(configPath string) {
+	if cfgChan == nil {
+		path = configPath
+		cfgChan = make(chan chan Config)
+		go watchConfigRun()
+	}
+}
+
+func Watch() chan Config {
+	chn := make(chan Config)
+	cfgChan <- chn
+	return chn
 }

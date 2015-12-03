@@ -1,7 +1,8 @@
 syntax = "proto3";
 
 service Minion {
-    rpc SetMinionConfig(MinionConfig) returns (Reply) {}
+    rpc SetMinionConfig(MinionConfig) returns(Reply) {}
+    rpc GetMinionConfig(Request) returns (MinionConfig) {}
 }
 
 message MinionConfig {
@@ -20,4 +21,7 @@ message MinionConfig {
 message Reply {
     bool Success = 1;
     string Error = 2;
+}
+
+message Request {
 }

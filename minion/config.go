@@ -22,6 +22,11 @@ func (s *configServer) SetMinionConfig(ctx context.Context,
 	return &Reply{Success: true}, nil
 }
 
+func (s *configServer) GetMinionConfig(cts context.Context,
+	_ *Request) (*MinionConfig, error) {
+	return &s.cfg, nil
+}
+
 func NewConfigChannel() <-chan MinionConfig {
 	cfgChan := make(chan MinionConfig)
 

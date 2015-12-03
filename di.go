@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	l_mod "log"
-	"time"
 
 	"github.com/NetSys/di/cluster"
 	"github.com/NetSys/di/config"
+	"github.com/NetSys/di/foreman"
+
 	"github.com/op/go-logging"
 	"google.golang.org/grpc/grpclog"
 )
@@ -16,6 +16,8 @@ import (
 var log = logging.MustGetLogger("main")
 
 func main() {
+	log.Info("Starting")
+
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
@@ -28,27 +30,9 @@ func main() {
 	 * messages when in debug mode. */
 	grpclog.SetLogger(l_mod.New(ioutil.Discard, "", 0))
 
-	log.Info("Starting")
-	config_chan := config.WatchConfig(*config_path)
-	config := <-config_chan
-	aws := cluster.New(cluster.AWS, config)
-	aws.UpdateConfig(config)
+	config.Init(*config_path)
+	clst := cluster.New(cluster.AWS, config.Watch())
+	foreman.New(clst, config.Watch())
 
-	old_status := cluster.GetStatus(aws)
-	fmt.Println(old_status)
-
-	timeout := time.Tick(10 * time.Second)
-	for {
-		select {
-		case config = <-config_chan:
-			aws.UpdateConfig(config)
-
-		case <-timeout:
-			status := cluster.GetStatus(aws)
-			if status != old_status {
-				old_status = status
-				fmt.Println(status)
-			}
-		}
-	}
+	select {}
 }
