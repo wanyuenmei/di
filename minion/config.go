@@ -35,7 +35,7 @@ func NewConfigChannel() (chan proto.MinionConfig, error) {
 	cfgChan := make(chan proto.MinionConfig)
 	server := configServer{configChan: cfgChan}
 
-	sock, err := net.Listen("tcp", ":8080")
+	sock, err := net.Listen("tcp", ":9999")
 	if err != nil {
 		return cfgChan, err
 	}

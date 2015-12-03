@@ -72,7 +72,7 @@ func updateMinions(clst Cluster) {
 				config.Role = proto.MinionConfig_WORKER
 			}
 
-			conn, err := grpc.Dial(*inst.PublicIP+":8080", grpc.WithInsecure())
+			conn, err := grpc.Dial(*inst.PublicIP+":9999", grpc.WithInsecure())
 			if err != nil {
 				continue
 			}
