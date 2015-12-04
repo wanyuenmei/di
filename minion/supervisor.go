@@ -269,6 +269,18 @@ func (sv Supervisor) WatchLeaderChannel(leaderChan chan *string) {
 				log.Warning("Failed to remove di-kubelet: %s", err)
 			}
 		}
+
+		cmd := []string{
+			"ovs-vsctl",
+			"set",
+			"Open_vSwitch",
+			".",
+			fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", *leaderIp),
+			fmt.Sprintf("external_ids:ovn-encap-ip=%s", sv.cfg.PrivateIP),
+			"external_ids:ovn-encap-type=\"geneve\""}
+		if err := sv.execInContainer("ovs-vswitchd", cmd); err != nil {
+			log.Warning("Failed to reconfigure ovn: %s", err)
+		}
 	}
 }
 
