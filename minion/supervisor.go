@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	. "github.com/NetSys/di/minion/proto"
 	"github.com/fsouza/go-dockerclient"
 )
 
 const ETCD = "quay.io/coreos/etcd:v2.1.3"
+const KUBELET = "quay.io/netsys/kubelet"
 const OVN_NORTHD = "quay.io/netsys/ovn-northd"
 const OVN_CONTROLLER = "quay.io/netsys/ovn-controller"
 const OVS_VSWITCHD = "quay.io/netsys/ovs-vswitchd"
@@ -18,6 +22,21 @@ const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 type Supervisor struct {
 	dk  *docker.Client
 	cfg MinionConfig
+}
+
+func kubeHC() *docker.HostConfig {
+	binds := []string{
+		"/var/run:/var/run:rw",
+		"/var/lib/docker:/var/lib/docker:rw",
+		"/etc/docker:/etc/docker:rw",
+		"/dev:/dev:rw",
+		"/sys:/sys:rw"}
+	return &docker.HostConfig{
+		Binds:       binds,
+		Privileged:  true,
+		NetworkMode: "host",
+		/* Use PID=host per the kubernetes documentation */
+		PidMode: "host"}
 }
 
 func defaultHC() *docker.HostConfig {
@@ -201,6 +220,34 @@ func (sv *Supervisor) Configure(cfg MinionConfig) error {
 		return err
 	}
 
+	if cfg.Role == MinionConfig_MASTER {
+		kubeletArgs := []string{"/usr/bin/boot-master", sv.cfg.PrivateIP}
+		err := sv.runContainer("di-kubelet", KUBELET, kubeHC(), kubeletArgs)
+		if err != nil {
+			return err
+		}
+
+		/* Create the kube-system namespace. This is where info about all of the
+		 * kubernetes pods, conatiners, replication controllers, etc... will
+		 * live. */
+		go func() {
+			body := `{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"kube-system"}}`
+			url := "http://127.0.0.1:9000/api/v1/namespaces"
+			ctype := "application/json"
+			for {
+				_, err := http.Post(url, ctype, bytes.NewBuffer([]byte(body)))
+				if err == nil {
+					break
+				}
+				time.Sleep(5 * time.Second)
+			}
+		}()
+
+		/* XXX: Should we create a separate namespace for user pods, e.g.
+		 * the AWS namespace we use right now? There is probably a convention
+		 * for this mentioned somewhere in the kubernetes community. */
+	}
+
 	return nil
 }
 
@@ -212,7 +259,16 @@ func (sv Supervisor) WatchLeaderChannel(leaderChan chan *string) {
 			/* XXX: Handle this. */
 			continue
 		}
-		/* XXX: update ovsdb, kubernetes, etc... */
+
+		kubeletArgs := []string{"/usr/bin/boot-worker", sv.cfg.PrivateIP,
+			*leaderIp}
+		err := sv.runContainer("di-kubelet", KUBELET, kubeHC(), kubeletArgs)
+		if err != nil {
+			log.Warning("Failed to boot di-kubelet: %s", err)
+			if err := sv.removeContainer("di-kubelet"); err != nil {
+				log.Warning("Failed to remove di-kubelet: %s", err)
+			}
+		}
 	}
 }
 
