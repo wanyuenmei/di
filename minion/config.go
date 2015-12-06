@@ -2,47 +2,50 @@ package main
 
 import (
 	"net"
+	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"github.com/NetSys/di/minion/proto"
+	. "github.com/NetSys/di/minion/proto"
 )
 
 type configServer struct {
-	cfg        proto.MinionConfig
-	configChan chan proto.MinionConfig
-	booted     bool
+	cfg        MinionConfig
+	configChan chan MinionConfig
 }
 
 func (s *configServer) SetMinionConfig(ctx context.Context,
-	msg *proto.MinionConfig) (*proto.Reply, error) {
-	if s.booted {
-		if *msg != s.cfg {
-			return &proto.Reply{Success: false,
-				Error: "Cannot change MinionConfig"}, nil
-		}
-		return &proto.Reply{Success: true}, nil
-	}
-
-	s.booted = true
+	msg *MinionConfig) (*Reply, error) {
 	s.cfg = *msg
 	s.configChan <- s.cfg
-	return &proto.Reply{Success: true}, nil
+	return &Reply{Success: true}, nil
 }
 
-func NewConfigChannel() (chan proto.MinionConfig, error) {
-	cfgChan := make(chan proto.MinionConfig)
-	server := configServer{configChan: cfgChan}
+func NewConfigChannel() <-chan MinionConfig {
+	cfgChan := make(chan MinionConfig)
 
-	sock, err := net.Listen("tcp", ":9999")
-	if err != nil {
-		return cfgChan, err
-	}
+	go func() {
+		var sock net.Listener
+		for {
+			var err error
+			sock, err = net.Listen("tcp", ":9999")
+			if err != nil {
+				log.Warning("Failed to open socket: %s", err)
+			} else {
+				break
+			}
 
-	s := grpc.NewServer()
-	proto.RegisterMinionServer(s, &server)
-	go s.Serve(sock)
+			time.Sleep(30 * time.Second)
+		}
 
-	return cfgChan, nil
+		s := grpc.NewServer()
+		RegisterMinionServer(s, &configServer{
+			configChan: cfgChan,
+			cfg:        MinionConfig{"", MinionConfig_NONE, "", ""},
+		})
+		s.Serve(sock)
+	}()
+
+	return cfgChan
 }

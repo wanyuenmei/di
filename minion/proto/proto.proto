@@ -5,13 +5,16 @@ service Minion {
 }
 
 message MinionConfig {
-    string EtcdToken = 1;
-    string PrivateIP = 2;
     enum Role {
-        MASTER = 0;
-        WORKER = 1;
+        NONE = 0;
+        MASTER = 1;
+        WORKER = 2;
     }
-    Role role = 3;
+
+    string ID = 1;
+    Role role = 2;
+    string PrivateIP = 3;
+    string EtcdToken = 4;
 }
 
 message Reply {
