@@ -11,8 +11,9 @@ var log = logging.MustGetLogger("main")
 func main() {
 	log.Info("Minion Start")
 
+	mServer := NewMinionServer()
 	sv := supervisor.New()
-	for cfg := range NewConfigChannel() {
+	for cfg := range mServer.ConfigChan {
 		log.Info("Received Configuration: %s", cfg)
 		sv.Configure(cfg)
 	}
