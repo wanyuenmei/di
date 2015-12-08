@@ -129,7 +129,7 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 
 OuterLoop:
 	for i := 0; i < 30; i++ {
-		instances, err := clst.GetInstances()
+		instances, err := clst.getInstances()
 		if err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ OuterLoop:
 	return nil
 }
 
-func (clst *awsSpotCluster) GetInstances() ([]Instance, error) {
+func (clst *awsSpotCluster) getInstances() ([]Instance, error) {
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
@@ -239,7 +239,7 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 func (clst *awsSpotCluster) waitForSpotRequests(ids []string) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
-		instances, err := clst.GetInstances()
+		instances, err := clst.getInstances()
 		if err != nil {
 			log.Warning("Failed to get Instances: %s", err)
 			continue

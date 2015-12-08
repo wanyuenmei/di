@@ -7,7 +7,6 @@ import (
 
 	"github.com/NetSys/di/cluster"
 	"github.com/NetSys/di/config"
-	"github.com/NetSys/di/foreman"
 
 	"github.com/op/go-logging"
 	"google.golang.org/grpc/grpclog"
@@ -16,8 +15,6 @@ import (
 var log = logging.MustGetLogger("main")
 
 func main() {
-	log.Info("Starting")
-
 	flag.Usage = func() {
 		flag.PrintDefaults()
 	}
@@ -31,8 +28,5 @@ func main() {
 	grpclog.SetLogger(l_mod.New(ioutil.Discard, "", 0))
 
 	config.Init(*config_path)
-	clst := cluster.New(cluster.AWS, config.Watch())
-	foreman.New(clst, config.Watch())
-
-	select {}
+	cluster.Run(cluster.AWS, config.Watch())
 }
