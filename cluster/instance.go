@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	. "github.com/NetSys/di/minion/proto"
+	pb "github.com/NetSys/di/minion/proto"
 )
 
 type InstanceSet []Instance
@@ -18,12 +18,12 @@ type Instance struct {
 	PrivateIP *string /* Private IP address of the instance, or nil */
 	State     string
 	EtcdToken string
-	role      Role
+	Role      Role
 }
 
 var clientMap = make(map[string]*grpc.ClientConn)
 
-func (inst Instance) minionClient() MinionClient {
+func (inst Instance) MinionClient() pb.MinionClient {
 	if inst.PublicIP == nil {
 		return nil
 	}
@@ -42,7 +42,7 @@ func (inst Instance) minionClient() MinionClient {
 	}
 
 	if conn != nil {
-		return NewMinionClient(conn)
+		return pb.NewMinionClient(conn)
 	} else {
 		return nil
 	}
@@ -71,7 +71,7 @@ func (set InstanceSet) String() string {
 func (inst Instance) String() string {
 	result := ""
 
-	result += fmt.Sprintf("{%s, %s, %s", inst.Id, inst.State, inst.role)
+	result += fmt.Sprintf("{%s, %s, %s", inst.Id, inst.State, inst.Role)
 	if inst.PublicIP != nil {
 		result += ", " + *inst.PublicIP
 	}
@@ -105,8 +105,8 @@ func (insts InstanceSet) Less(i, j int) bool {
 	I, J := insts[i], insts[j]
 
 	switch {
-	case I.role != J.role:
-		return !I.role.less(J.role)
+	case I.Role != J.Role:
+		return !I.Role.less(J.Role)
 	case (I.PublicIP == nil) != (J.PublicIP == nil):
 		return I.PublicIP != nil
 	case (I.PrivateIP == nil) != (J.PrivateIP == nil):

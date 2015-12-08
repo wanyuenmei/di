@@ -27,7 +27,7 @@ const (
 )
 
 /* Create a new cluster using 'provider' to host the cluster at 'region' */
-func Run(cp CloudProvider, cfgChan chan Config) {
+func New(cp CloudProvider, cfgChan chan Config) Table {
 	cfg := <-cfgChan
 	log.Info("Initialized with Config: %s", cfg)
 
@@ -41,13 +41,16 @@ func Run(cp CloudProvider, cfgChan chan Config) {
 
 	table := NewTable()
 	tick := time.Tick(10 * time.Second)
-	for {
-		runOnce(cloud, table, cfg)
-		select {
-		case cfg = <-cfgChan:
-		case <-tick:
+	go func() {
+		for {
+			runOnce(cloud, table, cfg)
+			select {
+			case cfg = <-cfgChan:
+			case <-tick:
+			}
 		}
-	}
+	}()
+	return table
 }
 
 func runOnce(cloud provider, table Table, cfg Config) {

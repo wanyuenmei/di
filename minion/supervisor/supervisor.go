@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/NetSys/di/container"
 	. "github.com/NetSys/di/minion/proto"
 	"github.com/fsouza/go-dockerclient"
 )
@@ -25,8 +26,9 @@ type Supervisor struct {
 	dk  *docker.Client
 	cfg MinionConfig
 
-	running map[string]bool
-	done    chan<- struct{}
+	running       map[string]bool
+	containerChan chan ContainerConfig
+	done          chan<- struct{}
 }
 
 func kubeHC() *docker.HostConfig {
@@ -45,7 +47,7 @@ func kubeHC() *docker.HostConfig {
 }
 
 /* Create a new supervisor. Blocks until successful. */
-func New() *Supervisor {
+func New(cntrChan chan ContainerConfig) *Supervisor {
 	var dk *docker.Client
 	for {
 		var err error
@@ -59,8 +61,9 @@ func New() *Supervisor {
 	}
 
 	sv := &Supervisor{
-		dk:      dk,
-		running: make(map[string]bool),
+		dk:            dk,
+		running:       make(map[string]bool),
+		containerChan: cntrChan,
 	}
 
 	images := []string{OVS_OVSDB, OVN_NORTHD, OVN_CONTROLLER, OVS_VSWITCHD, ETCD}
@@ -243,11 +246,19 @@ OuterLoop:
 	}
 
 	chn := make(chan bool)
+	cntrChan := make(chan map[string]int32)
 	go campaign(sv.cfg.PrivateIP, chn, done)
+	go container.Run(container.KUBERNETES, cntrChan)
+	var leader bool
 	for {
-		var leader bool
+		var cntrCfg ContainerConfig
 		select {
 		case leader = <-chn:
+		case cntrCfg = <-sv.containerChan:
+			if leader {
+				cntrChan <- cntrCfg.Count
+			}
+			continue
 		case <-done:
 			return
 		}

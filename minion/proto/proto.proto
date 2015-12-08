@@ -20,8 +20,7 @@ message MinionConfig {
 }
 
 message ContainerConfig {
-    string Name = 1;
-    int32 Count = 2;
+    map<string, int32> Count = 1;
 }
 
 message Reply {

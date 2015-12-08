@@ -58,7 +58,7 @@ func (table Table) set(instances InstanceSet) {
 	table.setChan <- instances
 }
 
-func (table Table) get() InstanceSet {
+func (table Table) Get() InstanceSet {
 	chn := make(chan InstanceSet)
 	table.getChan <- chn
 	return <-chn
@@ -96,7 +96,7 @@ func getDiff(from InstanceSet, masterCount, workerCount int) Diff {
 
 	var masters, workers, change InstanceSet
 	for _, inst := range from {
-		switch inst.role {
+		switch inst.Role {
 		case MASTER:
 			masters = append(masters, inst)
 		case WORKER:
@@ -124,9 +124,9 @@ func getDiff(from InstanceSet, masterCount, workerCount int) Diff {
 	for i := range change {
 		if masterDelta > 0 {
 			masterDelta--
-			change[i].role = MASTER
+			change[i].Role = MASTER
 		} else if workerDelta > 0 {
-			change[i].role = WORKER
+			change[i].Role = WORKER
 		}
 	}
 

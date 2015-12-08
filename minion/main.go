@@ -12,7 +12,7 @@ func main() {
 	log.Info("Minion Start")
 
 	mServer := NewMinionServer()
-	sv := supervisor.New()
+	sv := supervisor.New(mServer.ContainerChan)
 	for cfg := range mServer.ConfigChan {
 		log.Info("Received Configuration: %s", cfg)
 		sv.Configure(cfg)

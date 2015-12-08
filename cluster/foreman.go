@@ -18,9 +18,9 @@ func foremanWriteMinions(instances []Instance) {
 }
 
 func queryMinion(inst *Instance) {
-	inst.role = PENDING
+	inst.Role = PENDING
 
-	client := (*inst).minionClient()
+	client := (*inst).MinionClient()
 	if client == nil {
 		return
 	}
@@ -34,19 +34,19 @@ func queryMinion(inst *Instance) {
 		return
 	}
 
-	inst.role = roleFromMinion(cfg.Role)
+	inst.Role = roleFromMinion(cfg.Role)
 	inst.EtcdToken = cfg.EtcdToken
 }
 
 func writeMinion(inst *Instance) {
-	client := inst.minionClient()
+	client := inst.MinionClient()
 	if client == nil || inst.PrivateIP == nil {
 		return
 	}
 
 	reply, err := client.SetMinionConfig(defaultCTX(), &MinionConfig{
 		ID:        inst.Id,
-		Role:      roleToMinion(inst.role),
+		Role:      roleToMinion(inst.Role),
 		PrivateIP: *inst.PrivateIP,
 		EtcdToken: inst.EtcdToken,
 	})

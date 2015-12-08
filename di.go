@@ -7,6 +7,7 @@ import (
 
 	"github.com/NetSys/di/cluster"
 	"github.com/NetSys/di/config"
+	"github.com/NetSys/di/container"
 
 	"github.com/op/go-logging"
 	"google.golang.org/grpc/grpclog"
@@ -28,5 +29,6 @@ func main() {
 	grpclog.SetLogger(l_mod.New(ioutil.Discard, "", 0))
 
 	config.Init(*config_path)
-	cluster.Run(cluster.AWS, config.Watch())
+	clst := cluster.New(cluster.AWS, config.Watch())
+	container.WatchConfig(clst, config.Watch())
 }
