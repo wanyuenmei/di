@@ -83,16 +83,6 @@ func watchConfigRun() {
 	old_config = nil
 	tick := time.Tick(2 * time.Second)
 	for {
-		select {
-		case chn := <-cfgChan:
-			chns = append(chns, chn)
-			if old_config != nil {
-				chn <- *old_config
-			}
-			continue
-		case <-tick:
-		}
-
 		new_config := parseConfig(path)
 		if new_config != nil && (old_config == nil ||
 			!reflect.DeepEqual(*old_config, *new_config)) {
@@ -101,6 +91,16 @@ func watchConfigRun() {
 			for _, chn := range chns {
 				chn <- *new_config
 			}
+		}
+
+		select {
+		case chn := <-cfgChan:
+			chns = append(chns, chn)
+			if old_config != nil {
+				chn <- *old_config
+			}
+			continue
+		case <-tick:
 		}
 	}
 }
