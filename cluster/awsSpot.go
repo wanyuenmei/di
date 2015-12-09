@@ -46,7 +46,9 @@ func newAWS(namespace string) provider {
 }
 
 func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
-	log.Info("Boot %d instances", count)
+	if count <= 0 {
+		return nil
+	}
 
 	count64 := int64(count)
 	cloud_config64 := base64.StdEncoding.EncodeToString([]byte(cloudConfig))
@@ -64,9 +66,9 @@ func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
 		return err
 	}
 
-	var spotIds []*string
+	var spotIds []string
 	for _, request := range resp.SpotInstanceRequests {
-		spotIds = append(spotIds, request.SpotInstanceRequestId)
+		spotIds = append(spotIds, *request.SpotInstanceRequestId)
 	}
 
 	if err := clst.tagSpotRequests(spotIds); err != nil {
@@ -78,7 +80,6 @@ func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
 		return err
 	}
 
-	log.Info("Successfully Booted %d instances", count)
 	return nil
 }
 
@@ -87,11 +88,17 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 		return nil
 	}
 
-	log.Info("Stopping " + instSliceString(instances))
-
 	ids := []string{}
 	for _, inst := range instances {
 		ids = append(ids, inst.Id)
+	}
+
+	_, err := clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
+		SpotInstanceRequestIds: aws.StringSlice(ids),
+	})
+	if err != nil {
+		log.Warning("Failed to cancel spot requests: %s", err)
+		return err
 	}
 
 	spots, err := clst.DescribeSpotInstanceRequests(
@@ -100,30 +107,24 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 		})
 	if err != nil {
 		log.Warning("Failed to describe Spot Instances: %s", err)
-		/* May as well try to cancel them. */
-	} else {
-		instIds := []*string{}
-		for _, spot := range spots.SpotInstanceRequests {
-			if spot.InstanceId != nil {
-				instIds = append(instIds, spot.InstanceId)
-			}
-		}
+		return err
+	}
 
+	instIds := []string{}
+	for _, spot := range spots.SpotInstanceRequests {
+		if spot.InstanceId != nil {
+			instIds = append(instIds, *spot.InstanceId)
+		}
+	}
+
+	if len(instIds) > 0 {
 		_, err = clst.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: instIds,
+			InstanceIds: aws.StringSlice(instIds),
 		})
 		if err != nil {
 			log.Warning("Failed to terminate instances: %s", err)
 			/* May as well attempt to cancel the spot requests. */
 		}
-	}
-
-	_, err = clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: aws.StringSlice(ids),
-	})
-	if err != nil {
-		log.Warning("Failed to cancel spot requests: %s", err)
-		return err
 	}
 
 OuterLoop:
@@ -147,8 +148,6 @@ OuterLoop:
 
 		break
 	}
-
-	log.Info("Successfully Stopped Instances")
 	return nil
 }
 
@@ -209,14 +208,14 @@ func (clst *awsSpotCluster) GetInstances() ([]Instance, error) {
 	return instances, nil
 }
 
-func (clst *awsSpotCluster) tagSpotRequests(spotIds []*string) error {
+func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 	var err error
 	for i := 0; i < 30; i++ {
 		_, err = clst.CreateTags(&ec2.CreateTagsInput{
 			Tags: []*ec2.Tag{
 				{Key: aws.String(clst.namespace), Value: aws.String("")},
 			},
-			Resources: spotIds,
+			Resources: aws.StringSlice(spotIds),
 		})
 		if err == nil {
 			return nil
@@ -227,7 +226,7 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []*string) error {
 	log.Warning("Failed to tag spot requests: %s, cancelling.", err)
 	_, cancelErr := clst.CancelSpotInstanceRequests(
 		&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: spotIds,
+			SpotInstanceRequestIds: aws.StringSlice(spotIds),
 		})
 
 	if cancelErr != nil {
@@ -237,24 +236,22 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []*string) error {
 	return err
 }
 
-func (clst *awsSpotCluster) waitForSpotRequests(ids []*string) error {
+func (clst *awsSpotCluster) waitForSpotRequests(ids []string) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
-		resp, err := clst.DescribeSpotInstanceRequests(
-			&ec2.DescribeSpotInstanceRequestsInput{
-				SpotInstanceRequestIds: ids,
-			})
+		instances, err := clst.GetInstances()
 		if err != nil {
-			return err
+			log.Warning("Failed to get Instances: %s", err)
+			continue
 		}
 
-		rmap := make(map[string]bool)
-		for _, request := range resp.SpotInstanceRequests {
-			rmap[*request.SpotInstanceRequestId] = true
+		idMap := make(map[string]bool)
+		for _, inst := range instances {
+			idMap[inst.Id] = true
 		}
 
 		for _, id := range ids {
-			if !rmap[*id] {
+			if !idMap[id] {
 				time.Sleep(5 * time.Second)
 				continue OuterLoop
 			}
