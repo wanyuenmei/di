@@ -63,6 +63,7 @@ func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
 		InstanceCount: &count64,
 	})
 	if err != nil {
+		log.Warning(clst.namespace)
 		return err
 	}
 

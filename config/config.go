@@ -1,14 +1,15 @@
 package config
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"time"
 
 	"github.com/op/go-logging"
 
+	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/util"
 )
 
@@ -17,12 +18,11 @@ type Config struct {
 
 	RedCount    int
 	BlueCount   int
-	WorkerCount int    /* Number of worker VMs */
-	MasterCount int    /* Number of master VMs */
-	Region      string /* AWS availability zone */
+	WorkerCount int /* Number of worker VMs */
+	MasterCount int /* Number of master VMs */
 
-	AdminACL          []string
-	SSHAuthorizedKeys []string
+	AdminACL []string
+	SSHKeys  []string
 }
 
 var log = logging.MustGetLogger("config")
@@ -33,25 +33,36 @@ var path string
 /* Convert 'cfg' its string representation. */
 func (cfg Config) String() string {
 	str := fmt.Sprintf(
-		"{\n\tNamespace: %s,\n\tMasterCount: %d\n\tWorkerCount: %d,\n\tRegion: %s\n}",
-		cfg.Namespace, cfg.MasterCount, cfg.WorkerCount, cfg.Region)
+		"{\n\tNamespace: %s\n\tMasterCount: %d\n\tWorkerCount: %d\n}",
+		cfg.Namespace, cfg.MasterCount, cfg.WorkerCount)
 	return str
 }
 
-func parseConfig(config_path string) *Config {
-	var config Config
-
-	config_file, err := ioutil.ReadFile(config_path)
+func parseConfig(path string) *Config {
+	f, err := os.Open(path)
 	if err != nil {
-		log.Warning("Error reading config")
+		log.Warning("Error opening config file: %s", err.Error())
+	}
+	defer f.Close()
+
+	spec, err := dsl.New(bufio.NewReader(f))
+	if err != nil {
 		log.Warning(err.Error())
 		return nil
 	}
 
-	err = json.Unmarshal(config_file, &config)
-	if err != nil {
-		log.Warning("Malformed config")
-		log.Warning(err.Error())
+	config := Config{
+		Namespace:   spec.QueryString("Namespace"),
+		RedCount:    spec.QueryInt("RedCount"),
+		BlueCount:   spec.QueryInt("BlueCount"),
+		WorkerCount: spec.QueryInt("WorkerCount"),
+		MasterCount: spec.QueryInt("MasterCount"),
+		AdminACL:    spec.QueryStrSlice("AdminACL"),
+		SSHKeys:     spec.QueryStrSlice("SSHKeys"),
+	}
+
+	if config.Namespace == "" {
+		log.Warning("Must configure a Namespace")
 		return nil
 	}
 
@@ -66,12 +77,6 @@ func parseConfig(config_path string) *Config {
 			}
 		}
 	}
-
-	/* XXX: There's research in this somewhere.  How do we validate inputs into
-	 * the policy?  What do we do with a policy that's wrong?  Also below, we
-	 * want someone to be able to say "limit the number of instances for cost
-	 * reasons" ... look at what's going on in amp for example.  100k in a month
-	 * is crazy. */
 
 	return &config
 }
@@ -127,9 +132,9 @@ coreos:
 
 `
 
-	if len(cfg.SSHAuthorizedKeys) > 0 {
+	if len(cfg.SSHKeys) > 0 {
 		cloud_config += "ssh_authorized_keys:\n"
-		for _, key := range cfg.SSHAuthorizedKeys {
+		for _, key := range cfg.SSHKeys {
 			cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
 		}
 	}

@@ -25,4 +25,5 @@ _testmain.go
 
 di
 
-config.json
+coverage.html
+coverage.out

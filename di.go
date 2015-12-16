@@ -19,7 +19,7 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	var config_path = flag.String("c", "config.json", "path to config file")
+	var config_path = flag.String("c", "config.spec", "path to config file")
 	flag.Parse()
 
 	/* XXX: GRPC spews a lot of uselss log message so we tell to eat its logs.
