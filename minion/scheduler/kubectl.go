@@ -1,4 +1,4 @@
-package container
+package scheduler
 
 import (
 	"fmt"
@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+	"github.com/op/go-logging"
 	"golang.org/x/build/kubernetes"
 	api "golang.org/x/build/kubernetes/api"
 )
+
+var log = logging.MustGetLogger("scheduler")
 
 const KUBERNETES_BASE = "http://127.0.0.1:9000"
 const DI_LABEL = "di-tag"
@@ -19,7 +22,7 @@ type kubectl struct {
 	count      map[string]int32
 }
 
-func NewKubectl() controller {
+func NewKubectl() scheduler {
 	var err error
 	var kubeClient *kubernetes.Client
 
@@ -35,7 +38,7 @@ func NewKubectl() controller {
 	return kubectl{kubeClient: kubeClient, count: make(map[string]int32)}
 }
 
-func (k kubectl) getContainers() map[string][]Container {
+func (k kubectl) get() map[string][]Container {
 	result := make(map[string][]Container)
 	pods, err := k.kubeClient.GetPods(context.Background())
 	if err != nil {
@@ -54,7 +57,7 @@ func (k kubectl) getContainers() map[string][]Container {
 	return result
 }
 
-func (k kubectl) bootContainers(name string, toBoot int) {
+func (k kubectl) boot(name string, toBoot int) {
 	if toBoot <= 0 {
 		return
 	}
@@ -100,7 +103,7 @@ func (k kubectl) bootContainers(name string, toBoot int) {
 	k.count[name] += int32(toBoot)
 }
 
-func (k kubectl) terminateContainers(name string, toTerm []Container) {
+func (k kubectl) terminate(name string, toTerm []Container) {
 	for _, c := range toTerm {
 		ctx := context.Background()
 		err := k.kubeClient.DeletePod(ctx, c.Name)

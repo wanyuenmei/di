@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/NetSys/di/container"
 	"github.com/NetSys/di/minion/pb"
+	"github.com/NetSys/di/minion/scheduler"
 	"github.com/fsouza/go-dockerclient"
 )
 
@@ -248,7 +248,7 @@ OuterLoop:
 	chn := make(chan bool)
 	cntrChan := make(chan map[string]int32)
 	go campaign(sv.cfg.PrivateIP, chn, done)
-	go container.Run(container.KUBERNETES, cntrChan)
+	go scheduler.Run(cntrChan)
 	var leader bool
 	for {
 		var cntrCfg pb.ContainerConfig

@@ -1,101 +1,190 @@
 package cluster
 
 import (
-	"time"
-
-	. "github.com/NetSys/di/config"
+	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/util"
 	"github.com/op/go-logging"
 )
 
+type machine struct {
+	id        string
+	publicIP  string
+	privateIP string
+}
+
 var log = logging.MustGetLogger("cluster")
 
-/* A group of virtual machines within a fault domain. */
 type provider interface {
-	get() ([]Machine, error)
+	get() ([]machine, error)
 
 	boot(count int, cloudConfig string) error
 
 	stop(ids []string) error
+
+	disconnect()
 }
 
-/* Available choices of CloudProvider. */
-type CloudProvider int
+type cluster struct {
+	provider
+	id          int
+	conn        db.Conn
+	cloudConfig string
+	trigger     db.Trigger
+	fm          foreman
 
-const (
-	AWS = iota
-)
+	mark bool /* For mark and sweep garbage collection. */
+}
 
-/* Create a new cluster using 'provider' to host the cluster at 'region' */
-func New(cp CloudProvider, cfgChan chan Config) Table {
-	cfg := <-cfgChan
-	log.Info("Initialized with Config: %s", cfg)
+// Run continually checks 'conn' for new clusters and implements the policies they
+// dictate.
+func Run(conn db.Conn) {
+	clusters := make(map[int]*cluster)
 
-	var cloud provider
-	switch cp {
-	case AWS:
-		cloud = newAWS(cfg.Namespace)
-	default:
-		panic("Cluster request for an unknown cloud provider.")
-	}
+	for range conn.TriggerTick("Cluster", 60).C {
+		var dbClusters []db.Cluster
+		conn.Transact(func(db *db.Database) error {
+			dbClusters = db.SelectFromCluster(nil)
+			return nil
+		})
 
-	table := NewTable()
-	tick := time.Tick(10 * time.Second)
-	go func() {
-		for {
-			runOnce(cloud, table, cfg)
-			select {
-			case cfg = <-cfgChan:
-			case <-tick:
+		/* Mark and sweep garbage collect the clusters. */
+		for _, row := range dbClusters {
+			clst, ok := clusters[row.ID]
+			if !ok {
+				clst = newCluster(conn, row.ID, row.Provider,
+					row.Namespace, row.SSHKeys)
+			}
+
+			clst.mark = true
+		}
+
+		for k, clst := range clusters {
+			if clst.mark {
+				clst.mark = false
+			} else {
+				clst.fm.stop()
+				clst.trigger.Stop()
+				delete(clusters, k)
 			}
 		}
-	}()
-	return table
+	}
 }
 
-func runOnce(cloud provider, table Table, cfg Config) {
-	machines, err := cloud.get()
-	if err != nil {
-		log.Warning("Failed to get machines: %s", err)
-		return
+func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
+	keys []string) *cluster {
+
+	var cloud provider
+	switch dbp {
+	case db.AmazonSpot:
+		cloud = newAWS(conn, id, namespace)
+	default:
+		panic("Unimplemented")
 	}
 
-	foremanQueryMinions(machines)
-
-	table.set(machines)
-
-	diff := table.diff(cfg.MasterCount, cfg.WorkerCount)
-
-	if diff.boot > 0 {
-		log.Info("Attempt to boot %d Machines", diff.boot)
-		cloudConfig := util.CloudConfig(cfg.SSHKeys)
-		if err := cloud.boot(diff.boot, cloudConfig); err != nil {
-			log.Info("Failed to boot machines: %s", err)
-		} else {
-			log.Info("Successfully booted %d Machines", diff.boot)
-		}
+	clst := cluster{
+		provider:    cloud,
+		id:          id,
+		conn:        conn,
+		cloudConfig: util.CloudConfig(keys),
+		trigger:     conn.TriggerTick("Machine", 30),
+		fm:          newForeman(conn, id),
 	}
 
-	if len(diff.terminate) > 0 {
-		ids := []string{}
-		for _, machine := range diff.terminate {
-			ids = append(ids, machine.Id)
+	go func() {
+		defer clst.provider.disconnect()
+		for range clst.trigger.C {
+			clst.sync()
+		}
+	}()
+	return &clst
+}
+
+func (clst cluster) sync() {
+	/* Each iteration of this loop does the following:
+	 *
+	 * - Get the current set of machines from the cloud provider.
+	 * - Get the current policy from the database.
+	 * - Compute a diff.
+	 * - Update the cloud provider accordingly.
+	 *
+	 * Updating the cloud provider may have consequences (creating machines for
+	 * instances) that should be reflected in the database.  Therefore, if updates
+	 * are necessary the code loops so that database can be updated before
+	 * the next sync() call. */
+	for i := 0; i < 8; i++ {
+		cloudMachines, err := clst.get()
+		if err != nil {
+			log.Warning(err.Error())
+			return
 		}
 
-		log.Info("Attempt to stop %s", diff.terminate)
-		if err := cloud.stop(ids); err != nil {
-			log.Info("Failed to stop machines: %s", err)
-		} else {
-			log.Info("Successfully stopped %d machines", len(diff.terminate))
+		nBoot, terminateSet := clst.syncDB(cloudMachines)
+		if nBoot == 0 && len(terminateSet) == 0 {
+			return
 		}
 
-		for _, inst := range diff.terminate {
-			inst.minionClose()
+		if nBoot > 0 {
+			log.Info("Attempt to boot %d Machines", nBoot)
+			err := clst.boot(nBoot, clst.cloudConfig)
+			if err != nil {
+				log.Info("Failed to boot machines: %s", err)
+			} else {
+				log.Info("Successfully booted %d Machines", nBoot)
+			}
+		}
+
+		if len(terminateSet) > 0 {
+			log.Info("Attempt to stop %s", terminateSet)
+			if err := clst.stop(terminateSet); err != nil {
+				log.Info("Failed to stop machines: %s", err)
+			} else {
+				log.Info("Successfully stopped %d machines",
+					len(terminateSet))
+			}
 		}
 	}
+}
 
-	if len(diff.minionChange) > 0 {
-		log.Info("Change Minion Config %s", diff.minionChange)
-		foremanWriteMinions(diff.minionChange)
-	}
+func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
+	var nBoot int
+	var terminateSet []string
+	clst.conn.Transact(func(view *db.Database) error {
+		machines := view.SelectFromMachine(func(m db.Machine) bool {
+			return m.ClusterID == clst.id
+		})
+
+		unassigned := []db.Machine{}
+		cidMap := make(map[string]db.Machine)
+		for _, machine := range machines {
+			if machine.CloudID == "" {
+				unassigned = append(unassigned, machine)
+			} else {
+				cidMap[machine.CloudID] = machine
+			}
+		}
+
+		for _, cm := range cloudMachines {
+			if machine, ok := cidMap[cm.id]; ok {
+				writeMachine(machine, cm)
+			} else if len(unassigned) > 0 {
+				assignment := unassigned[0]
+				unassigned = unassigned[1:]
+				writeMachine(assignment, cm)
+			} else {
+				terminateSet = append(terminateSet, cm.id)
+			}
+		}
+
+		nBoot = len(unassigned)
+		return nil
+	})
+
+	return nBoot, terminateSet
+}
+
+func writeMachine(dbm db.Machine, m machine) {
+	dbm.CloudID = m.id
+	dbm.PublicIP = m.publicIP
+	dbm.PrivateIP = m.privateIP
+	dbm.Write()
 }

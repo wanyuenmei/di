@@ -35,3 +35,14 @@ proto-gen-go.
 To generate the protobufs simply call:
 
         make generate
+
+## Stringer
+Some constants rely on the
+ [stringer](https://godoc.org/golang.org/x/tools/cmd/stringer) tool, which can
+be installed with go get:
+
+        go get golang.org/x/tools/cmd/stringer
+
+That done, simply run the following to update the generated files.
+
+        make generate

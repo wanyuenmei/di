@@ -25,5 +25,5 @@ _testmain.go
 
 di
 
-coverage.html
-coverage.out
+*.cov.html
+*.cov.out

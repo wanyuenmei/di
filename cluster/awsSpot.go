@@ -3,10 +3,10 @@ package cluster
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 
-	"github.com/NetSys/di/config"
-
+	"github.com/NetSys/di/db"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -20,29 +20,27 @@ const AWS_REGION = "us-west-2"
 type awsSpotCluster struct {
 	*ec2.EC2
 
-	namespace string
+	namespace  string
+	aclTrigger db.Trigger
 }
 
-func newAWS(namespace string) provider {
+func newAWS(conn db.Conn, clusterId int, namespace string) provider {
 	session := session.New()
 	session.Config.Region = aws.String(AWS_REGION)
-	clst := &awsSpotCluster{ec2.New(session), namespace}
+	clst := &awsSpotCluster{
+		ec2.New(session),
+		namespace,
+		conn.TriggerTick("Cluster", 60),
+	}
 
-	go func() {
-		tick := time.Tick(10 * time.Second)
-
-		cfgChan := config.Watch()
-		cfg := <-cfgChan
-		for {
-			clst.updateSecurityGroups(cfg.AdminACL)
-			select {
-			case cfg = <-cfgChan:
-			case <-tick:
-			}
-		}
-	}()
-
+	go clst.watchACLs(conn, clusterId)
 	return clst
+}
+
+func (clst *awsSpotCluster) disconnect() {
+	/* Ideally we'd close clst.ec2 as well, but the API doesn't export that ability
+	* apparently. */
+	clst.aclTrigger.Stop()
 }
 
 func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
@@ -127,7 +125,7 @@ func (clst awsSpotCluster) stop(ids []string) error {
 	return nil
 }
 
-func (clst awsSpotCluster) get() ([]Machine, error) {
+func (clst awsSpotCluster) get() ([]machine, error) {
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
@@ -153,16 +151,15 @@ func (clst awsSpotCluster) get() ([]Machine, error) {
 		}
 	}
 
-	machines := []Machine{}
+	machines := []machine{}
 	for _, spot := range spots.SpotInstanceRequests {
 		if *spot.State != ec2.SpotInstanceStateActive &&
 			*spot.State != ec2.SpotInstanceStateOpen {
 			continue
 		}
 
-		machine := Machine{
-			Id:    *spot.SpotInstanceRequestId,
-			State: *spot.State,
+		machine := machine{
+			id: *spot.SpotInstanceRequestId,
 		}
 
 		if spot.InstanceId != nil {
@@ -172,9 +169,14 @@ func (clst awsSpotCluster) get() ([]Machine, error) {
 					*awsInst.State.Name != ec2.InstanceStateNameRunning {
 					continue
 				}
-				machine.PrivateIP = awsInst.PrivateIpAddress
-				machine.PublicIP = awsInst.PublicIpAddress
-				machine.State = *awsInst.State.Name
+
+				if awsInst.PublicIpAddress != nil {
+					machine.publicIP = *awsInst.PublicIpAddress
+				}
+
+				if awsInst.PrivateIpAddress != nil {
+					machine.privateIP = *awsInst.PrivateIpAddress
+				}
 			}
 		}
 
@@ -226,7 +228,7 @@ OuterLoop:
 
 		exists := make(map[string]struct{})
 		for _, inst := range machines {
-			exists[inst.Id] = struct{}{}
+			exists[inst.id] = struct{}{}
 		}
 
 		for _, id := range ids {
@@ -357,4 +359,31 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 	}
 
 	return nil
+}
+
+func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
+	for range clst.aclTrigger.C {
+		var acls []string
+		err := conn.Transact(func(view *db.Database) error {
+			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
+				return c.ID == clusterID
+			})
+
+			if len(clusters) == 0 {
+				return fmt.Errorf("Undefined cluster")
+			} else if len(clusters) > 1 {
+				panic("Duplicate Clusters")
+			}
+
+			acls = clusters[0].AdminACL
+			return nil
+		})
+
+		if err != nil {
+			log.Warning("%s", err)
+			continue
+		}
+
+		clst.updateSecurityGroups(acls)
+	}
 }

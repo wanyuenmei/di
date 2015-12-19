@@ -15,9 +15,14 @@ docker:
 	cd -P minion && CGO_ENABLED=0 go build . && docker build -t quay.io/netsys/di-minion .
 
 check:
-	go test -v ./dsl
+	go test ./...
 
-coverage:
-	go test -coverprofile=coverage.out ./dsl
-	go tool cover -func coverage.out
-	go tool cover -html=coverage.out -o coverage.html
+vet:
+	cd -P . && go vet ./...
+
+coverage: db.cov dsl.cov engine.cov
+
+%.cov:
+	go test -coverprofile=$@.out ./$*
+	go tool cover -html=$@.out -o $@.html
+	rm $@.out

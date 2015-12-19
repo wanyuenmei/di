@@ -1,4 +1,5 @@
 (define Namespace "")
+(define Provider "AmazonSpot")
 (define MasterCount 3)
 (define WorkerCount (+ 2 MasterCount))
 (define RedCount WorkerCount)
