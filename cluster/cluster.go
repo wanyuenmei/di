@@ -3,8 +3,8 @@ package cluster
 import (
 	"time"
 
-	"github.com/NetSys/di/config"
 	. "github.com/NetSys/di/config"
+	"github.com/NetSys/di/util"
 	"github.com/op/go-logging"
 )
 
@@ -68,7 +68,7 @@ func runOnce(cloud provider, table Table, cfg Config) {
 
 	if diff.boot > 0 {
 		log.Info("Attempt to boot %d Instances", diff.boot)
-		cloudConfig := config.CloudConfig(cfg)
+		cloudConfig := util.CloudConfig(cfg.SSHKeys)
 		if err := cloud.bootInstances(diff.boot, cloudConfig); err != nil {
 			log.Info("Failed to boot instances: %s", err)
 		} else {

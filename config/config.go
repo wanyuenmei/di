@@ -110,38 +110,6 @@ func watchConfigRun() {
 	}
 }
 
-func CloudConfig(cfg Config) string {
-	cloud_config := `#cloud-config
-
-coreos:
-    units:
-        - name: minion.service
-          command: start
-          content: |
-            [Unit]
-            Description=DI Minion
-            After=docker.service
-            Requires=docker.service
-
-            [Service]
-            ExecStartPre=-/usr/bin/docker kill minion
-            ExecStartPre=-/usr/bin/docker rm minion
-            ExecStartPre=/usr/bin/docker pull quay.io/netsys/di-minion
-            ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock quay.io/netsys/di-minion
-
-`
-
-	if len(cfg.SSHKeys) > 0 {
-		cloud_config += "ssh_authorized_keys:\n"
-		for _, key := range cfg.SSHKeys {
-			cloud_config += fmt.Sprintf("    - \"%s\"\n", key)
-		}
-	}
-
-	return cloud_config
-}
-
 func Init(configPath string) {
 	if cfgChan == nil {
 		path = configPath

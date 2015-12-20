@@ -31,3 +31,35 @@ func NewDiscoveryToken(memberCount int) (string, error) {
 	return httpRequest(fmt.Sprintf("https://discovery.etcd.io/new?size=%d",
 		memberCount))
 }
+
+func CloudConfig(keys []string) string {
+	cloudConfig := `#cloud-config
+
+coreos:
+    units:
+        - name: minion.service
+          command: start
+          content: |
+            [Unit]
+            Description=DI Minion
+            After=docker.service
+            Requires=docker.service
+
+            [Service]
+            ExecStartPre=-/usr/bin/docker kill minion
+            ExecStartPre=-/usr/bin/docker rm minion
+            ExecStartPre=/usr/bin/docker pull quay.io/netsys/di-minion
+            ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
+            -v /var/run/docker.sock:/var/run/docker.sock quay.io/netsys/di-minion
+
+`
+
+	if len(keys) > 0 {
+		cloudConfig += "ssh_authorized_keys:\n"
+		for _, key := range keys {
+			cloudConfig += fmt.Sprintf("    - \"%s\"\n", key)
+		}
+	}
+
+	return cloudConfig
+}
