@@ -32,7 +32,7 @@ const (
 func WatchConfig(clst cluster.Table, configChan chan config.Config) {
 	for cfg := range configChan {
 		/* Wait until the cluster catches up to the new config. */
-		instances := make(cluster.InstanceSet, 0)
+		instances := make(cluster.MachineSet, 0)
 		for len(instances) < cfg.MasterCount+cfg.WorkerCount {
 			instances = clst.Get()
 			time.Sleep(10 * time.Second)

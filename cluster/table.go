@@ -1,20 +1,21 @@
 package cluster
 
 import (
-	"github.com/NetSys/di/util"
 	"reflect"
+
+	"github.com/NetSys/di/util"
 )
 
 type Table struct {
-	setChan  chan InstanceSet
-	getChan  chan chan InstanceSet
+	setChan  chan MachineSet
+	getChan  chan chan MachineSet
 	diffChan chan DiffRequest
 }
 
 type Diff struct {
 	boot         int
-	terminate    InstanceSet
-	minionChange InstanceSet
+	terminate    MachineSet
+	minionChange MachineSet
 }
 
 type DiffRequest struct {
@@ -25,8 +26,8 @@ type DiffRequest struct {
 
 func NewTable() Table {
 	tbl := Table{
-		make(chan InstanceSet),
-		make(chan chan InstanceSet),
+		make(chan MachineSet),
+		make(chan chan MachineSet),
 		make(chan DiffRequest),
 	}
 
@@ -35,7 +36,7 @@ func NewTable() Table {
 }
 
 func (tbl Table) run() {
-	var table InstanceSet
+	var table MachineSet
 
 	for {
 		select {
@@ -54,12 +55,12 @@ func (tbl Table) run() {
 	}
 }
 
-func (table Table) set(instances InstanceSet) {
+func (table Table) set(instances MachineSet) {
 	table.setChan <- instances
 }
 
-func (table Table) Get() InstanceSet {
-	chn := make(chan InstanceSet)
+func (table Table) Get() MachineSet {
+	chn := make(chan MachineSet)
 	table.getChan <- chn
 	return <-chn
 }
@@ -71,7 +72,7 @@ func (table Table) diff(masterCount, workerCount int) Diff {
 	return diff
 }
 
-func getDiff(from InstanceSet, masterCount, workerCount int) Diff {
+func getDiff(from MachineSet, masterCount, workerCount int) Diff {
 	diff := Diff{}
 
 	if masterCount == 0 || workerCount == 0 {
@@ -94,7 +95,7 @@ func getDiff(from InstanceSet, masterCount, workerCount int) Diff {
 		from = from[:total]
 	}
 
-	var masters, workers, change InstanceSet
+	var masters, workers, change MachineSet
 	for _, inst := range from {
 		switch inst.Role {
 		case MASTER:

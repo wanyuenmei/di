@@ -45,7 +45,7 @@ func newAWS(namespace string) provider {
 	return clst
 }
 
-func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
+func (clst *awsSpotCluster) bootMachines(count int, cloudConfig string) error {
 	if count <= 0 {
 		return nil
 	}
@@ -84,13 +84,13 @@ func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
 	return nil
 }
 
-func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
-	if instances == nil {
+func (clst *awsSpotCluster) stopMachines(machines []Machine) error {
+	if machines == nil {
 		return nil
 	}
 
 	ids := []string{}
-	for _, inst := range instances {
+	for _, inst := range machines {
 		ids = append(ids, inst.Id)
 	}
 
@@ -107,7 +107,7 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 			SpotInstanceRequestIds: aws.StringSlice(ids),
 		})
 	if err != nil {
-		log.Warning("Failed to describe Spot Instances: %s", err)
+		log.Warning("Failed to describe Spot Machines: %s", err)
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 			InstanceIds: aws.StringSlice(instIds),
 		})
 		if err != nil {
-			log.Warning("Failed to terminate instances: %s", err)
+			log.Warning("Failed to terminate machines: %s", err)
 			/* May as well attempt to cancel the spot requests. */
 		}
 	}
@@ -136,7 +136,7 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 	return nil
 }
 
-func (clst *awsSpotCluster) getInstances() ([]Instance, error) {
+func (clst *awsSpotCluster) getMachines() ([]Machine, error) {
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
@@ -162,14 +162,14 @@ func (clst *awsSpotCluster) getInstances() ([]Instance, error) {
 		}
 	}
 
-	instances := []Instance{}
+	machines := []Machine{}
 	for _, spot := range spots.SpotInstanceRequests {
 		if *spot.State != ec2.SpotInstanceStateActive &&
 			*spot.State != ec2.SpotInstanceStateOpen {
 			continue
 		}
 
-		instance := Instance{
+		machine := Machine{
 			Id:    *spot.SpotInstanceRequestId,
 			State: *spot.State,
 		}
@@ -181,16 +181,16 @@ func (clst *awsSpotCluster) getInstances() ([]Instance, error) {
 					*awsInst.State.Name != ec2.InstanceStateNameRunning {
 					continue
 				}
-				instance.PrivateIP = awsInst.PrivateIpAddress
-				instance.PublicIP = awsInst.PublicIpAddress
-				instance.State = *awsInst.State.Name
+				machine.PrivateIP = awsInst.PrivateIpAddress
+				machine.PublicIP = awsInst.PublicIpAddress
+				machine.State = *awsInst.State.Name
 			}
 		}
 
-		instances = append(instances, instance)
+		machines = append(machines, machine)
 	}
 
-	return instances, nil
+	return machines, nil
 }
 
 func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
@@ -226,15 +226,15 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
-		instances, err := clst.getInstances()
+		machines, err := clst.getMachines()
 		if err != nil {
-			log.Warning("Failed to get Instances: %s", err)
+			log.Warning("Failed to get Machines: %s", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		exists := make(map[string]struct{})
-		for _, inst := range instances {
+		for _, inst := range machines {
 			exists[inst.Id] = struct{}{}
 		}
 

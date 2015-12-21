@@ -12,11 +12,11 @@ var log = logging.MustGetLogger("cluster")
 
 /* A group of virtual machines within a fault domain. */
 type provider interface {
-	getInstances() ([]Instance, error)
+	getMachines() ([]Machine, error)
 
-	bootInstances(count int, cloudConfig string) error
+	bootMachines(count int, cloudConfig string) error
 
-	stopInstances(instances []Instance) error
+	stopMachines(machines []Machine) error
 }
 
 /* Available choices of CloudProvider. */
@@ -54,34 +54,34 @@ func New(cp CloudProvider, cfgChan chan Config) Table {
 }
 
 func runOnce(cloud provider, table Table, cfg Config) {
-	instances, err := cloud.getInstances()
+	machines, err := cloud.getMachines()
 	if err != nil {
-		log.Warning("Failed to get instances: %s", err)
+		log.Warning("Failed to get machines: %s", err)
 		return
 	}
 
-	foremanQueryMinions(instances)
+	foremanQueryMinions(machines)
 
-	table.set(instances)
+	table.set(machines)
 
 	diff := table.diff(cfg.MasterCount, cfg.WorkerCount)
 
 	if diff.boot > 0 {
-		log.Info("Attempt to boot %d Instances", diff.boot)
+		log.Info("Attempt to boot %d Machines", diff.boot)
 		cloudConfig := util.CloudConfig(cfg.SSHKeys)
-		if err := cloud.bootInstances(diff.boot, cloudConfig); err != nil {
-			log.Info("Failed to boot instances: %s", err)
+		if err := cloud.bootMachines(diff.boot, cloudConfig); err != nil {
+			log.Info("Failed to boot machines: %s", err)
 		} else {
-			log.Info("Successfully booted %d Instances", diff.boot)
+			log.Info("Successfully booted %d Machines", diff.boot)
 		}
 	}
 
 	if len(diff.terminate) > 0 {
 		log.Info("Attempt to stop %s", diff.terminate)
-		if err := cloud.stopInstances(diff.terminate); err != nil {
-			log.Info("Failed to stop instances: %s", err)
+		if err := cloud.stopMachines(diff.terminate); err != nil {
+			log.Info("Failed to stop machines: %s", err)
 		} else {
-			log.Info("Successfully stopped %d instances",
+			log.Info("Successfully stopped %d machines",
 				len(diff.terminate))
 		}
 

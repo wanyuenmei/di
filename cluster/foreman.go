@@ -9,15 +9,15 @@ import (
 	"golang.org/x/net/context"
 )
 
-func foremanQueryMinions(instances []Instance) {
-	forEachInstance(instances, queryMinion)
+func foremanQueryMinions(machines []Machine) {
+	forEachMinion(machines, queryMinion)
 }
 
-func foremanWriteMinions(instances []Instance) {
-	forEachInstance(instances, writeMinion)
+func foremanWriteMinions(machines []Machine) {
+	forEachMinion(machines, writeMinion)
 }
 
-func queryMinion(inst *Instance) {
+func queryMinion(inst *Machine) {
 	inst.Role = PENDING
 
 	client := (*inst).MinionClient()
@@ -38,7 +38,7 @@ func queryMinion(inst *Instance) {
 	inst.EtcdToken = cfg.EtcdToken
 }
 
-func writeMinion(inst *Instance) {
+func writeMinion(inst *Machine) {
 	client := inst.MinionClient()
 	if client == nil || inst.PrivateIP == nil {
 		return
@@ -57,14 +57,14 @@ func writeMinion(inst *Instance) {
 	}
 }
 
-func forEachInstance(instances []Instance, do func(inst *Instance)) {
+func forEachMinion(machines []Machine, do func(inst *Machine)) {
 	var wg sync.WaitGroup
 
-	wg.Add(len(instances))
+	wg.Add(len(machines))
 	defer wg.Wait()
 
-	for i := range instances {
-		inst := &instances[i]
+	for i := range machines {
+		inst := &machines[i]
 		go func() {
 			defer wg.Done()
 			do(inst)
