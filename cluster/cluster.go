@@ -12,11 +12,11 @@ var log = logging.MustGetLogger("cluster")
 
 /* A group of virtual machines within a fault domain. */
 type provider interface {
-	getMachines() ([]Machine, error)
+	get() ([]Machine, error)
 
-	bootMachines(count int, cloudConfig string) error
+	boot(count int, cloudConfig string) error
 
-	stopMachines(machines []Machine) error
+	stop(ids []string) error
 }
 
 /* Available choices of CloudProvider. */
@@ -54,7 +54,7 @@ func New(cp CloudProvider, cfgChan chan Config) Table {
 }
 
 func runOnce(cloud provider, table Table, cfg Config) {
-	machines, err := cloud.getMachines()
+	machines, err := cloud.get()
 	if err != nil {
 		log.Warning("Failed to get machines: %s", err)
 		return
@@ -69,7 +69,7 @@ func runOnce(cloud provider, table Table, cfg Config) {
 	if diff.boot > 0 {
 		log.Info("Attempt to boot %d Machines", diff.boot)
 		cloudConfig := util.CloudConfig(cfg.SSHKeys)
-		if err := cloud.bootMachines(diff.boot, cloudConfig); err != nil {
+		if err := cloud.boot(diff.boot, cloudConfig); err != nil {
 			log.Info("Failed to boot machines: %s", err)
 		} else {
 			log.Info("Successfully booted %d Machines", diff.boot)
@@ -77,12 +77,16 @@ func runOnce(cloud provider, table Table, cfg Config) {
 	}
 
 	if len(diff.terminate) > 0 {
+		ids := []string{}
+		for _, machine := range diff.terminate {
+			ids = append(ids, machine.Id)
+		}
+
 		log.Info("Attempt to stop %s", diff.terminate)
-		if err := cloud.stopMachines(diff.terminate); err != nil {
+		if err := cloud.stop(ids); err != nil {
 			log.Info("Failed to stop machines: %s", err)
 		} else {
-			log.Info("Successfully stopped %d machines",
-				len(diff.terminate))
+			log.Info("Successfully stopped %d machines", len(diff.terminate))
 		}
 
 		for _, inst := range diff.terminate {

@@ -45,7 +45,7 @@ func newAWS(namespace string) provider {
 	return clst
 }
 
-func (clst *awsSpotCluster) bootMachines(count int, cloudConfig string) error {
+func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 	if count <= 0 {
 		return nil
 	}
@@ -84,16 +84,7 @@ func (clst *awsSpotCluster) bootMachines(count int, cloudConfig string) error {
 	return nil
 }
 
-func (clst *awsSpotCluster) stopMachines(machines []Machine) error {
-	if machines == nil {
-		return nil
-	}
-
-	ids := []string{}
-	for _, inst := range machines {
-		ids = append(ids, inst.Id)
-	}
-
+func (clst awsSpotCluster) stop(ids []string) error {
 	_, err := clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: aws.StringSlice(ids),
 	})
@@ -136,7 +127,7 @@ func (clst *awsSpotCluster) stopMachines(machines []Machine) error {
 	return nil
 }
 
-func (clst *awsSpotCluster) getMachines() ([]Machine, error) {
+func (clst awsSpotCluster) get() ([]Machine, error) {
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
@@ -226,7 +217,7 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
-		machines, err := clst.getMachines()
+		machines, err := clst.get()
 		if err != nil {
 			log.Warning("Failed to get Machines: %s", err)
 			time.Sleep(10 * time.Second)
