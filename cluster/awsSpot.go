@@ -76,7 +76,7 @@ func (clst *awsSpotCluster) bootInstances(count int, cloudConfig string) error {
 		return err
 	}
 
-	if err := clst.waitForSpotRequests(spotIds); err != nil {
+	if err := clst.wait(spotIds, true); err != nil {
 		log.Warning("Error waiting for new spot requests: %s", err)
 		return err
 	}
@@ -128,27 +128,11 @@ func (clst *awsSpotCluster) stopInstances(instances []Instance) error {
 		}
 	}
 
-OuterLoop:
-	for i := 0; i < 30; i++ {
-		instances, err := clst.getInstances()
-		if err != nil {
-			return err
-		}
-
-		instMap := make(map[string]bool)
-		for _, inst := range instances {
-			instMap[inst.Id] = true
-		}
-
-		for _, id := range ids {
-			if instMap[id] {
-				time.Sleep(5 * time.Second)
-				continue OuterLoop
-			}
-		}
-
-		break
+	if err := clst.wait(ids, false); err != nil {
+		log.Warning("Error waiting for terminated spot requests: %s", err)
+		return err
 	}
+
 	return nil
 }
 
@@ -237,23 +221,26 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 	return err
 }
 
-func (clst *awsSpotCluster) waitForSpotRequests(ids []string) error {
+/* Wait for the spot request 'ids' to have booted or terminated depending on the value of
+* 'boot' */
+func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
 OuterLoop:
 	for i := 0; i < 30; i++ {
 		instances, err := clst.getInstances()
 		if err != nil {
 			log.Warning("Failed to get Instances: %s", err)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
-		idMap := make(map[string]bool)
+		exists := make(map[string]struct{})
 		for _, inst := range instances {
-			idMap[inst.Id] = true
+			exists[inst.Id] = struct{}{}
 		}
 
 		for _, id := range ids {
-			if !idMap[id] {
-				time.Sleep(5 * time.Second)
+			if _, ok := exists[id]; ok != boot {
+				time.Sleep(10 * time.Second)
 				continue OuterLoop
 			}
 		}
