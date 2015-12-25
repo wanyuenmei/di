@@ -5,7 +5,7 @@ import (
 
 	"github.com/NetSys/di/cluster"
 	"github.com/NetSys/di/config"
-	pb "github.com/NetSys/di/minion/proto"
+	"github.com/NetSys/di/minion/pb"
 	"github.com/op/go-logging"
 
 	"golang.org/x/net/context"

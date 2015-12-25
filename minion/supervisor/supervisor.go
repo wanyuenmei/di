@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/NetSys/di/container"
-	. "github.com/NetSys/di/minion/proto"
+	"github.com/NetSys/di/minion/pb"
 	"github.com/fsouza/go-dockerclient"
 )
 
@@ -24,10 +24,10 @@ const DOCKER_SOCK_PATH = "unix:///var/run/docker.sock"
 * means responsonding to ETCD leader elections. */
 type Supervisor struct {
 	dk  *docker.Client
-	cfg MinionConfig
+	cfg pb.MinionConfig
 
 	running       map[string]bool
-	containerChan chan ContainerConfig
+	containerChan chan pb.ContainerConfig
 	done          chan<- struct{}
 }
 
@@ -47,7 +47,7 @@ func kubeHC() *docker.HostConfig {
 }
 
 /* Create a new supervisor. Blocks until successful. */
-func New(cntrChan chan ContainerConfig) *Supervisor {
+func New(cntrChan chan pb.ContainerConfig) *Supervisor {
 	var dk *docker.Client
 	for {
 		var err error
@@ -77,7 +77,7 @@ func New(cntrChan chan ContainerConfig) *Supervisor {
 /* Update the supervisors minion configuration.  If 'cfg' changes, this will cause all
 * service containers to be stopped, and new ones rebooted appropriate for the role
 * change. */
-func (sv *Supervisor) Configure(cfg MinionConfig) {
+func (sv *Supervisor) Configure(cfg pb.MinionConfig) {
 	if sv.cfg == cfg {
 		return
 	}
@@ -89,21 +89,21 @@ func (sv *Supervisor) Configure(cfg MinionConfig) {
 	sv.done = done
 
 	switch cfg.Role {
-	case MinionConfig_MASTER:
+	case pb.MinionConfig_MASTER:
 		err := sv.startMaster(done)
 		if err != nil {
 			log.Warning("Failed to stat master containers: %s", err)
 			sv.stopEverything()
 		}
 		return
-	case MinionConfig_WORKER:
+	case pb.MinionConfig_WORKER:
 		err := sv.startWorker(done)
 		if err != nil {
 			log.Warning("Failed to stat worker containers: %s", err)
 			sv.stopEverything()
 		}
 		return
-	case MinionConfig_NONE:
+	case pb.MinionConfig_NONE:
 		return
 	default:
 		log.Warning("Unknown Minion Role")
@@ -251,7 +251,7 @@ OuterLoop:
 	go container.Run(container.KUBERNETES, cntrChan)
 	var leader bool
 	for {
-		var cntrCfg ContainerConfig
+		var cntrCfg pb.ContainerConfig
 		select {
 		case leader = <-chn:
 		case cntrCfg = <-sv.containerChan:

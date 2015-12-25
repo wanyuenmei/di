@@ -3,7 +3,7 @@ package cluster
 import (
 	"fmt"
 
-	. "github.com/NetSys/di/minion/proto"
+	"github.com/NetSys/di/minion/pb"
 )
 
 type Role int
@@ -30,29 +30,29 @@ func (role Role) less(other Role) bool {
 	return role < other
 }
 
-func roleFromMinion(mrole MinionConfig_Role) Role {
+func roleFromMinion(mrole pb.MinionConfig_Role) Role {
 	switch mrole {
-	case MinionConfig_NONE:
+	case pb.MinionConfig_NONE:
 		return NONE
-	case MinionConfig_WORKER:
+	case pb.MinionConfig_WORKER:
 		return WORKER
-	case MinionConfig_MASTER:
+	case pb.MinionConfig_MASTER:
 		return MASTER
 	default:
 		panic(fmt.Sprintf("Unknown Minion Role: %s", mrole))
 	}
 }
 
-func roleToMinion(role Role) MinionConfig_Role {
+func roleToMinion(role Role) pb.MinionConfig_Role {
 	switch role {
 	case PENDING:
 		panic("Can not convert PENDING to MinionConfig_Role")
 	case NONE:
-		return MinionConfig_NONE
+		return pb.MinionConfig_NONE
 	case WORKER:
-		return MinionConfig_WORKER
+		return pb.MinionConfig_WORKER
 	case MASTER:
-		return MinionConfig_MASTER
+		return pb.MinionConfig_MASTER
 	default:
 		panic(fmt.Sprintf("Unknown Role: %s", role))
 	}

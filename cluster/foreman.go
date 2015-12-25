@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"github.com/NetSys/di/minion/pb"
 
-	. "github.com/NetSys/di/minion/proto"
+	"golang.org/x/net/context"
 )
 
 func foremanQueryMinions(instances []Instance) {
@@ -26,7 +26,7 @@ func queryMinion(inst *Instance) {
 	}
 
 	ctx := defaultCTX()
-	cfg, err := client.GetMinionConfig(ctx, &Request{})
+	cfg, err := client.GetMinionConfig(ctx, &pb.Request{})
 	if err != nil {
 		if ctx.Err() == nil {
 			log.Info("Failed to get MinionConfig: %s", err)
@@ -44,7 +44,7 @@ func writeMinion(inst *Instance) {
 		return
 	}
 
-	reply, err := client.SetMinionConfig(defaultCTX(), &MinionConfig{
+	reply, err := client.SetMinionConfig(defaultCTX(), &pb.MinionConfig{
 		ID:        inst.Id,
 		Role:      roleToMinion(inst.Role),
 		PrivateIP: *inst.PrivateIP,

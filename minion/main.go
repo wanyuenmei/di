@@ -1,7 +1,7 @@
-package main
+//go:generate protoc ./pb/pb.proto --go_out=plugins=grpc:.
+package minion
 
 import (
-	. "github.com/NetSys/di/minion/proto"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/op/go-logging"
 )

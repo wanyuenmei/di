@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"google.golang.org/grpc"
+	"github.com/NetSys/di/minion/pb"
 
-	pb "github.com/NetSys/di/minion/proto"
+	"google.golang.org/grpc"
 )
 
 type InstanceSet []Instance

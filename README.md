@@ -34,4 +34,4 @@ proto-gen-go.
 
 To generate the protobufs simply call:
 
-    make proto
+        make generate

@@ -1,46 +1,46 @@
-package main
+package minion
 
 import (
 	"net"
 	"time"
 
+	"github.com/NetSys/di/minion/pb"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-
-	. "github.com/NetSys/di/minion/proto"
 )
 
 type MServer struct {
-	Cfg           MinionConfig
-	ConfigChan    chan MinionConfig
-	ContainerChan chan ContainerConfig
+	Cfg           pb.MinionConfig
+	ConfigChan    chan pb.MinionConfig
+	ContainerChan chan pb.ContainerConfig
 }
 
 func (s *MServer) GetMinionConfig(cts context.Context,
-	_ *Request) (*MinionConfig, error) {
+	_ *pb.Request) (*pb.MinionConfig, error) {
 	return &s.Cfg, nil
 }
 
 func (s *MServer) SetMinionConfig(ctx context.Context,
-	msg *MinionConfig) (*Reply, error) {
+	msg *pb.MinionConfig) (*pb.Reply, error) {
 	s.Cfg = *msg
 	s.ConfigChan <- s.Cfg
-	return &Reply{Success: true}, nil
+	return &pb.Reply{Success: true}, nil
 }
 
 func (s *MServer) SetContainerConfig(ctx context.Context,
-	msg *ContainerConfig) (*Reply, error) {
+	msg *pb.ContainerConfig) (*pb.Reply, error) {
 	s.ContainerChan <- *msg
-	return &Reply{Success: true}, nil
+	return &pb.Reply{Success: true}, nil
 }
 
 func NewMinionServer() MServer {
-	cfgChan := make(chan MinionConfig)
-	cntrChan := make(chan ContainerConfig)
+	cfgChan := make(chan pb.MinionConfig)
+	cntrChan := make(chan pb.ContainerConfig)
 	mServer := MServer{
 		ConfigChan:    cfgChan,
 		ContainerChan: cntrChan,
-		Cfg:           MinionConfig{"", MinionConfig_NONE, "", ""},
+		Cfg:           pb.MinionConfig{"", pb.MinionConfig_NONE, "", ""},
 	}
 
 	go func() {
@@ -58,7 +58,7 @@ func NewMinionServer() MServer {
 		}
 
 		s := grpc.NewServer()
-		RegisterMinionServer(s, &mServer)
+		pb.RegisterMinionServer(s, &mServer)
 		s.Serve(sock)
 	}()
 

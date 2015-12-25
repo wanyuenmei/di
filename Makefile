@@ -5,8 +5,8 @@ all: format
 install:
 	cd -P . && go install ./...
 
-proto:
-	cd -P minion/proto &&  protoc proto.proto --go_out=plugins=grpc:.
+generate:
+	go generate ./...
 
 format:
 	gofmt -w -s .
