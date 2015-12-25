@@ -9,8 +9,8 @@ service Minion {
 message MinionConfig {
     enum Role {
         NONE = 0;
-        MASTER = 1;
-        WORKER = 2;
+        WORKER = 1;
+        MASTER = 2;
     }
 
     string ID = 1;
