@@ -73,7 +73,7 @@ func TestAtom(t *testing.T) {
 	checkContainers := func(code, expectedCode string, expStr ...string) {
 		var expected []*Container
 		for _, e := range expStr {
-			expected = append(expected, &Container{e})
+			expected = append(expected, &Container{e, nil})
 		}
 
 		ctx := parseTest(t, code, expectedCode)
@@ -101,6 +101,42 @@ func TestAtom(t *testing.T) {
 	runtimeErr(t, `(atom foo "bar")`, `unknown atom type: foo`)
 	runtimeErr(t, `(atom docker bar)`, `unassigned variable: bar`)
 	runtimeErr(t, `(atom docker 1)`, `atom argument must be a string, found: 1`)
+}
+
+func TestLabel(t *testing.T) {
+	code := `(label "foo" (atom docker "a")) ` +
+		`(label "bar" "foo" (atom docker "b")) ` +
+		`(label "baz" "foo" "bar") ` +
+		`(label "baz2" "baz") ` +
+		`(label "qux" (atom docker "c"))`
+	ctx := parseTest(t, code, code)
+
+	expected := []*Container{
+		{"a", []string{"foo", "bar", "baz", "baz2"}},
+		{"b", []string{"bar", "baz", "baz2"}},
+		{"c", []string{"qux"}}}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
+
+	code = `(label "foo" (makeList 2 (atom docker "a"))) (label "bar" "foo")`
+	exp := `(label "foo" ((atom docker "a") (atom docker "a"))) (label "bar" "foo")`
+	ctx = parseTest(t, code, exp)
+	expected = []*Container{
+		{"a", []string{"foo", "bar"}},
+		{"a", []string{"foo", "bar"}}}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
+
+	runtimeErr(t, `(label 1 2)`, "label must be a string, found: 1")
+	runtimeErr(t, `(label "foo" "bar")`, `undefined label: "bar"`)
+	runtimeErr(t, `(label "foo" 1)`,
+		"label must apply to atoms or other labels, found: 1")
+	runtimeErr(t, `(label "foo" (atom docker "a")) (label "foo" "foo")`,
+		"attempt to redefine label: foo")
 }
 
 func TestScanError(t *testing.T) {
@@ -154,6 +190,8 @@ func TestRuntimeErrors(t *testing.T) {
 	runtimeErr(t, `(makeList 3 a)`, "unassigned variable: a")
 	runtimeErr(t, `(makeList "a" 3)`,
 		`makeList must begin with a positive integer, found: "a"`)
+
+	runtimeErr(t, `(label a a)`, "unassigned variable: a")
 }
 
 func TestQuery(t *testing.T) {
@@ -233,7 +271,7 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 	}
 
 	if str := parsed.String(); str != code {
-		t.Errorf("Parse expected \"%s\" got \"%s\"", code, str)
+		t.Errorf("\nParse expected \"%s\"\ngot \"%s\"", code, str)
 		return evalCtx{}
 	}
 
@@ -244,7 +282,7 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 	}
 
 	if result.String() != evalExpected {
-		t.Errorf("Eval expected \"%s\" got \"%s\"", evalExpected, result)
+		t.Errorf("\nEval expected \"%s\"\ngot \"%s\"", evalExpected, result)
 		return evalCtx{}
 	}
 

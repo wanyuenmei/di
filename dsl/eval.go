@@ -2,15 +2,25 @@ package dsl
 
 import "fmt"
 
+type Atom struct {
+	atom   astAtom
+	labels []string
+}
+
 type evalCtx struct {
 	binds   map[astIdent]ast
 	defines map[astIdent]ast
+	labels  map[string][]*Container
 
 	containers []*Container
 }
 
 func eval(parsed ast) (ast, evalCtx, error) {
-	ctx := evalCtx{make(map[astIdent]ast), make(map[astIdent]ast), nil}
+	ctx := evalCtx{
+		make(map[astIdent]ast),
+		make(map[astIdent]ast),
+		make(map[string][]*Container),
+		nil}
 	evaluated, err := parsed.eval(&ctx)
 	if err != nil {
 		return nil, evalCtx{}, err
@@ -79,7 +89,7 @@ func (atom astAtom) eval(ctx *evalCtx) (ast, error) {
 		return nil, fmt.Errorf("atom argument must be a string, found: %s", eval)
 	}
 
-	container := &Container{string(arg)}
+	container := &Container{string(arg), nil}
 	ctx.containers = append(ctx.containers, container)
 	return astAtom{atom.typ, eval, container}, nil
 }

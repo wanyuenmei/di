@@ -14,7 +14,8 @@ type Dsl struct {
 }
 
 type Container struct {
-	Image string
+	Image  string
+	Labels []string
 }
 
 func New(reader io.Reader) (Dsl, error) {
