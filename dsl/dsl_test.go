@@ -66,7 +66,7 @@ func TestScanError(t *testing.T) {
 }
 
 func TestParseErrors(t *testing.T) {
-	parseErr(t, "(1 2 3)", "lists must start with operators")
+	parseErr(t, "(1 2 3)", "expressions must begin with keywords")
 
 	unbalanced := "unbalanced Parenthesis"
 	parseErr(t, "(", unbalanced)

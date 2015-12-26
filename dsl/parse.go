@@ -40,7 +40,7 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 	slice := []interface{}{}
 	for {
 		switch s.Scan() {
-		case scanner.Ident:
+		case '+', '-', '/', '%', '*', scanner.Ident:
 			slice = append(slice, astIdent(s.TokenText()))
 
 		case scanner.Int:
@@ -69,7 +69,7 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 			return slice, nil
 
 		default:
-			slice = append(slice, s.TokenText())
+			return nil, fmt.Errorf("bad element: %s", s.TokenText())
 		}
 	}
 }
@@ -93,59 +93,60 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 		return nil, errors.New(fmt.Sprintf("bad element: %s", list))
 	}
 
-	switch first := list[0].(type) {
-	case string:
-		switch first {
-		case "+":
-			do := func(a, b int) int { return a + b }
-			return parseArith("+", do, list[1:])
-		case "-":
-			do := func(a, b int) int { return a - b }
-			return parseArith("-", do, list[1:])
-		case "*":
-			do := func(a, b int) int { return a * b }
-			return parseArith("*", do, list[1:])
-		case "/":
-			do := func(a, b int) int { return a / b }
-			return parseArith("/", do, list[1:])
-		case "%":
-			do := func(a, b int) int { return a % b }
-			return parseArith("%", do, list[1:])
-		}
-	case astIdent:
-		switch first {
-		case "let":
-			if len(list) != 3 {
-				return nil, fmt.Errorf("not enough arguments: %s", list)
-			}
-
-			binds, err := parseBindList(list[1])
-			if err != nil {
-				return nil, err
-			}
-
-			tree, err := parseInterface(list[2], false)
-			if err != nil {
-				return nil, err
-			}
-
-			return astLet{binds, tree}, nil
-		case "list":
-			return parseList(list[1:], false)
-		case "define":
-			if root != true {
-				return nil, errors.New("define must be at the top level")
-			}
-
-			bind, err := parseBind(list[1:])
-			if err != nil {
-				return nil, err
-			}
-			return astDefine(bind), nil
-		}
+	first, ok := list[0].(astIdent)
+	if !ok {
+		return nil, errors.New("expressions must begin with keywords")
 	}
 
-	return nil, errors.New("lists must start with operators")
+	switch first {
+	case "+":
+		do := func(a, b int) int { return a + b }
+		return parseArith("+", do, list[1:])
+	case "-":
+		do := func(a, b int) int { return a - b }
+		return parseArith("-", do, list[1:])
+	case "*":
+		do := func(a, b int) int { return a * b }
+		return parseArith("*", do, list[1:])
+	case "/":
+		do := func(a, b int) int { return a / b }
+		return parseArith("/", do, list[1:])
+	case "%":
+		do := func(a, b int) int { return a % b }
+		return parseArith("%", do, list[1:])
+	case "let":
+		if len(list) != 3 {
+			return nil, errors.New(fmt.Sprintf(
+				"not enough arguments: %s", list))
+		}
+
+		binds, err := parseBindList(list[1])
+		if err != nil {
+			return nil, err
+		}
+
+		tree, err := parseInterface(list[2], false)
+		if err != nil {
+			return nil, err
+		}
+
+		return astLet{binds, tree}, nil
+	case "list":
+		return parseList(list[1:], false)
+	case "define":
+		if root != true {
+			return nil,
+				errors.New("define must be at the top level")
+		}
+
+		bind, err := parseBind(list[1:])
+		if err != nil {
+			return nil, err
+		}
+		return astDefine(bind), nil
+	}
+
+	return nil, errors.New("expresssions must begin with keywords")
 }
 
 func parseList(list []interface{}, root bool) (astListOp, error) {
