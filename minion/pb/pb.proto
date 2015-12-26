@@ -3,7 +3,7 @@ syntax = "proto3";
 service Minion {
     rpc SetMinionConfig(MinionConfig) returns(Reply) {}
     rpc GetMinionConfig(Request) returns (MinionConfig) {}
-    rpc SetContainerConfig(ContainerConfig) returns (Reply) {}
+    rpc SetEndpoints(EndpointList) returns (Reply) {}
 }
 
 message MinionConfig {
@@ -19,8 +19,17 @@ message MinionConfig {
     string EtcdToken = 4;
 }
 
-message ContainerConfig {
-    map<string, int32> Count = 1;
+message Endpoint {
+    enum Type {
+        Container = 0;
+    }
+
+    Type type = 1;
+    repeated string labels = 2;
+}
+
+message EndpointList {
+        repeated Endpoint endpoints = 1;
 }
 
 message Reply {

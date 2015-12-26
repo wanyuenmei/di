@@ -38,8 +38,7 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Worker
 		})
 
-		if len(clusters) != 1 || clusters[0].RedCount != 4 ||
-			clusters[0].BlueCount != 5 || len(clusters[0].AdminACL) != 1 ||
+		if len(clusters) != 1 || len(clusters[0].AdminACL) != 1 ||
 			len(clusters[0].SSHKeys) != 1 {
 			return fmt.Errorf("Bad Clusters: %s", spew.Sdump(clusters))
 		}

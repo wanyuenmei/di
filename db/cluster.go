@@ -15,10 +15,6 @@ type Cluster struct {
 	/* XXX: These belong in a separate Adminstration table of some sort. */
 	SSHKeys  []string
 	AdminACL []string
-
-	/* XXX: These Belong in their own container configuration table. */
-	RedCount  int
-	BlueCount int
 }
 
 // InsertCluster creates a new Cluster and interts it into 'db'.
@@ -49,8 +45,8 @@ func (c Cluster) tt() TableType {
 }
 
 func (c Cluster) String() string {
-	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s, RedCount: %d, BlueCount %d}",
-		c.ID, c.Provider, c.Namespace, c.AdminACL, c.RedCount, c.BlueCount)
+	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s",
+		c.ID, c.Provider, c.Namespace, c.AdminACL)
 }
 
 // SortClustersByID sorts 'clusters' by their database ID.

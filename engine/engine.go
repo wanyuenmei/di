@@ -26,14 +26,31 @@ func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
 }
 
 func updateTxn(view db.Database, dsl dsl.Dsl) error {
+	cluster, err := clusterTxn(view, dsl)
+	if err != nil {
+		return err
+	}
+
+	if err = machineTxn(view, dsl, cluster); err != nil {
+		return err
+	}
+
+	if err = containerTxn(view, dsl, cluster); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 	Namespace := dsl.QueryString("Namespace")
 	if Namespace == "" {
-		return fmt.Errorf("Policy must specify a 'Namespace'")
+		return 0, fmt.Errorf("Policy must specify a 'Namespace'")
 	}
 
 	provider, err := db.ParseProvider(dsl.QueryString("Provider"))
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var cluster db.Cluster
@@ -49,12 +66,14 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 
 	cluster.Provider = provider
 	cluster.Namespace = Namespace
-	cluster.RedCount = dsl.QueryInt("RedCount")
-	cluster.BlueCount = dsl.QueryInt("BlueCount")
 	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
 	cluster.SSHKeys = dsl.QueryStrSlice("SSHKeys")
 	view.Commit(cluster)
 
+	return cluster.ID, nil
+}
+
+func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	masterCount := dsl.QueryInt("MasterCount")
 	workerCount := dsl.QueryInt("WorkerCount")
 	if masterCount == 0 || workerCount == 0 {
@@ -62,7 +81,6 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 		workerCount = 0
 	}
 
-	clusterID := cluster.ID
 	masters := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == clusterID && m.Role == db.Master
 	})
@@ -106,6 +124,59 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 			view.Commit(change)
 		} else {
 			view.Remove(change)
+		}
+	}
+
+	return nil
+}
+
+func containerTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+	containers := view.SelectFromContainer(func(c db.Container) bool {
+		return c.ClusterID == clusterID
+	})
+
+	var reds, blues []db.Container
+	for _, container := range containers {
+		if len(container.Labels) != 1 {
+			panic("Unimplemented")
+		}
+
+		switch container.Labels[0] {
+		case "Red":
+			reds = append(reds, container)
+		case "Blue":
+			blues = append(blues, container)
+		default:
+			view.Remove(container)
+		}
+
+	}
+
+	redCount := dsl.QueryInt("RedCount")
+	if len(reds) > redCount {
+		for _, container := range reds[redCount:] {
+			view.Remove(container)
+		}
+	} else {
+		for i := 0; i < redCount-len(reds); i++ {
+			container := view.InsertContainer()
+			container.ClusterID = clusterID
+			container.Labels = []string{"Red"}
+			view.Commit(container)
+		}
+	}
+
+	blueCount := dsl.QueryInt("BlueCount")
+	if len(blues) > blueCount {
+		for _, container := range blues[blueCount:] {
+			view.Remove(container)
+		}
+	} else {
+		for i := 0; i < blueCount-len(blues); i++ {
+			container := view.InsertContainer()
+			container.ClusterID = clusterID
+			container.Labels = []string{"Blue"}
+			view.Commit(container)
 		}
 	}
 

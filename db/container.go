@@ -11,9 +11,10 @@ import (
 type Container struct {
 	ID int
 
-	SchedID string
-	Label   string
-	IP      string
+	ClusterID int
+	SchedID   string
+	Labels    []string
+	IP        string
 }
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -46,12 +47,16 @@ func (c Container) tt() TableType {
 func (c Container) String() string {
 	var tags []string
 
+	if c.ClusterID != 0 {
+		tags = append(tags, fmt.Sprintf("Cluster-%d", c.ClusterID))
+	}
+
 	if c.SchedID != "" {
 		tags = append(tags, fmt.Sprintf("SchedID: %s", c.SchedID))
 	}
 
-	if c.Label != "" {
-		tags = append(tags, fmt.Sprintf("Labels: %s", c.Label))
+	if len(c.Labels) > 0 {
+		tags = append(tags, fmt.Sprintf("Labels: %s", c.Labels))
 	}
 
 	if c.IP != "" {

@@ -72,8 +72,11 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 
 	for _, sc := range schedC {
 		if dbc, ok := cmap[sc.ID]; ok {
+			if len(dbc.Labels) != 1 {
+				panic("Unimplemented")
+			}
 			/* XXX: Change the label without rebooting the container. */
-			if dbc.Label == sc.Label {
+			if dbc.Labels[0] == sc.Label {
 				writeContainer(view, dbc, sc)
 			} else {
 				term = append(term, sc.ID)

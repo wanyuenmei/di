@@ -17,7 +17,7 @@ import (
 type client interface {
 	setMinion(pb.MinionConfig) error
 	getMinion() (pb.MinionConfig, error)
-	setContainer(pb.ContainerConfig) error
+	setEndpoints([]*pb.Endpoint) error
 	Close()
 }
 
@@ -32,8 +32,7 @@ type foreman struct {
 	trigger   db.Trigger
 
 	minions   map[string]*minion
-	redCount  int
-	blueCount int
+	endpoints []*pb.Endpoint
 
 	// Making this a struct member allows us to mock it out.
 	newClient func(string) (client, error)
@@ -68,7 +67,7 @@ func createForeman(conn db.Conn, clusterID int) foreman {
 	return foreman{
 		clusterID: clusterID,
 		conn:      conn,
-		trigger:   conn.TriggerTick(60, db.MachineTable),
+		trigger:   conn.TriggerTick(60, db.MachineTable, db.ContainerTable),
 		minions:   make(map[string]*minion),
 		newClient: newClient,
 	}
@@ -80,25 +79,27 @@ func (fm *foreman) stop() {
 
 func (fm *foreman) runOnce() {
 	var machines []db.Machine
+	var containers []db.Container
 	fm.conn.Transact(func(view db.Database) error {
-		fm.redCount = 0
-		fm.blueCount = 0
-
-		clusters := view.SelectFromCluster(nil)
-		switch len(clusters) {
-		case 1:
-			fm.redCount = clusters[0].RedCount
-			fm.blueCount = clusters[0].BlueCount
-		default:
-			log.Warning("Cluster count != 1")
-		}
-
 		machines = view.SelectFromMachine(func(m db.Machine) bool {
 			return m.ClusterID == fm.clusterID && m.PublicIP != "" &&
 				m.PrivateIP != "" && m.CloudID != ""
 		})
+
+		containers = view.SelectFromContainer(func(c db.Container) bool {
+			return c.ClusterID == fm.clusterID
+		})
+
 		return nil
 	})
+
+	fm.endpoints = nil
+	for _, container := range containers {
+		fm.endpoints = append(fm.endpoints, &pb.Endpoint{
+			Type:   pb.Endpoint_Container,
+			Labels: container.Labels,
+		})
+	}
 
 	fm.updateMinionMap(machines)
 
@@ -142,14 +143,11 @@ func (fm *foreman) runOnce() {
 			return
 		}
 
-		err = m.client.setContainer(pb.ContainerConfig{
-			Count: map[string]int32{
-				"red":  int32(fm.redCount),
-				"blue": int32(fm.blueCount),
-			},
-		})
-		if err != nil {
-			return
+		if m.machine.Role == db.Master {
+			err = m.client.setEndpoints(fm.endpoints)
+			if err != nil {
+				return
+			}
 		}
 	})
 }
@@ -267,9 +265,9 @@ func (c clientImpl) setMinion(cfg pb.MinionConfig) error {
 	return nil
 }
 
-func (c clientImpl) setContainer(cfg pb.ContainerConfig) error {
+func (c clientImpl) setEndpoints(ep []*pb.Endpoint) error {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	reply, err := c.SetContainerConfig(ctx, &cfg)
+	reply, err := c.SetEndpoints(ctx, &pb.EndpointList{ep})
 	if err != nil {
 		if ctx.Err() == nil {
 			log.Warning("Failed to set container config: %s", err)
