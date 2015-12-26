@@ -1,4 +1,4 @@
-//go:generate stringer -type=Role -type=Provider
+//go:generate stringer -type=Provider
 
 package db
 
@@ -22,6 +22,16 @@ const (
 	// Master machines are responsible for running control processes.
 	Master = Role(pb.MinionConfig_MASTER)
 )
+
+var roleString = map[Role]string{
+	None:   "None",
+	Worker: "Worker",
+	Master: "Master",
+}
+
+func (r Role) String() string {
+	return roleString[r]
+}
 
 // A Provider implements a cloud interface on which machines may be instantiated.
 type Provider int
