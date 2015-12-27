@@ -2,6 +2,9 @@
 package main
 
 import (
+	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/di/minion/scheduler"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/op/go-logging"
 )
@@ -11,10 +14,11 @@ var log = logging.MustGetLogger("main")
 func main() {
 	log.Info("Minion Start")
 
-	mServer := NewMinionServer()
-	sv := supervisor.New(mServer.ContainerChan)
-	for cfg := range mServer.ConfigChan {
-		log.Info("Received Configuration: %s", cfg)
-		sv.Configure(cfg)
-	}
+	conn := db.New(db.MinionTable, db.ContainerTable)
+	logDB(conn)
+	go supervisor.Run(conn, docker.New())
+	go scheduler.Run(conn)
+	go watchLeader(conn)
+	go campaign(conn)
+	minionServerRun(conn)
 }

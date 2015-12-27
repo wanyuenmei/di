@@ -107,8 +107,19 @@ func TestCluster(t *testing.T) {
 		c = db.InsertCluster()
 		c.RedCount = 2
 		c.Write()
+
+		clusters := db.SelectFromCluster(nil)
+		if len(clusters) != 2 {
+			return fmt.Errorf("Expected 2 clusters, found %s",
+				spew.Sdump(clusters))
+		}
+
 		return nil
 	})
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 
 	err = conn.Transact(func(db Database) error {
 		clusters := db.SelectFromCluster(func(c Cluster) bool {

@@ -1,15 +1,16 @@
 package scheduler
 
 import (
-	"fmt"
+	"bytes"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 	"github.com/op/go-logging"
+	"github.com/satori/go.uuid"
 	"golang.org/x/build/kubernetes"
 	api "golang.org/x/build/kubernetes/api"
+	"golang.org/x/net/context"
 )
 
 var log = logging.MustGetLogger("scheduler")
@@ -19,99 +20,100 @@ const DI_LABEL = "di-tag"
 
 type kubectl struct {
 	kubeClient *kubernetes.Client
-	count      map[string]int32
 }
 
-func NewKubectl() scheduler {
-	var err error
-	var kubeClient *kubernetes.Client
-
-	for {
-		kubeClient, err = kubernetes.NewClient(KUBERNETES_BASE, &http.Client{})
-		if err != nil {
-			log.Warning("Failed to create kubernetes client: %s", err)
-		} else {
-			break
-		}
-		time.Sleep(10 * time.Second)
-	}
-	return kubectl{kubeClient: kubeClient, count: make(map[string]int32)}
-}
-
-func (k kubectl) get() map[string][]Container {
-	result := make(map[string][]Container)
-	pods, err := k.kubeClient.GetPods(context.Background())
+func NewKubectl() (scheduler, error) {
+	body := `{"apiVersion":"v1","kind":"Namespace",` +
+		`"metadata":{"name":"kube-system"}}`
+	url := "http://127.0.0.1:9000/api/v1/namespaces"
+	ctype := "application/json"
+	_, err := http.Post(url, ctype, bytes.NewBuffer([]byte(body)))
 	if err != nil {
-		log.Warning("Failed to get pods: %s", err)
-		return result
+		return nil, err
 	}
 
-	for _, pod := range pods {
-		c := Container{
-			Name: pod.ObjectMeta.Name,
-			IP:   pod.Status.PodIP,
-		}
-		l := append(result[pod.ObjectMeta.Labels[DI_LABEL]], c)
-		result[pod.ObjectMeta.Labels[DI_LABEL]] = l
+	kubeClient, err := kubernetes.NewClient(KUBERNETES_BASE, &http.Client{})
+	if err != nil {
 	}
-	return result
+
+	return kubectl{kubeClient: kubeClient}, nil
 }
 
-func (k kubectl) boot(name string, toBoot int) {
-	if toBoot <= 0 {
-		return
+func (k kubectl) get() ([]Container, error) {
+	pods, err := k.kubeClient.GetPods(ctx())
+	if err != nil {
+		return nil, err
 	}
-	count := int(k.count[name])
-	var wg sync.WaitGroup
 
-	wg.Add(toBoot)
+	var result []Container
+	for _, pod := range pods {
+		result = append(result, Container{
+			ID:    pod.ObjectMeta.Name,
+			IP:    pod.Status.PodIP,
+			Label: pod.ObjectMeta.Labels[DI_LABEL],
+		})
+	}
+	return result, err
+}
+
+func (k kubectl) boot(n int) {
+	var wg sync.WaitGroup
+	wg.Add(n)
 	defer wg.Wait()
-	for i := count; i < count+toBoot; i++ {
-		cName := fmt.Sprintf("di-%s-%d", name, i)
-		ctx := context.Background()
-		/* Since a pod is the atomic unit of kubernetes, we have to do this
-		 * weird transform that maps containers to pods. E.g., if we say, "spawn
-		 * 10 red containers", then this will be reflected as 10 separate pods
-		 * in kubernetes. We do this primarily to allow more fine-grained
-		 * control of things through the policy language. */
+
+	for i := 0; i < n; i++ {
 		go func() {
-			defer wg.Done()
-			_, err := k.kubeClient.RunPod(ctx, &api.Pod{
-				TypeMeta: api.TypeMeta{APIVersion: "v1", Kind: "Pod"},
-				ObjectMeta: api.ObjectMeta{
-					Name: cName,
-					Labels: map[string]string{
-						DI_LABEL: name,
-					},
-				},
-				Spec: api.PodSpec{
-					Containers: []api.Container{
-						{Name: cName,
-							Image:   "ubuntu:14.04",
-							Command: []string{"tail", "-f", "/dev/null"},
-							TTY:     true},
-					},
-				},
-			})
-			if err != nil {
-				log.Warning("Failed to run pod %s: %s", cName, err)
-			} else {
-				log.Info("Booted pod: %s", cName)
-			}
+			k.bootContainer()
+			wg.Done()
 		}()
 	}
-	k.count[name] += int32(toBoot)
 }
 
-func (k kubectl) terminate(name string, toTerm []Container) {
-	for _, c := range toTerm {
-		ctx := context.Background()
-		err := k.kubeClient.DeletePod(ctx, c.Name)
+func (k kubectl) terminate(ids []string) {
+	for _, id := range ids {
+		err := k.kubeClient.DeletePod(ctx(), id)
 		if err != nil {
-			log.Warning("Failed to delete pod %s: %s", c.Name, err)
+			log.Warning("Failed to delete pod %s: %s", id, err)
 		} else {
-			log.Info("Deleted pod: %s", c.Name)
+			log.Info("Deleted pod: %s", id)
 		}
 	}
-	k.count[name] -= int32(len(toTerm))
+}
+
+func (k kubectl) bootContainer() {
+	id := uuid.NewV4().String()
+
+	/* Since a pod is the atomic unit of kubernetes, we have to do this
+	 * weird transform that maps containers to pods. E.g., if we say, "spawn
+	 * 10 red containers", then this will be reflected as 10 separate pods
+	 * in kubernetes. We do this primarily to allow more fine-grained
+	 * control of things through the policy language. */
+	_, err := k.kubeClient.RunPod(ctx(), &api.Pod{
+		TypeMeta: api.TypeMeta{APIVersion: "v1", Kind: "Pod"},
+		ObjectMeta: api.ObjectMeta{
+			Name: id,
+			Labels: map[string]string{
+				DI_LABEL: id,
+			},
+		},
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
+				Name:    id,
+				Image:   "ubuntu:14.04",
+				Command: []string{"tail", "-f", "/dev/null"},
+				TTY:     true},
+			},
+		},
+	})
+
+	if err != nil {
+		log.Warning("Failed to start pod %s: %s", id, err)
+	} else {
+		log.Info("Booted pod: %s", id)
+	}
+}
+
+func ctx() context.Context {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	return ctx
 }
