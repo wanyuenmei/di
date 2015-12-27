@@ -30,7 +30,7 @@ func newAWS(conn db.Conn, clusterId int, namespace string) provider {
 	clst := &awsSpotCluster{
 		ec2.New(session),
 		namespace,
-		conn.TriggerTick("Cluster", 60),
+		conn.TriggerTick(60, db.ClusterTable),
 	}
 
 	go clst.watchACLs(conn, clusterId)
@@ -364,7 +364,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
 	for range clst.aclTrigger.C {
 		var acls []string
-		err := conn.Transact(func(view *db.Database) error {
+		err := conn.Transact(func(view db.Database) error {
 			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
 				return c.ID == clusterID
 			})

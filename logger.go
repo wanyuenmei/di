@@ -8,13 +8,13 @@ import (
 
 func logDB(conn db.Conn) {
 	go func() {
-		for range conn.Trigger("Cluster").C {
+		for range conn.Trigger(db.ClusterTable).C {
 			logCluster(conn)
 		}
 	}()
 
 	go func() {
-		for range conn.Trigger("Machine").C {
+		for range conn.Trigger(db.MachineTable).C {
 			logMachine(conn)
 		}
 	}()
@@ -22,7 +22,7 @@ func logDB(conn db.Conn) {
 
 func logCluster(conn db.Conn) {
 	var clusters []db.Cluster
-	conn.Transact(func(view *db.Database) error {
+	conn.Transact(func(view db.Database) error {
 		clusters = view.SelectFromCluster(nil)
 		return nil
 	})
@@ -38,7 +38,7 @@ func logCluster(conn db.Conn) {
 
 func logMachine(conn db.Conn) {
 	var masters, workers []db.Machine
-	conn.Transact(func(view *db.Database) error {
+	conn.Transact(func(view db.Database) error {
 		masters = view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})

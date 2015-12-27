@@ -11,11 +11,10 @@ import (
 )
 
 func TestMachine(t *testing.T) {
-	conn := New()
+	conn := New(MachineTable)
 
 	var m Machine
-
-	err := conn.Transact(func(db *Database) error {
+	err := conn.Transact(func(db Database) error {
 		m = db.InsertMachine()
 		return nil
 	})
@@ -37,7 +36,7 @@ func TestMachine(t *testing.T) {
 	m.PublicIP = "1.2.3.4"
 	m.PrivateIP = "5.6.7.8"
 
-	err = conn.Transact(func(db *Database) error {
+	err = conn.Transact(func(db Database) error {
 		if err := SelectMachineCheck(db, nil, []Machine{old}); err != nil {
 			return err
 		}
@@ -62,10 +61,10 @@ func TestMachine(t *testing.T) {
 }
 
 func TestMachineSelect(t *testing.T) {
-	conn := New()
+	conn := New(MachineTable)
 
 	var machines []Machine
-	err := conn.Transact(func(db *Database) error {
+	err := conn.Transact(func(db Database) error {
 		for i := 0; i < 4; i++ {
 			m := db.InsertMachine()
 			m.ClusterID = i
@@ -75,7 +74,7 @@ func TestMachineSelect(t *testing.T) {
 		return nil
 	})
 
-	err = conn.Transact(func(db *Database) error {
+	err = conn.Transact(func(db Database) error {
 		err := SelectMachineCheck(db, func(m Machine) bool {
 			return m.ClusterID%2 == 0
 		}, []Machine{machines[0], machines[2]})
@@ -98,9 +97,9 @@ func TestMachineSelect(t *testing.T) {
 }
 
 func TestCluster(t *testing.T) {
-	conn := New()
+	conn := New(ClusterTable)
 
-	err := conn.Transact(func(db *Database) error {
+	err := conn.Transact(func(db Database) error {
 		c := db.InsertCluster()
 		c.RedCount = 1
 		c.Write()
@@ -111,7 +110,7 @@ func TestCluster(t *testing.T) {
 		return nil
 	})
 
-	err = conn.Transact(func(db *Database) error {
+	err = conn.Transact(func(db Database) error {
 		clusters := db.SelectFromCluster(func(c Cluster) bool {
 			return c.RedCount == 1
 		})
@@ -132,7 +131,7 @@ func TestCluster(t *testing.T) {
 		return
 	}
 
-	err = conn.Transact(func(db *Database) error {
+	err = conn.Transact(func(db Database) error {
 		clusters := db.SelectFromCluster(nil)
 		for _, clst := range clusters {
 			clst.Remove()
@@ -152,19 +151,19 @@ func TestCluster(t *testing.T) {
 }
 
 func TestTrigger(t *testing.T) {
-	conn := New()
+	conn := New(MachineTable, ClusterTable)
 
-	mt := conn.Trigger("Machine")
-	mt2 := conn.Trigger("Machine")
-	ct := conn.Trigger("Cluster")
-	ct2 := conn.Trigger("Cluster")
+	mt := conn.Trigger(MachineTable)
+	mt2 := conn.Trigger(MachineTable)
+	ct := conn.Trigger(ClusterTable)
+	ct2 := conn.Trigger(ClusterTable)
 
 	triggerNoRecv(t, mt)
 	triggerNoRecv(t, mt2)
 	triggerNoRecv(t, ct)
 	triggerNoRecv(t, ct2)
 
-	err := conn.Transact(func(db *Database) error {
+	err := conn.Transact(func(db Database) error {
 		db.InsertMachine()
 		return nil
 	})
@@ -179,7 +178,7 @@ func TestTrigger(t *testing.T) {
 	triggerNoRecv(t, ct2)
 
 	mt2.Stop()
-	err = conn.Transact(func(db *Database) error {
+	err = conn.Transact(func(db Database) error {
 		db.InsertMachine()
 		return nil
 	})
@@ -193,7 +192,7 @@ func TestTrigger(t *testing.T) {
 	ct.Stop()
 	ct2.Stop()
 
-	fast := conn.TriggerTick("Machine", 1)
+	fast := conn.TriggerTick(1, MachineTable)
 	triggerRecv(t, fast)
 	triggerRecv(t, fast)
 	triggerRecv(t, fast)
@@ -215,7 +214,7 @@ func triggerNoRecv(t *testing.T, trig Trigger) {
 	}
 }
 
-func SelectMachineCheck(db *Database, do func(Machine) bool, expected []Machine) error {
+func SelectMachineCheck(db Database, do func(Machine) bool, expected []Machine) error {
 	query := db.SelectFromMachine(do)
 	sort.Sort(mSort(expected))
 	sort.Sort(mSort(query))

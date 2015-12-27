@@ -10,8 +10,8 @@ import (
 // containers may be run.
 type Machine struct {
 	/* Populated by the Database at creation time. */
-	db *Database
-	ID int //Database ID
+	table *table
+	ID    int //Database ID
 
 	/* Populated by the policy engine. */
 	ClusterID int //Parent Cluster ID
@@ -24,26 +24,27 @@ type Machine struct {
 }
 
 // InsertMachine creates a new Machine and inserts it into 'db'.
-func (db *Database) InsertMachine() Machine {
-	result := Machine{db: db, ID: db.nextID()}
-	db.machine.insert(result, result.ID)
+func (db Database) InsertMachine() Machine {
+	table := db[MachineTable]
+	result := Machine{table: table, ID: table.nextID()}
+	result.table.insert(result, result.ID)
 	return result
 }
 
 // Write the contents of 'm' to its database.
 func (m Machine) Write() {
-	m.db.machine.write(m, m.ID)
+	m.table.write(m, m.ID)
 }
 
 // Remove 'm' from its database.
 func (m Machine) Remove() {
-	m.db.machine.remove(m.ID)
+	m.table.remove(m.ID)
 }
 
 // SelectFromMachine gets all machines in the database thatsatisfy the 'check'.
 func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 	result := []Machine{}
-	for _, row := range db.machine.rows {
+	for _, row := range db[MachineTable].rows {
 		if check == nil || check(row.(Machine)) {
 			result = append(result, row.(Machine))
 		}

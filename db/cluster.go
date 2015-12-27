@@ -8,8 +8,8 @@ import (
 // A Cluster is a group of Machines which can operate containers.
 type Cluster struct {
 	/* Alocated by the database. */
-	db *Database
-	ID int
+	table *table
+	ID    int
 
 	Provider  Provider
 	Namespace string // Cloud Provider Namespace
@@ -24,50 +24,17 @@ type Cluster struct {
 }
 
 // InsertCluster creates a new Cluster and interts it into 'db'.
-func (db *Database) InsertCluster() Cluster {
-	result := Cluster{db: db, ID: db.nextID()}
-	db.cluster.insert(result, result.ID)
+func (db Database) InsertCluster() Cluster {
+	table := db[ClusterTable]
+	result := Cluster{table: table, ID: table.nextID()}
+	result.table.insert(result, result.ID)
 	return result
-}
-
-// Write the contents of 'c' to its database.
-func (c Cluster) Write() {
-	c.db.cluster.write(c, c.ID)
-}
-
-// Remove 'c' from its database.
-func (c Cluster) Remove() {
-	c.db.cluster.remove(c.ID)
-}
-
-func (c Cluster) equal(r row) bool {
-	b := r.(Cluster)
-
-	if c.ID != b.ID || b.Namespace != b.Namespace || c.RedCount != b.RedCount ||
-		c.BlueCount != b.BlueCount || len(c.SSHKeys) != len(b.SSHKeys) ||
-		len(c.AdminACL) != len(b.AdminACL) {
-		return false
-	}
-
-	for i := range c.SSHKeys {
-		if c.SSHKeys[i] != b.SSHKeys[i] {
-			return false
-		}
-	}
-
-	for i := range c.AdminACL {
-		if c.AdminACL[i] != b.AdminACL[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 // SelectFromCluster gets all clusters in the database that satisfy 'check'.
 func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	result := []Cluster{}
-	for _, row := range db.cluster.rows {
+	for _, row := range db[ClusterTable].rows {
 		if check == nil || check(row.(Cluster)) {
 			result = append(result, row.(Cluster))
 		}
@@ -76,8 +43,26 @@ func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	return result
 }
 
+// Write the contents of 'c' to its database.
+func (c Cluster) Write() {
+	c.table.write(c, c.ID)
+}
+
+// Remove 'c' from its database.
+func (c Cluster) Remove() {
+	c.table.remove(c.ID)
+}
+
+func (c Cluster) equal(r row) bool {
+	b := r.(Cluster)
+	return c.ID == b.ID && b.Namespace == b.Namespace &&
+		strSliceEqual(c.SSHKeys, b.SSHKeys) &&
+		strSliceEqual(c.AdminACL, b.AdminACL) &&
+		c.RedCount == b.RedCount && c.BlueCount == b.BlueCount
+}
+
 func (c Cluster) String() string {
-	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s, Red: %d, Blue: %d}",
+	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s, RedCount: %d, BlueCount %d}",
 		c.ID, c.Provider, c.Namespace, c.AdminACL, c.RedCount, c.BlueCount)
 }
 

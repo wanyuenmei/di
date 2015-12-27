@@ -68,7 +68,7 @@ func createForeman(conn db.Conn, clusterID int) foreman {
 	return foreman{
 		clusterID: clusterID,
 		conn:      conn,
-		trigger:   conn.TriggerTick("Machine", 60),
+		trigger:   conn.TriggerTick(60, db.MachineTable),
 		minions:   make(map[string]*minion),
 		newClient: newClient,
 	}
@@ -80,7 +80,7 @@ func (fm *foreman) stop() {
 
 func (fm *foreman) runOnce() {
 	var machines []db.Machine
-	fm.conn.Transact(func(view *db.Database) error {
+	fm.conn.Transact(func(view db.Database) error {
 		fm.redCount = 0
 		fm.blueCount = 0
 
@@ -190,7 +190,7 @@ func (fm *foreman) etcdToken() string {
 	}
 
 	var masters []db.Machine
-	fm.conn.Transact(func(view *db.Database) error {
+	fm.conn.Transact(func(view db.Database) error {
 		masters = view.SelectFromMachine(func(m db.Machine) bool {
 			return m.ClusterID == fm.clusterID && m.Role == db.Master
 		})

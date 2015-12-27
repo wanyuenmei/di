@@ -22,7 +22,7 @@ func TestBoot(t *testing.T) {
 		t.Errorf("clients.newCalls = %d, want 0", clients.newCalls)
 	}
 
-	fm.conn.Transact(func(view *db.Database) error {
+	fm.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
 		m.ClusterID = 1
 		m.PublicIP = "1.1.1.1"
@@ -50,7 +50,7 @@ func TestBoot(t *testing.T) {
 		t.Errorf("Missing 1.1.1.1: %s", spew.Sdump(clients))
 	}
 
-	fm.conn.Transact(func(view *db.Database) error {
+	fm.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
 		m.ClusterID = 1
 		m.PublicIP = "2.2.2.2"
@@ -87,7 +87,7 @@ func TestBoot(t *testing.T) {
 		t.Errorf("Missing 1.1.1.1: %s", spew.Sdump(clients))
 	}
 
-	fm.conn.Transact(func(view *db.Database) error {
+	fm.conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.PublicIP == "1.1.1.1"
 		})
@@ -124,7 +124,7 @@ func TestBoot(t *testing.T) {
 }
 
 func startTest() (foreman, *clients) {
-	fm := createForeman(db.New(), 1)
+	fm := createForeman(db.New(db.MachineTable), 1)
 	clients := &clients{make(map[string]*fakeClient), 0}
 	fm.newClient = func(ip string) (client, error) {
 		fc := &fakeClient{clients, ip, pb.MinionConfig{}, pb.ContainerConfig{}}

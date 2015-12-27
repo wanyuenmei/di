@@ -40,9 +40,9 @@ type cluster struct {
 func Run(conn db.Conn) {
 	clusters := make(map[int]*cluster)
 
-	for range conn.TriggerTick("Cluster", 60).C {
+	for range conn.TriggerTick(60, db.ClusterTable).C {
 		var dbClusters []db.Cluster
-		conn.Transact(func(db *db.Database) error {
+		conn.Transact(func(db db.Database) error {
 			dbClusters = db.SelectFromCluster(nil)
 			return nil
 		})
@@ -87,7 +87,7 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		id:          id,
 		conn:        conn,
 		cloudConfig: util.CloudConfig(keys),
-		trigger:     conn.TriggerTick("Machine", 30),
+		trigger:     conn.TriggerTick(30, db.MachineTable),
 		fm:          newForeman(conn, id),
 	}
 
@@ -149,7 +149,7 @@ func (clst cluster) sync() {
 func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 	var nBoot int
 	var terminateSet []string
-	clst.conn.Transact(func(view *db.Database) error {
+	clst.conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.ClusterID == clst.id
 		})

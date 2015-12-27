@@ -14,7 +14,7 @@ var log = logging.MustGetLogger("engine")
 
 // UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
 func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
-	txn := func(db *db.Database) error {
+	txn := func(db db.Database) error {
 		return updateTxn(db, dsl)
 	}
 
@@ -25,7 +25,7 @@ func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
 	return nil
 }
 
-func updateTxn(snapshot *db.Database, dsl dsl.Dsl) error {
+func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
 	Namespace := dsl.QueryString("Namespace")
 	if Namespace == "" {
 		return fmt.Errorf("Policy must specify a 'Namespace'")

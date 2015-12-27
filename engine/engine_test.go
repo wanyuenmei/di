@@ -16,7 +16,7 @@ func TestEngine(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New()
+	conn := db.New(db.ClusterTable, db.MachineTable)
 
 	code := `
 (define Namespace "Namespace")
@@ -29,7 +29,7 @@ func TestEngine(t *testing.T) {
 (define SSHKeys (list "foo"))`
 
 	UpdatePolicy(conn, prog(t, code))
-	err := conn.Transact(func(view *db.Database) error {
+	err := conn.Transact(func(view db.Database) error {
 		clusters := view.SelectFromCluster(nil)
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -69,7 +69,7 @@ func TestEngine(t *testing.T) {
 (define SSHKeys (list "foo"))`
 
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -91,7 +91,7 @@ func TestEngine(t *testing.T) {
 	}
 
 	/* Verify that external writes stick around. */
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -127,7 +127,7 @@ func TestEngine(t *testing.T) {
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -160,7 +160,7 @@ func TestEngine(t *testing.T) {
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -193,7 +193,7 @@ func TestEngine(t *testing.T) {
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -227,7 +227,7 @@ func TestEngine(t *testing.T) {
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -253,7 +253,7 @@ func TestSort(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New()
+	conn := db.New(db.ClusterTable, db.MachineTable)
 
 	UpdatePolicy(conn, prog(t, `
 (define Namespace "Namespace")
@@ -264,7 +264,7 @@ func TestSort(t *testing.T) {
 (define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
-	err := conn.Transact(func(view *db.Database) error {
+	err := conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -295,7 +295,7 @@ func TestSort(t *testing.T) {
 (define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -326,7 +326,7 @@ func TestSort(t *testing.T) {
 (define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -353,7 +353,7 @@ func TestLocal(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New()
+	conn := db.New(db.ClusterTable, db.MachineTable)
 
 	code := `
 (define Namespace "Namespace")
@@ -369,7 +369,7 @@ func TestLocal(t *testing.T) {
 		return "5.6.7.8", nil
 	}
 	UpdatePolicy(conn, prog(t, code))
-	err := conn.Transact(func(view *db.Database) error {
+	err := conn.Transact(func(view db.Database) error {
 		clusters := view.SelectFromCluster(nil)
 
 		if len(clusters) != 1 {
@@ -393,7 +393,7 @@ func TestLocal(t *testing.T) {
 		return "", errors.New("Something")
 	}
 	UpdatePolicy(conn, prog(t, code))
-	err = conn.Transact(func(view *db.Database) error {
+	err = conn.Transact(func(view db.Database) error {
 		clusters := view.SelectFromCluster(nil)
 
 		if len(clusters) != 1 {

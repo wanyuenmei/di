@@ -32,7 +32,7 @@ func main() {
 	var configPath = flag.String("c", "config.spec", "path to config file")
 	flag.Parse()
 
-	conn := db.New()
+	conn := db.New(db.ClusterTable, db.MachineTable)
 	go func() {
 		tick := time.Tick(5 * time.Second)
 		for {

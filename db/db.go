@@ -5,11 +5,7 @@ import "time"
 // The Database is the central storage location for all state in the system.  The policy
 // engine populates the database with a preferred state of the world, while various
 // modules flesh out that policy with actual implementation details.
-type Database struct {
-	machine table
-	cluster table
-	idAlloc int
-}
+type Database map[TableType]*table
 
 // A Trigger sends notifications when anything in their corresponding table changes.
 type Trigger struct {
@@ -20,19 +16,12 @@ type Trigger struct {
 type row interface {
 	Write()
 	Remove()
+	String() string
 	equal(row) bool
 }
 
-type table struct {
-	rows map[int]row
-
-	triggers map[Trigger]struct{}
-	trigSeq  int
-	seq      int
-}
-
 type transaction struct {
-	do   func(db *Database) error
+	do   func(db Database) error
 	done chan error
 }
 
@@ -40,16 +29,30 @@ type transaction struct {
 type Conn chan transaction
 
 // New creates a connection to a brand new database.
-func New() Conn {
+func New(tables ...TableType) Conn {
+	db := make(map[TableType]*table)
+	for _, t := range tables {
+		db[t] = newTable()
+	}
+
 	cn := make(Conn)
-	go cn.run()
+	go cn.run(db)
 	return cn
+}
+
+func (cn Conn) run(db Database) {
+	for txn := range cn {
+		txn.done <- txn.do(db)
+		for _, table := range db {
+			table.alert()
+		}
+	}
 }
 
 // Transact executes database transactions.  It takes a closure, 'do', which is operates
 // on its 'db' argument.  Transactions are not concurrent, instead each runs sequentially
 // on it's database without conflicting with other transactions.
-func (cn Conn) Transact(do func(db *Database) error) error {
+func (cn Conn) Transact(do func(db Database) error) error {
 	txn := transaction{do, make(chan error)}
 	cn <- txn
 	return <-txn.done
@@ -58,20 +61,12 @@ func (cn Conn) Transact(do func(db *Database) error) error {
 // Trigger registers a new database trigger that watches changes to 'tableName'.  Any
 // change to the table, including row insertions, deletions, and modifications, will
 // cause a notification on 'Trigger.C'.
-func (cn Conn) Trigger(tableName string) Trigger {
+func (cn Conn) Trigger(tt ...TableType) Trigger {
 	trigger := Trigger{C: make(chan struct{}, 1), stop: make(chan struct{})}
-	cn.Transact(func(db *Database) error {
-		var table *table
-		switch tableName {
-		case "Machine":
-			table = &db.machine
-		case "Cluster":
-			table = &db.cluster
-		default:
-			/* This would be a serious bug in the caller. */
-			panic("Undefined table")
+	cn.Transact(func(db Database) error {
+		for _, t := range tt {
+			db[t].triggers[trigger] = struct{}{}
 		}
-		table.triggers[trigger] = struct{}{}
 		return nil
 	})
 
@@ -81,8 +76,8 @@ func (cn Conn) Trigger(tableName string) Trigger {
 // TriggerTick creates a trigger, similar to Trigger(), that additionally ticks once
 // every N 'seconds'.  So that clients properly initialize, TriggerTick() sends an
 // initialization tick at startup.
-func (cn Conn) TriggerTick(tableName string, seconds int) Trigger {
-	trigger := cn.Trigger(tableName)
+func (cn Conn) TriggerTick(seconds int, tt ...TableType) Trigger {
+	trigger := cn.Trigger(tt...)
 
 	go func() {
 		ticker := time.NewTicker(time.Duration(seconds) * time.Second)
@@ -110,64 +105,16 @@ func (t Trigger) Stop() {
 	close(t.stop)
 }
 
-func (cn Conn) run() {
-	db := Database{
-		machine: newTable(),
-		cluster: newTable(),
+func strSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
 	}
 
-	for txn := range cn {
-		txn.done <- txn.do(&db)
-		db.machine.alert()
-		db.cluster.alert()
-	}
-}
-
-func newTable() table {
-	return table{
-		rows:     make(map[int]row),
-		triggers: make(map[Trigger]struct{}),
-	}
-}
-
-func (db *Database) nextID() int {
-	db.idAlloc++
-	return db.idAlloc
-}
-
-func (t *table) alert() {
-	if t.seq == t.trigSeq {
-		return
-	}
-	t.trigSeq = t.seq
-
-	for trigger := range t.triggers {
-		select {
-		case <-trigger.stop:
-			delete(t.triggers, trigger)
-		default:
-		}
-
-		select {
-		case trigger.C <- struct{}{}:
-		default:
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
-}
 
-func (t *table) insert(r row, id int) {
-	t.seq++
-	t.rows[id] = r
-}
-
-func (t *table) write(r row, id int) {
-	if !t.rows[id].equal(r) {
-		t.seq++
-		t.rows[id] = r
-	}
-}
-
-func (t *table) remove(id int) {
-	t.seq++
-	delete(t.rows, id)
+	return true
 }
