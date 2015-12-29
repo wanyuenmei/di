@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,6 +14,18 @@ import (
 	"github.com/NetSys/di/util"
 )
 
+type client interface {
+	setMinion(pb.MinionConfig) error
+	getMinion() (pb.MinionConfig, error)
+	setContainer(pb.ContainerConfig) error
+	Close()
+}
+
+type clientImpl struct {
+	pb.MinionClient
+	cc *grpc.ClientConn
+}
+
 type foreman struct {
 	clusterID int
 	conn      db.Conn
@@ -21,11 +34,13 @@ type foreman struct {
 	minions   map[string]*minion
 	redCount  int
 	blueCount int
+
+	// Making this a struct member allows us to mock it out.
+	newClient func(string) (client, error)
 }
 
 type minion struct {
-	pb.MinionClient
-	cc        *grpc.ClientConn
+	client    client
 	connected bool
 
 	machine db.Machine
@@ -35,24 +50,28 @@ type minion struct {
 }
 
 func newForeman(conn db.Conn, clusterID int) foreman {
-	fm := foreman{
-		clusterID: clusterID,
-		conn:      conn,
-		trigger:   conn.TriggerTick("Machine", 60),
-		minions:   make(map[string]*minion),
-	}
-
+	fm := createForeman(conn, clusterID)
 	go func() {
 		for range fm.trigger.C {
 			fm.runOnce()
 		}
 
 		for _, minion := range fm.minions {
-			minion.cc.Close()
+			minion.client.Close()
 		}
 	}()
 
 	return fm
+}
+
+func createForeman(conn db.Conn, clusterID int) foreman {
+	return foreman{
+		clusterID: clusterID,
+		conn:      conn,
+		trigger:   conn.TriggerTick("Machine", 60),
+		minions:   make(map[string]*minion),
+		newClient: newClient,
+	}
 }
 
 func (fm *foreman) stop() {
@@ -76,18 +95,9 @@ func (fm *foreman) runOnce() {
 
 	/* Request the current configuration from each minion. */
 	fm.forEachMinion(func(m *minion) {
-		ctx := ctx()
-		cfg, err := m.GetMinionConfig(ctx, &pb.Request{})
-		if err != nil {
-			if ctx.Err() == nil {
-				log.Info("Failed to get MinionConfig: %s", err)
-			}
-			m.config = pb.MinionConfig{}
-			m.connected = false
-		} else {
-			m.config = *cfg
-			m.connected = true
-		}
+		var err error
+		m.config, err = m.client.getMinion()
+		m.connected = err == nil
 	})
 
 	anyConnected := false
@@ -103,6 +113,10 @@ func (fm *foreman) runOnce() {
 	token := fm.etcdToken()
 
 	fm.forEachMinion(func(m *minion) {
+		if !m.connected {
+			return
+		}
+
 		newConfig := pb.MinionConfig{
 			ID:        m.machine.CloudID,
 			Role:      pb.MinionConfig_Role(m.machine.Role),
@@ -114,32 +128,18 @@ func (fm *foreman) runOnce() {
 			return
 		}
 
-		context := ctx()
-		reply, err := m.SetMinionConfig(ctx(), &newConfig)
+		err := m.client.setMinion(newConfig)
 		if err != nil {
-			if context.Err() == nil {
-				log.Warning("Failed to set minion config: %s", err)
-			}
-			return
-		} else if reply.Success == false {
-			log.Warning("Unsuccessful minion reply: %s", reply.Error)
 			return
 		}
 
-		context = ctx()
-		reply, err = m.SetContainerConfig(context, &pb.ContainerConfig{
+		err = m.client.setContainer(pb.ContainerConfig{
 			Count: map[string]int32{
 				"red":  int32(fm.redCount),
 				"blue": int32(fm.blueCount),
 			},
 		})
 		if err != nil {
-			if context.Err() == nil {
-				log.Warning("Failed to set container config: %s", err)
-			}
-			return
-		} else if reply.Success == false {
-			log.Warning("Unsuccessful minion reply: %s", reply.Error)
 			return
 		}
 	})
@@ -147,25 +147,25 @@ func (fm *foreman) runOnce() {
 
 func (fm *foreman) updateMinionMap(machines []db.Machine) {
 	for _, m := range machines {
-		minion, ok := fm.minions[m.PublicIP]
+		min, ok := fm.minions[m.PublicIP]
 		if !ok {
-			var err error
-			minion, err = newClient(m.PublicIP)
+			client, err := fm.newClient(m.PublicIP)
 			if err != nil {
 				continue
 			}
-			fm.minions[m.PublicIP] = minion
+			min = &minion{client: client}
+			fm.minions[m.PublicIP] = min
 		}
 
-		minion.machine = m
-		minion.mark = true
+		min.machine = m
+		min.mark = true
 	}
 
 	for k, minion := range fm.minions {
 		if minion.mark {
 			minion.mark = false
 		} else {
-			minion.cc.Close()
+			minion.client.Close()
 			delete(fm.minions, k)
 		}
 	}
@@ -197,7 +197,7 @@ func (fm *foreman) etcdToken() string {
 		return nil
 	})
 
-	EtcdToken, err := util.NewDiscoveryToken(len(masters))
+	EtcdToken, err := newToken(len(masters))
 	if err != nil {
 		log.Warning("Failed to generate discovery token.")
 		return ""
@@ -218,19 +218,64 @@ func (fm *foreman) forEachMinion(do func(minion *minion)) {
 	wg.Wait()
 }
 
-func newClient(ip string) (*minion, error) {
+func newClient(ip string) (client, error) {
 	cc, err := grpc.Dial(ip+":9999", grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
 	log.Info("New Minion Connection: %s", ip)
-	return &minion{
-		MinionClient: pb.NewMinionClient(cc),
-		cc:           cc}, nil
+	return clientImpl{pb.NewMinionClient(cc), cc}, nil
 }
 
-func ctx() context.Context {
+func (c clientImpl) getMinion() (pb.MinionConfig, error) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	return ctx
+	cfg, err := c.GetMinionConfig(ctx, &pb.Request{})
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Info("Failed to get MinionConfig: %s", err)
+		}
+		return pb.MinionConfig{}, err
+	}
+
+	return *cfg, nil
 }
+
+func (c clientImpl) setMinion(cfg pb.MinionConfig) error {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	reply, err := c.SetMinionConfig(ctx, &cfg)
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Warning("Failed to set minion config: %s", err)
+		}
+		return err
+	} else if reply.Success == false {
+		err := fmt.Errorf("Unsuccessful minion reply: %s", reply.Error)
+		log.Warning(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (c clientImpl) setContainer(cfg pb.ContainerConfig) error {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	reply, err := c.SetContainerConfig(ctx, &cfg)
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Warning("Failed to set container config: %s", err)
+		}
+		return err
+	} else if reply.Success == false {
+		err := fmt.Errorf("Unsuccessful minion reply: %s", reply.Error)
+		log.Warning(err.Error())
+		return err
+	}
+	return nil
+}
+
+func (c clientImpl) Close() {
+	c.cc.Close()
+}
+
+var newToken = util.NewDiscoveryToken
