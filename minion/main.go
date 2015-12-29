@@ -1,5 +1,5 @@
 //go:generate protoc ./pb/pb.proto --go_out=plugins=grpc:.
-package minion
+package main
 
 import (
 	"github.com/NetSys/di/minion/supervisor"
