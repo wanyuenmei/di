@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	minionImage = "quay.io/netsys/di-minion:latest"
+)
+
 func httpRequest(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -48,11 +52,12 @@ coreos:
             [Service]
             ExecStartPre=-/usr/bin/docker kill minion
             ExecStartPre=-/usr/bin/docker rm minion
-            ExecStartPre=/usr/bin/docker pull quay.io/netsys/di-minion
+            ExecStartPre=/usr/bin/docker pull %s
             ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock quay.io/netsys/di-minion
+            -v /var/run/docker.sock:/var/run/docker.sock %s
 
 `
+	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, minionImage)
 
 	if len(keys) > 0 {
 		cloudConfig += "ssh_authorized_keys:\n"
