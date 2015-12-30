@@ -62,14 +62,6 @@ func (fm *foreman) stop() {
 func (fm *foreman) runOnce() {
 	var machines []db.Machine
 	fm.conn.Transact(func(view *db.Database) error {
-		cluster := view.SelectFromCluster(func(c db.Cluster) bool {
-			return c.ID == fm.clusterID
-		})
-
-		if len(cluster) != 1 {
-			return nil
-		}
-
 		fm.redCount = 0
 		fm.blueCount = 0
 
