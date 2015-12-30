@@ -218,11 +218,11 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 * 'boot' */
 func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
 OuterLoop:
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 100; i++ {
 		machines, err := clst.get()
 		if err != nil {
 			log.Warning("Failed to get Machines: %s", err)
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 
@@ -233,7 +233,7 @@ OuterLoop:
 
 		for _, id := range ids {
 			if _, ok := exists[id]; ok != boot {
-				time.Sleep(10 * time.Second)
+				time.Sleep(2 * time.Second)
 				continue OuterLoop
 			}
 		}
