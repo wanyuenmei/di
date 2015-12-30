@@ -53,6 +53,7 @@ func Run(conn db.Conn) {
 			if !ok {
 				clst = newCluster(conn, row.ID, row.Provider,
 					row.Namespace, row.SSHKeys)
+				clusters[row.ID] = clst
 			}
 
 			clst.mark = true
