@@ -34,6 +34,7 @@ func NewKubectl() (scheduler, error) {
 
 	kubeClient, err := kubernetes.NewClient(KUBERNETES_BASE, &http.Client{})
 	if err != nil {
+		return nil, err
 	}
 
 	return kubectl{kubeClient: kubeClient}, nil
