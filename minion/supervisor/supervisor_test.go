@@ -28,7 +28,7 @@ func TestNone(t *testing.T) {
 		m.EtcdToken = "EtcdToken"
 		m.Leader = false
 		m.LeaderIP = "5.6.7.8"
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 
@@ -50,7 +50,7 @@ func TestMaster(t *testing.T) {
 		m.Role = db.Master
 		m.PrivateIP = ip
 		m.EtcdToken = token
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -78,7 +78,7 @@ func TestMaster(t *testing.T) {
 		m.PrivateIP = ip
 		m.EtcdToken = token
 		m.Leader = true
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -101,7 +101,7 @@ func TestMaster(t *testing.T) {
 	conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Leader = false
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -129,7 +129,7 @@ func TestWorker(t *testing.T) {
 		m.Role = db.Worker
 		m.PrivateIP = ip
 		m.EtcdToken = token
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -155,7 +155,7 @@ func TestWorker(t *testing.T) {
 		m.PrivateIP = ip
 		m.EtcdToken = token
 		m.LeaderIP = leaderIP
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -191,7 +191,7 @@ func TestChange(t *testing.T) {
 		m.PrivateIP = ip
 		m.EtcdToken = token
 		m.LeaderIP = leaderIP
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -218,7 +218,7 @@ func TestChange(t *testing.T) {
 	conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -239,7 +239,7 @@ func TestChange(t *testing.T) {
 	conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	wait()
@@ -264,7 +264,7 @@ func TestChange(t *testing.T) {
 }
 
 func initTest() (db.Conn, fakeDocker) {
-	conn := db.New(db.MinionTable)
+	conn := db.New()
 	fd := fakeDocker{make(map[Image][]string),
 		make(map[Image][]string)}
 
@@ -273,7 +273,7 @@ func initTest() (db.Conn, fakeDocker) {
 	conn.Transact(func(view db.Database) error {
 		m := view.InsertMinion()
 		m.MinionID = "Minion1"
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 	return conn, fd

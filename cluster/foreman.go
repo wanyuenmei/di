@@ -83,15 +83,14 @@ func (fm *foreman) runOnce() {
 	fm.conn.Transact(func(view db.Database) error {
 		fm.redCount = 0
 		fm.blueCount = 0
-		if view[db.ClusterTable] != nil {
-			clusters := view.SelectFromCluster(nil)
-			switch len(clusters) {
-			case 1:
-				fm.redCount = clusters[0].RedCount
-				fm.blueCount = clusters[0].BlueCount
-			default:
-				log.Warning("Cluster count != 1")
-			}
+
+		clusters := view.SelectFromCluster(nil)
+		switch len(clusters) {
+		case 1:
+			fm.redCount = clusters[0].RedCount
+			fm.blueCount = clusters[0].BlueCount
+		default:
+			log.Warning("Cluster count != 1")
 		}
 
 		machines = view.SelectFromMachine(func(m db.Machine) bool {

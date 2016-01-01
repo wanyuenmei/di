@@ -14,7 +14,7 @@ var log = logging.MustGetLogger("main")
 func main() {
 	log.Info("Minion Start")
 
-	conn := db.New(db.MinionTable, db.ContainerTable)
+	conn := db.New()
 	logDB(conn)
 	go supervisor.Run(conn, docker.New())
 	go scheduler.Run(conn)

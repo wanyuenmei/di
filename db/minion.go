@@ -9,8 +9,7 @@ import (
 // configuration that minion needs to operate, including it's ID, Role, IP address, and
 // EtcdToken
 type Minion struct {
-	table *table
-	ID    int
+	ID int
 
 	MinionID  string
 	Role      Role
@@ -23,16 +22,15 @@ type Minion struct {
 
 // InsertMinion creates a new Minion and inserts it into 'db'.
 func (db Database) InsertMinion() Minion {
-	table := db[MinionTable]
-	result := Minion{table: table, ID: table.nextID()}
-	result.table.insert(result, result.ID)
+	result := Minion{ID: db.nextID()}
+	db.insert(result)
 	return result
 }
 
 // SelectFromMinion gets all minions in the database that satisfy the 'check'.
 func (db Database) SelectFromMinion(check func(Minion) bool) []Minion {
 	result := []Minion{}
-	for _, row := range db[MinionTable].rows {
+	for _, row := range db.tables[MinionTable].rows {
 		if check == nil || check(row.(Minion)) {
 			result = append(result, row.(Minion))
 		}
@@ -50,14 +48,12 @@ func (conn Conn) SelectFromMinion(check func(Minion) bool) []Minion {
 	return minions
 }
 
-// Write the contents of 'm' to its database.
-func (m Minion) Write() {
-	m.table.write(m, m.ID)
+func (m Minion) id() int {
+	return m.ID
 }
 
-// Remove 'm' from its database.
-func (m Minion) Remove() {
-	m.table.remove(m.ID)
+func (m Minion) tt() TableType {
+	return MinionTable
 }
 
 func (m Minion) String() string {
@@ -84,11 +80,4 @@ func (m Minion) String() string {
 	}
 
 	return fmt.Sprintf("Minion-%d{%s}", m.ID, strings.Join(tags, ", "))
-}
-
-func (m Minion) equal(r row) bool {
-	b := r.(Minion)
-	return m.ID == b.ID && m.MinionID == b.MinionID && m.Role == b.Role &&
-		m.PrivateIP == b.PrivateIP && m.EtcdToken == b.EtcdToken &&
-		m.Leader == b.Leader && m.LeaderIP == b.LeaderIP
 }

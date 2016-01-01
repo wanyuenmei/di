@@ -7,9 +7,7 @@ import (
 
 // A Cluster is a group of Machines which can operate containers.
 type Cluster struct {
-	/* Alocated by the database. */
-	table *table
-	ID    int
+	ID int
 
 	Provider  Provider
 	Namespace string // Cloud Provider Namespace
@@ -25,16 +23,15 @@ type Cluster struct {
 
 // InsertCluster creates a new Cluster and interts it into 'db'.
 func (db Database) InsertCluster() Cluster {
-	table := db[ClusterTable]
-	result := Cluster{table: table, ID: table.nextID()}
-	result.table.insert(result, result.ID)
+	result := Cluster{ID: db.nextID()}
+	db.insert(result)
 	return result
 }
 
 // SelectFromCluster gets all clusters in the database that satisfy 'check'.
 func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	result := []Cluster{}
-	for _, row := range db[ClusterTable].rows {
+	for _, row := range db.tables[ClusterTable].rows {
 		if check == nil || check(row.(Cluster)) {
 			result = append(result, row.(Cluster))
 		}
@@ -43,22 +40,12 @@ func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	return result
 }
 
-// Write the contents of 'c' to its database.
-func (c Cluster) Write() {
-	c.table.write(c, c.ID)
+func (c Cluster) id() int {
+	return c.ID
 }
 
-// Remove 'c' from its database.
-func (c Cluster) Remove() {
-	c.table.remove(c.ID)
-}
-
-func (c Cluster) equal(r row) bool {
-	b := r.(Cluster)
-	return c.ID == b.ID && b.Namespace == b.Namespace &&
-		strSliceEqual(c.SSHKeys, b.SSHKeys) &&
-		strSliceEqual(c.AdminACL, b.AdminACL) &&
-		c.RedCount == b.RedCount && c.BlueCount == b.BlueCount
+func (c Cluster) tt() TableType {
+	return ClusterTable
 }
 
 func (c Cluster) String() string {

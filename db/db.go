@@ -1,11 +1,17 @@
 package db
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 // The Database is the central storage location for all state in the system.  The policy
 // engine populates the database with a preferred state of the world, while various
 // modules flesh out that policy with actual implementation details.
-type Database map[TableType]*table
+type Database struct {
+	tables  map[TableType]*table
+	idAlloc *int
+}
 
 // A Trigger sends notifications when anything in their corresponding table changes.
 type Trigger struct {
@@ -14,10 +20,9 @@ type Trigger struct {
 }
 
 type row interface {
-	Write()
-	Remove()
+	id() int
+	tt() TableType
 	String() string
-	equal(row) bool
 }
 
 type transaction struct {
@@ -29,10 +34,10 @@ type transaction struct {
 type Conn chan transaction
 
 // New creates a connection to a brand new database.
-func New(tables ...TableType) Conn {
-	db := make(map[TableType]*table)
-	for _, t := range tables {
-		db[t] = newTable()
+func New() Conn {
+	db := Database{make(map[TableType]*table), new(int)}
+	for _, t := range allTables {
+		db.tables[t] = newTable()
 	}
 
 	cn := make(Conn)
@@ -43,7 +48,7 @@ func New(tables ...TableType) Conn {
 func (cn Conn) run(db Database) {
 	for txn := range cn {
 		txn.done <- txn.do(db)
-		for _, table := range db {
+		for _, table := range db.tables {
 			table.alert()
 		}
 	}
@@ -65,7 +70,7 @@ func (cn Conn) Trigger(tt ...TableType) Trigger {
 	trigger := Trigger{C: make(chan struct{}, 1), stop: make(chan struct{})}
 	cn.Transact(func(db Database) error {
 		for _, t := range tt {
-			db[t].triggers[trigger] = struct{}{}
+			db.tables[t].triggers[trigger] = struct{}{}
 		}
 		return nil
 	})
@@ -105,16 +110,34 @@ func (t Trigger) Stop() {
 	close(t.stop)
 }
 
-func strSliceEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
+func (db Database) insert(r row) {
+	table := db.tables[r.tt()]
+	table.seq++
+	table.rows[r.id()] = r
+}
+
+func (db Database) Commit(r row) {
+	rid := r.id()
+	table := db.tables[r.tt()]
+	old := table.rows[rid]
+
+	if reflect.TypeOf(old) != reflect.TypeOf(r) {
+		panic("Type Error")
 	}
 
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
+	if !reflect.DeepEqual(table.rows[rid], r) {
+		table.rows[rid] = r
+		table.seq++
 	}
+}
 
-	return true
+func (db Database) Remove(r row) {
+	table := db.tables[r.tt()]
+	delete(table.rows, r.id())
+	table.seq++
+}
+
+func (db Database) nextID() int {
+	*db.idAlloc += 1
+	return *db.idAlloc
 }

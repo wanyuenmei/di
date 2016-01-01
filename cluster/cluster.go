@@ -166,11 +166,11 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 
 		for _, cm := range cloudMachines {
 			if machine, ok := cidMap[cm.id]; ok {
-				writeMachine(machine, cm)
+				writeMachine(view, machine, cm)
 			} else if len(unassigned) > 0 {
 				assignment := unassigned[0]
 				unassigned = unassigned[1:]
-				writeMachine(assignment, cm)
+				writeMachine(view, assignment, cm)
 			} else {
 				terminateSet = append(terminateSet, cm.id)
 			}
@@ -183,9 +183,9 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 	return nBoot, terminateSet
 }
 
-func writeMachine(dbm db.Machine, m machine) {
+func writeMachine(view db.Database, dbm db.Machine, m machine) {
 	dbm.CloudID = m.id
 	dbm.PublicIP = m.publicIP
 	dbm.PrivateIP = m.privateIP
-	dbm.Write()
+	view.Commit(dbm)
 }

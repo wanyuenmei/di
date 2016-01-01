@@ -11,7 +11,7 @@ import (
 )
 
 func TestMachine(t *testing.T) {
-	conn := New(MachineTable)
+	conn := New()
 
 	var m Machine
 	err := conn.Transact(func(db Database) error {
@@ -41,13 +41,13 @@ func TestMachine(t *testing.T) {
 			return err
 		}
 
-		m.Write()
+		db.Commit(m)
 
 		if err := SelectMachineCheck(db, nil, []Machine{m}); err != nil {
 			return err
 		}
 
-		m.Remove()
+		db.Remove(m)
 
 		if err := SelectMachineCheck(db, nil, []Machine{}); err != nil {
 			return err
@@ -61,14 +61,14 @@ func TestMachine(t *testing.T) {
 }
 
 func TestMachineSelect(t *testing.T) {
-	conn := New(MachineTable)
+	conn := New()
 
 	var machines []Machine
 	err := conn.Transact(func(db Database) error {
 		for i := 0; i < 4; i++ {
 			m := db.InsertMachine()
 			m.ClusterID = i
-			m.Write()
+			db.Commit(m)
 			machines = append(machines, m)
 		}
 		return nil
@@ -97,16 +97,16 @@ func TestMachineSelect(t *testing.T) {
 }
 
 func TestCluster(t *testing.T) {
-	conn := New(ClusterTable)
+	conn := New()
 
 	err := conn.Transact(func(db Database) error {
 		c := db.InsertCluster()
 		c.RedCount = 1
-		c.Write()
+		db.Commit(c)
 
 		c = db.InsertCluster()
 		c.RedCount = 2
-		c.Write()
+		db.Commit(c)
 
 		clusters := db.SelectFromCluster(nil)
 		if len(clusters) != 2 {
@@ -145,7 +145,7 @@ func TestCluster(t *testing.T) {
 	err = conn.Transact(func(db Database) error {
 		clusters := db.SelectFromCluster(nil)
 		for _, clst := range clusters {
-			clst.Remove()
+			db.Remove(clst)
 		}
 
 		clusters = db.SelectFromCluster(nil)
@@ -162,7 +162,7 @@ func TestCluster(t *testing.T) {
 }
 
 func TestTrigger(t *testing.T) {
-	conn := New(MachineTable, ClusterTable)
+	conn := New()
 
 	mt := conn.Trigger(MachineTable)
 	mt2 := conn.Trigger(MachineTable)

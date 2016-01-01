@@ -8,8 +8,7 @@ import (
 // A Container row is created for each container specified by the policy.  Each row will
 // eventually be instantiated within its corresponding cluster. */
 type Container struct {
-	table *table
-	ID    int
+	ID int
 
 	SchedID string
 	Label   string
@@ -18,16 +17,15 @@ type Container struct {
 
 // InsertContainer creates a new container row and inserts it into the database.
 func (db Database) InsertContainer() Container {
-	table := db[ContainerTable]
-	result := Container{table: table, ID: table.nextID()}
-	result.table.insert(result, result.ID)
+	result := Container{ID: db.nextID()}
+	db.insert(result)
 	return result
 }
 
 // SelectFromContainer gets all containers in the database that satisfy 'check'.
 func (db Database) SelectFromContainer(check func(Container) bool) []Container {
 	var result []Container
-	for _, row := range db[ContainerTable].rows {
+	for _, row := range db.tables[ContainerTable].rows {
 		if check == nil || check(row.(Container)) {
 			result = append(result, row.(Container))
 		}
@@ -36,19 +34,12 @@ func (db Database) SelectFromContainer(check func(Container) bool) []Container {
 	return result
 }
 
-// Write the contents of 'c' to its database.
-func (c Container) Write() {
-	c.table.write(c, c.ID)
+func (c Container) id() int {
+	return c.ID
 }
 
-// Remove 'c' from its database.
-func (c Container) Remove() {
-	c.table.remove(c.ID)
-}
-
-func (c Container) equal(r row) bool {
-	b := r.(Container)
-	return c.ID == b.ID && c.Label == b.Label
+func (c Container) tt() TableType {
+	return ContainerTable
 }
 
 func (c Container) String() string {

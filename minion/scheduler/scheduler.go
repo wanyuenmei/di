@@ -74,12 +74,12 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 		if dbc, ok := cmap[sc.ID]; ok {
 			/* XXX: Change the label without rebooting the container. */
 			if dbc.Label == sc.Label {
-				writeContainer(dbc, sc)
+				writeContainer(view, dbc, sc)
 			} else {
 				term = append(term, sc.ID)
 			}
 		} else if len(unassigned) > 0 {
-			writeContainer(unassigned[0], sc)
+			writeContainer(view, unassigned[0], sc)
 			unassigned = unassigned[1:]
 		} else {
 			term = append(term, sc.ID)
@@ -89,8 +89,8 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 	return term, len(unassigned)
 }
 
-func writeContainer(dbc db.Container, sc Container) {
+func writeContainer(view db.Database, dbc db.Container, sc Container) {
 	dbc.SchedID = sc.ID
 	dbc.IP = sc.IP
-	dbc.Write()
+	view.Commit(dbc)
 }

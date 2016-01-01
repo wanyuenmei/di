@@ -28,7 +28,7 @@ func TestBoot(t *testing.T) {
 		m.PublicIP = "1.1.1.1"
 		m.PrivateIP = "1.1.1.1."
 		m.CloudID = "ID"
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 
@@ -56,7 +56,7 @@ func TestBoot(t *testing.T) {
 		m.PublicIP = "2.2.2.2"
 		m.PrivateIP = "2.2.2.2"
 		m.CloudID = "ID2"
-		m.Write()
+		view.Commit(m)
 		return nil
 	})
 
@@ -91,7 +91,7 @@ func TestBoot(t *testing.T) {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.PublicIP == "1.1.1.1"
 		})
-		machines[0].Remove()
+		view.Remove(machines[0])
 		return nil
 	})
 
@@ -124,7 +124,7 @@ func TestBoot(t *testing.T) {
 }
 
 func startTest() (foreman, *clients) {
-	fm := createForeman(db.New(db.MachineTable), 1)
+	fm := createForeman(db.New(), 1)
 	clients := &clients{make(map[string]*fakeClient), 0}
 	fm.newClient = func(ip string) (client, error) {
 		fc := &fakeClient{clients, ip, pb.MinionConfig{}, pb.ContainerConfig{}}

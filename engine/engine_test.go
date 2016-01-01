@@ -16,7 +16,7 @@ func TestEngine(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New(db.ClusterTable, db.MachineTable)
+	conn := db.New()
 
 	code := `
 (define Namespace "Namespace")
@@ -103,14 +103,14 @@ func TestEngine(t *testing.T) {
 			master.CloudID = "1"
 			master.PublicIP = "2"
 			master.PrivateIP = "3"
-			master.Write()
+			view.Commit(master)
 		}
 
 		for _, worker := range workers {
 			worker.CloudID = "1"
 			worker.PublicIP = "2"
 			worker.PrivateIP = "3"
-			worker.Write()
+			view.Commit(worker)
 		}
 
 		return nil
@@ -253,7 +253,7 @@ func TestSort(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New(db.ClusterTable, db.MachineTable)
+	conn := db.New()
 
 	UpdatePolicy(conn, prog(t, `
 (define Namespace "Namespace")
@@ -275,10 +275,10 @@ func TestSort(t *testing.T) {
 
 		machines[2].PublicIP = "a"
 		machines[2].PrivateIP = "b"
-		machines[2].Write()
+		view.Commit(machines[2])
 
 		machines[1].PrivateIP = "c"
-		machines[1].Write()
+		view.Commit(machines[1])
 
 		return nil
 	})
@@ -353,7 +353,7 @@ func TestLocal(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
-	conn := db.New(db.ClusterTable, db.MachineTable)
+	conn := db.New()
 
 	code := `
 (define Namespace "Namespace")

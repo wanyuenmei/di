@@ -12,9 +12,10 @@ const (
 	MinionTable
 )
 
+var allTables = []TableType{ClusterTable, MachineTable, ContainerTable, MinionTable}
+
 type table struct {
-	idAlloc int
-	rows    map[int]row
+	rows map[int]row
 
 	triggers map[Trigger]struct{}
 	trigSeq  int
@@ -46,26 +47,4 @@ func (t *table) alert() {
 		default:
 		}
 	}
-}
-
-func (t *table) insert(r row, id int) {
-	t.seq++
-	t.rows[id] = r
-}
-
-func (t *table) write(r row, id int) {
-	if !t.rows[id].equal(r) {
-		t.seq++
-		t.rows[id] = r
-	}
-}
-
-func (t *table) remove(id int) {
-	t.seq++
-	delete(t.rows, id)
-}
-
-func (t *table) nextID() int {
-	t.idAlloc += 1
-	return t.idAlloc
 }

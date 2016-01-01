@@ -9,9 +9,7 @@ import (
 // Machine represents a physical or virtual machine operated by a cloud provider on which
 // containers may be run.
 type Machine struct {
-	/* Populated by the Database at creation time. */
-	table *table
-	ID    int //Database ID
+	ID int //Database ID
 
 	/* Populated by the policy engine. */
 	ClusterID int //Parent Cluster ID
@@ -25,26 +23,24 @@ type Machine struct {
 
 // InsertMachine creates a new Machine and inserts it into 'db'.
 func (db Database) InsertMachine() Machine {
-	table := db[MachineTable]
-	result := Machine{table: table, ID: table.nextID()}
-	result.table.insert(result, result.ID)
+	result := Machine{ID: db.nextID()}
+	db.insert(result)
 	return result
 }
 
-// Write the contents of 'm' to its database.
-func (m Machine) Write() {
-	m.table.write(m, m.ID)
+func (m Machine) id() int {
+	return m.ID
 }
 
 // Remove 'm' from its database.
-func (m Machine) Remove() {
-	m.table.remove(m.ID)
+func (m Machine) tt() TableType {
+	return MachineTable
 }
 
 // SelectFromMachine gets all machines in the database thatsatisfy the 'check'.
 func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 	result := []Machine{}
-	for _, row := range db[MachineTable].rows {
+	for _, row := range db.tables[MachineTable].rows {
 		if check == nil || check(row.(Machine)) {
 			result = append(result, row.(Machine))
 		}
@@ -70,13 +66,6 @@ func (m Machine) String() string {
 	}
 
 	return fmt.Sprintf("Machine-%d{%s}", m.ID, strings.Join(tags, ", "))
-}
-
-func (m Machine) equal(r row) bool {
-	b := r.(Machine)
-	return m.ID == b.ID && m.ClusterID == b.ClusterID && m.Role == b.Role &&
-		m.CloudID == b.CloudID && m.PublicIP == b.PublicIP &&
-		m.PrivateIP == b.PrivateIP
 }
 
 // SortMachinesByID sorts 'machines' by their database IDs.

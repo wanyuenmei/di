@@ -58,7 +58,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.Role = db.Role(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
 		minion.EtcdToken = msg.EtcdToken
-		minion.Write()
+		view.Commit(minion)
 
 		return nil
 	})
@@ -85,11 +85,11 @@ func (s server) SetContainerConfig(ctx context.Context,
 				for i := 0; i < newCount-oldCount; i++ {
 					new := view.InsertContainer()
 					new.Label = label
-					new.Write()
+					view.Commit(new)
 				}
 			case oldCount > newCount:
 				for _, c := range cmap[label][newCount:] {
-					c.Remove()
+					view.Remove(c)
 				}
 			}
 		}

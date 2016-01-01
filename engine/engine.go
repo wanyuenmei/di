@@ -25,7 +25,7 @@ func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
 	return nil
 }
 
-func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
+func updateTxn(view db.Database, dsl dsl.Dsl) error {
 	Namespace := dsl.QueryString("Namespace")
 	if Namespace == "" {
 		return fmt.Errorf("Policy must specify a 'Namespace'")
@@ -37,12 +37,12 @@ func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
 	}
 
 	var cluster db.Cluster
-	clusters := snapshot.SelectFromCluster(nil)
+	clusters := view.SelectFromCluster(nil)
 	switch len(clusters) {
 	case 1:
 		cluster = clusters[0]
 	case 0:
-		cluster = snapshot.InsertCluster()
+		cluster = view.InsertCluster()
 	default:
 		panic("Unimplemented")
 	}
@@ -53,8 +53,7 @@ func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
 	cluster.BlueCount = dsl.QueryInt("BlueCount")
 	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
 	cluster.SSHKeys = dsl.QueryStrSlice("SSHKeys")
-
-	cluster.Write()
+	view.Commit(cluster)
 
 	masterCount := dsl.QueryInt("MasterCount")
 	workerCount := dsl.QueryInt("WorkerCount")
@@ -64,10 +63,10 @@ func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
 	}
 
 	clusterID := cluster.ID
-	masters := snapshot.SelectFromMachine(func(m db.Machine) bool {
+	masters := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == clusterID && m.Role == db.Master
 	})
-	workers := snapshot.SelectFromMachine(func(m db.Machine) bool {
+	workers := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == clusterID && m.Role == db.Worker
 	})
 
@@ -89,24 +88,24 @@ func updateTxn(snapshot db.Database, dsl dsl.Dsl) error {
 	}
 
 	for i := 0; i < nBoot; i++ {
-		changes = append(changes, snapshot.InsertMachine())
+		changes = append(changes, view.InsertMachine())
 	}
 
 	newWorkers := workerCount - len(workers)
 	newMasters := masterCount - len(masters)
 	for i := range changes {
-		change := &changes[i]
+		change := changes[i]
 		change.ClusterID = clusterID
 		if newMasters > 0 {
 			newMasters--
 			change.Role = db.Master
-			change.Write()
+			view.Commit(change)
 		} else if newWorkers > 0 {
 			newWorkers--
 			change.Role = db.Worker
-			change.Write()
+			view.Commit(change)
 		} else {
-			change.Remove()
+			view.Remove(change)
 		}
 	}
 

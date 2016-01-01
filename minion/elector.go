@@ -26,7 +26,7 @@ func watchLeader(conn db.Conn) {
 			minions := view.SelectFromMinion(nil)
 			if len(minions) == 1 {
 				minions[0].LeaderIP = leader
-				minions[0].Write()
+				view.Commit(minions[0])
 			}
 			return nil
 		})
@@ -63,7 +63,7 @@ func campaign(conn db.Conn) {
 			minions := view.SelectFromMinion(nil)
 			if len(minions) == 1 {
 				minions[0].Leader = err == nil
-				minions[0].Write()
+				view.Commit(minions[0])
 			}
 			return nil
 		})
