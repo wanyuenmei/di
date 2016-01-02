@@ -89,7 +89,7 @@ func (k kubectl) bootContainer() {
 	 * 10 red containers", then this will be reflected as 10 separate pods
 	 * in kubernetes. We do this primarily to allow more fine-grained
 	 * control of things through the policy language. */
-	_, err := k.kubeClient.RunPod(ctx(), &api.Pod{
+	_, err := k.kubeClient.RunPod(context.Background(), &api.Pod{
 		TypeMeta: api.TypeMeta{APIVersion: "v1", Kind: "Pod"},
 		ObjectMeta: api.ObjectMeta{
 			Name: id,
@@ -100,9 +100,9 @@ func (k kubectl) bootContainer() {
 		Spec: api.PodSpec{
 			Containers: []api.Container{{
 				Name:    id,
-				Image:   "ubuntu:14.04",
+				Image:   "alpine",
 				Command: []string{"tail", "-f", "/dev/null"},
-				TTY:     true},
+			},
 			},
 		},
 	})
