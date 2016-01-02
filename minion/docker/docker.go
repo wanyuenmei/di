@@ -25,6 +25,9 @@ const (
 	// Ovncontroller is the per host controller for OVN network virtualization.
 	Ovncontroller Image = "quay.io/netsys/ovn-controller"
 
+	// Ovnoverlay is the ovn networking driver for docker
+	Ovnoverlay Image = "quay.io/netsys/ovn-overlay"
+
 	// Ovsvswitchd is the Open vSwitch control plane.
 	Ovsvswitchd Image = "quay.io/netsys/ovs-vswitchd"
 
@@ -44,6 +47,7 @@ type Client interface {
 	Exec(image Image, cmd []string) error
 	Remove(image Image) error
 	RemoveAll()
+	CreateLSwitch(name string) error
 }
 
 type docker struct {
@@ -150,6 +154,17 @@ func (dk docker) RemoveAll() {
 	}
 }
 
+func (dk docker) CreateLSwitch(name string) error {
+	_, err := dk.CreateNetwork(dkc.CreateNetworkOptions{
+		Name:           name,
+		CheckDuplicate: true,
+		Driver:         "openvswitch"})
+	if err != nil {
+		log.Warning("Failed to create di lswitch: %s", err)
+	}
+	return err
+}
+
 func (dk docker) create(name string, image Image, args []string) (string, error) {
 	dk.pull(image)
 
@@ -202,6 +217,9 @@ func hc(image Image) *dkc.HostConfig {
 		Binds:       []string{"/usr/share/ca-certificates:/etc/ssl/certs"}}
 
 	switch image {
+	case Ovnoverlay:
+		hc.Binds = []string{"/etc/docker:/etc/docker:rw"}
+		fallthrough
 	case Ovsvswitchd:
 		hc.Privileged = true
 		fallthrough
@@ -211,11 +229,12 @@ func hc(image Image) *dkc.HostConfig {
 		hc.VolumesFrom = []string{Ovsdb.String()}
 	case Kubelet:
 		hc.Binds = []string{
+			"/proc:/hostproc:ro",
 			"/var/run:/var/run:rw",
 			"/var/lib/docker:/var/lib/docker:rw",
 			"/etc/docker:/etc/docker:rw",
 			"/dev:/dev:rw",
-			"/sys:/sys:rw",
+			"/sys:/sys:ro",
 		}
 		hc.Privileged = true
 		hc.PidMode = "host" // Use PID=host per the kubernetes documentation.
@@ -235,6 +254,8 @@ func (image Image) String() string {
 		return "ovn-northd"
 	case Ovncontroller:
 		return "ovn-controller"
+	case Ovnoverlay:
+		return "ovn-overlay"
 	case Ovsvswitchd:
 		return "ovs-vswitchd"
 	case Ovsdb:

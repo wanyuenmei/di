@@ -135,10 +135,9 @@ func TestWorker(t *testing.T) {
 	ctx.run()
 
 	exp := map[Image][]string{
-		Etcd:          etcdArgsWorker(token),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
+		Etcd:        etcdArgsWorker(token),
+		Ovsdb:       nil,
+		Ovsvswitchd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -165,6 +164,7 @@ func TestWorker(t *testing.T) {
 		Ovsdb:         nil,
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
+		Ovnoverlay:    nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -172,8 +172,14 @@ func TestWorker(t *testing.T) {
 			spew.Sdump(exp))
 	}
 
+	var mID string
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		mID = m.MinionID
+		return nil
+	})
 	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -201,14 +207,22 @@ func TestChange(t *testing.T) {
 		Ovsdb:         nil,
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
+		Ovnoverlay:    nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
+
+	var mID string
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		mID = m.MinionID
+		return nil
+	})
 	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -248,6 +262,7 @@ func TestChange(t *testing.T) {
 		Etcd:          etcdArgsWorker(token),
 		Ovsdb:         nil,
 		Ovncontroller: nil,
+		Ovnoverlay:    nil,
 		Ovsvswitchd:   nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
@@ -255,8 +270,9 @@ func TestChange(t *testing.T) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
+
 	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -274,7 +290,8 @@ type testCtx struct {
 func initTest() testCtx {
 	conn := db.New()
 	ctx := testCtx{supervisor{},
-		fakeDocker{make(map[Image][]string), make(map[Image][]string)},
+		fakeDocker{make(map[Image][]string), make(map[Image][]string),
+			make(map[string]bool)},
 		conn, conn.Trigger(db.MinionTable)}
 	ctx.sv.conn = ctx.conn
 	ctx.sv.dk = ctx.fd
@@ -298,8 +315,9 @@ func (ctx testCtx) run() {
 }
 
 type fakeDocker struct {
-	running map[Image][]string
-	exec    map[Image][]string
+	running   map[Image][]string
+	exec      map[Image][]string
+	lswitches map[string]bool
 }
 
 func (f fakeDocker) Run(image Image, args []string) error {
@@ -330,6 +348,13 @@ func (f fakeDocker) RemoveAll() {
 	}
 }
 
+func (f fakeDocker) CreateLSwitch(name string) error {
+	if _, ok := f.lswitches[name]; !ok {
+		f.lswitches[name] = true
+	}
+	return nil
+}
+
 func kubeletArgsMaster(ip string) []string {
 	return []string{"/usr/bin/boot-master", ip}
 }
@@ -353,11 +378,13 @@ func etcdArgsWorker(etcd string) []string {
 	return []string{"--discovery=" + etcd, "--proxy=on"}
 }
 
-func ovsExecArgs(ip, leader string) []string {
+func ovsExecArgs(id, ip, leader string) []string {
 	return []string{"ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leader),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", ip),
 		"external_ids:ovn-encap-type=\"geneve\"",
+		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leader),
+		fmt.Sprintf("external_ids:system-id=\"di-%s\"", id),
 	}
 }
 
@@ -366,6 +393,7 @@ func validateImage(image Image) {
 	case Etcd:
 	case Kubelet:
 	case Ovnnorthd:
+	case Ovnoverlay:
 	case Ovncontroller:
 	case Ovsvswitchd:
 	case Ovsdb:

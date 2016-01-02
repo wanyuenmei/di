@@ -75,7 +75,6 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	etcdArgs := []string{"--discovery=" + etcdToken, "--proxy=on"}
 	sv.dk.Run(docker.Etcd, etcdArgs)
 	sv.dk.Run(docker.Ovsdb, nil)
-	sv.dk.Run(docker.Ovncontroller, nil)
 	sv.dk.Run(docker.Ovsvswitchd, nil)
 
 	if leaderIP == "" || IP == "" {
@@ -85,11 +84,27 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	args := []string{"/usr/bin/boot-worker", IP, leaderIP}
 	sv.dk.Run(docker.Kubelet, args)
 
+	minions := sv.conn.SelectFromMinion(nil)
+	if len(minions) != 1 {
+		return
+	}
 	sv.dk.Exec(docker.Ovsvswitchd, []string{"ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leaderIP),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
+		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
+		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minions[0].MinionID),
 	})
+
+	/* The ovn controller doesn't support reconfiguring ovn-remote mid-run.
+	 * So, we need to restart the container when the leader changes. */
+	sv.dk.Remove(docker.Ovncontroller)
+	sv.dk.Run(docker.Ovncontroller, nil)
+
+	sv.dk.Run(docker.Ovnoverlay, nil)
+
+	/* Create the di logical switch if it doesn't exist. */
+	sv.dk.CreateLSwitch("di")
 }
 
 func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {

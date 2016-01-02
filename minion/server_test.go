@@ -11,6 +11,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+const TEST_IMAGE = "alpine"
+
 func BenchmarkContainerDiff(b *testing.B) {
 	conn := db.New()
 
@@ -24,8 +26,8 @@ func BenchmarkContainerDiff(b *testing.B) {
 		for j := 0; j < 10; j++ {
 			labels = append(labels, fmt.Sprintf("%s", rand.Int63()))
 		}
-		ep0 = append(ep0, &pb.Endpoint{pb.Endpoint_Container, labels})
-		ep1 = append(ep1, &pb.Endpoint{pb.Endpoint_Container, labels[1:]})
+		ep0 = append(ep0, &pb.Endpoint{pb.Endpoint_Container, labels, TEST_IMAGE})
+		ep1 = append(ep1, &pb.Endpoint{pb.Endpoint_Container, labels[1:], TEST_IMAGE})
 	}
 
 	conn.Transact(func(view db.Database) error {
@@ -110,7 +112,7 @@ func TestEndpointTxn(t *testing.T) {
 func testEndpointTxn(conn db.Conn, exp ...[]string) string {
 	var eps []*pb.Endpoint
 	for _, labels := range exp {
-		eps = append(eps, &pb.Endpoint{pb.Endpoint_Container, labels})
+		eps = append(eps, &pb.Endpoint{pb.Endpoint_Container, labels, TEST_IMAGE})
 	}
 
 	var containers []db.Container

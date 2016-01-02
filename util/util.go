@@ -41,6 +41,25 @@ func CloudConfig(keys []string) string {
 
 coreos:
     units:
+        - name: ovs.service
+          command: start
+          content: |
+            [Unit]
+            Description=OVS
+            [Service]
+            ExecStart=/sbin/modprobe openvswitch
+            ExecStartPost=/sbin/modprobe vport_geneve
+
+        - name: docker.service
+          command: start
+          content: |
+            [Unit]
+            Description=docker
+            [Service]
+            ExecStart=/usr/bin/docker daemon --bridge=none \
+            --cluster-store=etcd://127.0.0.1:2379 --cluster-advertise=$private_ipv4:0
+            ExecStartPost=-/usr/bin/mkdir -p /var/run/netns
+
         - name: minion.service
           command: start
           content: |
