@@ -46,3 +46,10 @@ be installed with go get:
 That done, simply run the following to update the generated files.
 
         make generate
+
+## Containers
+Some of the functionality that isn't captured in this repo is packaged into
+containers that can be found in the following repos:
+
+* [ovs-containers](https://github.com/NetSys/ovs-containers)
+* [kubelet](https://github.com/NetSys/di-kubelet)
