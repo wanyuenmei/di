@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // A Container row is created for each container specified by the policy.  Each row will
@@ -43,7 +44,21 @@ func (c Container) tt() TableType {
 }
 
 func (c Container) String() string {
-	return fmt.Sprintf("Container-%d{%s}", c.ID, c.Label)
+	var tags []string
+
+	if c.SchedID != "" {
+		tags = append(tags, fmt.Sprintf("SchedID: %s", c.SchedID))
+	}
+
+	if c.Label != "" {
+		tags = append(tags, fmt.Sprintf("Labels: %s", c.Label))
+	}
+
+	if c.IP != "" {
+		tags = append(tags, c.IP)
+	}
+
+	return fmt.Sprintf("Container-%d{%s}", c.ID, strings.Join(tags, ", "))
 }
 
 // SortContainersByID sorts 'containers' by their database IDs.
