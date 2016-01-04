@@ -15,7 +15,6 @@ func main() {
 	log.Info("Minion Start")
 
 	conn := db.New()
-	logDB(conn)
 	go supervisor.Run(conn, docker.New())
 	go scheduler.Run(conn)
 	go watchLeader(conn)

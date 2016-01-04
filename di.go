@@ -46,7 +46,6 @@ func main() {
 		}
 	}()
 
-	logDB(conn)
 	cluster.Run(conn)
 }
 

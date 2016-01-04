@@ -3,6 +3,8 @@ package db
 import (
 	"reflect"
 	"time"
+
+	"github.com/op/go-logging"
 )
 
 // The Database is the central storage location for all state in the system.  The policy
@@ -33,6 +35,8 @@ type transaction struct {
 // A Conn is a database handle on which transactions may be executed.
 type Conn chan transaction
 
+var log = logging.MustGetLogger("database")
+
 // New creates a connection to a brand new database.
 func New() Conn {
 	db := Database{make(map[TableType]*table), new(int)}
@@ -42,6 +46,7 @@ func New() Conn {
 
 	cn := make(Conn)
 	go cn.run(db)
+	cn.runLogger()
 	return cn
 }
 

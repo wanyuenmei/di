@@ -48,3 +48,18 @@ func (t *table) alert() {
 		}
 	}
 }
+
+func (t TableType) String() string {
+	switch t {
+	case ClusterTable:
+		return "Cluster"
+	case MachineTable:
+		return "Machine"
+	case ContainerTable:
+		return "Container"
+	case MinionTable:
+		return "Minion"
+	default:
+		panic("Unimplemented")
+	}
+}
