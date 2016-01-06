@@ -11,17 +11,17 @@ import (
 )
 
 func TestNone(t *testing.T) {
-	sv, conn, fd := initTest()
+	ctx := initTest()
 
-	if len(fd.running) > 0 {
-		t.Errorf("fd.running = %s; want <empty>", spew.Sdump(fd.running))
+	if len(ctx.fd.running) > 0 {
+		t.Errorf("fd.running = %s; want <empty>", spew.Sdump(ctx.fd.running))
 	}
 
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s; want <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s; want <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.PrivateIP = "1.2.3.4"
 		m.EtcdToken = "EtcdToken"
@@ -30,22 +30,22 @@ func TestNone(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
-	if len(fd.running) > 0 {
-		t.Errorf("fd.running = %s; want <none>", spew.Sdump(fd.running))
+	if len(ctx.fd.running) > 0 {
+		t.Errorf("fd.running = %s; want <none>", spew.Sdump(ctx.fd.running))
 	}
 
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s; want <none>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s; want <none>", spew.Sdump(ctx.fd.exec))
 	}
 }
 
 func TestMaster(t *testing.T) {
-	sv, conn, fd := initTest()
+	ctx := initTest()
 	ip := "1.2.3.4"
 	token := "1"
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -53,26 +53,26 @@ func TestMaster(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp := map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
 		Ovsdb:   nil,
 		Kubelet: kubeletArgsMaster(ip),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
 
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
 	/* Change IP, etcd token, and become the leader. */
 	ip = "8.8.8.8"
 	token = "2"
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -81,7 +81,7 @@ func TestMaster(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp = map[Image][]string{
 		Etcd:      etcdArgsMaster(ip, token),
@@ -89,42 +89,42 @@ func TestMaster(t *testing.T) {
 		Kubelet:   kubeletArgsMaster(ip),
 		Ovnnorthd: nil,
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
 	/* Lose leadership. */
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Leader = false
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp = map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
 		Ovsdb:   nil,
 		Kubelet: kubeletArgsMaster(ip),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 }
 
 func TestWorker(t *testing.T) {
-	sv, conn, fd := initTest()
+	ctx := initTest()
 	ip := "1.2.3.4"
 	token := "1"
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -132,7 +132,7 @@ func TestWorker(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp := map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -140,16 +140,16 @@ func TestWorker(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
 	leaderIP := "5.6.7.8"
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -158,7 +158,7 @@ func TestWorker(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp = map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -167,25 +167,25 @@ func TestWorker(t *testing.T) {
 		Ovsvswitchd:   nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
 
 	exp = map[Image][]string{
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(fd.exec), spew.Sdump(exp))
+	if !reflect.DeepEqual(ctx.fd.exec, exp) {
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
 	}
 }
 
 func TestChange(t *testing.T) {
-	sv, conn, fd := initTest()
+	ctx := initTest()
 	ip := "1.2.3.4"
 	token := "1"
 	leaderIP := "5.6.7.8"
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -194,7 +194,7 @@ func TestChange(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp := map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -203,46 +203,46 @@ func TestChange(t *testing.T) {
 		Ovsvswitchd:   nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
 	exp = map[Image][]string{
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(fd.exec), spew.Sdump(exp))
+	if !reflect.DeepEqual(ctx.fd.exec, exp) {
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
 	}
 
-	delete(fd.exec, Ovsvswitchd)
-	conn.Transact(func(view db.Database) error {
+	delete(ctx.fd.exec, Ovsvswitchd)
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp = map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
 		Ovsdb:   nil,
 		Kubelet: kubeletArgsMaster(ip),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
-	if len(fd.exec) > 0 {
-		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(fd.exec))
+	if len(ctx.fd.exec) > 0 {
+		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		view.Commit(m)
 		return nil
 	})
-	sv.runOnce()
+	ctx.run()
 
 	exp = map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -251,34 +251,50 @@ func TestChange(t *testing.T) {
 		Ovsvswitchd:   nil,
 		Kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.running, exp) {
-		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(fd.running),
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
 	exp = map[Image][]string{
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
-	if !reflect.DeepEqual(fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(fd.exec), spew.Sdump(exp))
+	if !reflect.DeepEqual(ctx.fd.exec, exp) {
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
 	}
 }
 
-func initTest() (supervisor, db.Conn, fakeDocker) {
+type testCtx struct {
+	sv supervisor
+	fd fakeDocker
+
+	conn  db.Conn
+	trigg db.Trigger
+}
+
+func initTest() testCtx {
 	conn := db.New()
-	fd := fakeDocker{make(map[Image][]string),
-		make(map[Image][]string)}
+	ctx := testCtx{supervisor{},
+		fakeDocker{make(map[Image][]string), make(map[Image][]string)},
+		conn, conn.Trigger(db.MinionTable)}
+	ctx.sv.conn = ctx.conn
+	ctx.sv.dk = ctx.fd
 
-	go Run(conn, fd)
-
-	conn.Transact(func(view db.Database) error {
+	ctx.conn.Transact(func(view db.Database) error {
 		m := view.InsertMinion()
 		m.MinionID = "Minion1"
 		view.Commit(m)
 		return nil
 	})
-	sv := supervisor{conn: conn, dk: fd}
-	sv.runOnce()
-	return sv, conn, fd
+	ctx.sv.runOnce()
+
+	return ctx
+}
+
+func (ctx testCtx) run() {
+	select {
+	case <-ctx.trigg.C:
+	}
+	ctx.sv.runOnce()
 }
 
 type fakeDocker struct {
