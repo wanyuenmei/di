@@ -59,6 +59,11 @@ func TestList(t *testing.T) {
 	parseTest(t, "(list 1 2 (list))", "(1 2 ())")
 	parseTest(t, `(list 1 2 (list "a" "b" 3))`, `(1 2 ("a" "b" 3))`)
 	parseTest(t, `(list 1 2 (+ 1 2))`, `(1 2 3)`)
+
+	parseTest(t, `(makeList 0 1)`, `()`)
+	parseTest(t, `(makeList 1 1)`, `(1)`)
+	parseTest(t, `(makeList 2 1)`, `(1 1)`)
+	parseTest(t, `(makeList 3 (+ 1 1))`, `(2 2 2)`)
 }
 
 func TestScanError(t *testing.T) {
@@ -107,6 +112,9 @@ func TestRuntimeErrors(t *testing.T) {
 
 	runtimeErr(t, "(define a 3) (define a 3)", `attempt to redefine: "a"`)
 	runtimeErr(t, "(define a (+ 3 b ))", "unassigned variable: b")
+
+	runtimeErr(t, `(makeList "a" 3)`,
+		`makeList must begin with a positive integer, found: "a"`)
 }
 
 func TestQuery(t *testing.T) {

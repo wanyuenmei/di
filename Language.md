@@ -28,7 +28,7 @@ basic configuration).
 
 ```
 (atom docker ubuntu:15.10) # Boot an Ubuntu 15.10 container.
-(make-list 5 (atom docker ubuntu)) # Boot 5 ubuntu:latest containers.
+(makeList 5 (atom docker ubuntu)) # Boot 5 ubuntu:latest containers.
 (atom hostname external.org) # Register external.org as a reachable hostname.
 ```
 
@@ -57,7 +57,7 @@ may not label themselves.
 (label database (atom docker postgres))
 
 # These 5 apache containers make up the webTier.
-(label webTier (make-list 5 (atom docker apache))
+(label webTier (makeList 5 (atom docker apache))
 
 # A deployment consists of a database, a webTier, and a monitoring system
 (label deployment (list database webTier (atom docker monitor)))

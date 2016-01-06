@@ -8,12 +8,13 @@ type funcImpl struct {
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"+":    {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":    {arithFun(func(a, b int) int { return a - b }), 2},
-	"*":    {arithFun(func(a, b int) int { return a * b }), 2},
-	"/":    {arithFun(func(a, b int) int { return a / b }), 2},
-	"%":    {arithFun(func(a, b int) int { return a % b }), 2},
-	"list": {listImpl, 0},
+	"+":        {arithFun(func(a, b int) int { return a + b }), 2},
+	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
+	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
+	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
+	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
+	"list":     {listImpl, 0},
+	"makeList": {makeListImpl, 2},
 }
 
 func arithFun(do func(a, b int) int) func([]ast) (ast, error) {
@@ -39,4 +40,18 @@ func arithFun(do func(a, b int) int) func([]ast) (ast, error) {
 
 func listImpl(args []ast) (ast, error) {
 	return astList(args), nil
+}
+
+func makeListImpl(args []ast) (ast, error) {
+	count, ok := args[0].(astInt)
+	if !ok || count < 0 {
+		return nil, fmt.Errorf("makeList must begin with a positive integer, "+
+			"found: %s", args[0])
+	}
+
+	var result []ast
+	for i := 0; i < int(count); i++ {
+		result = append(result, args[1])
+	}
+	return astList(result), nil
 }
