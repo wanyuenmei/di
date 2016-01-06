@@ -75,7 +75,7 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(((())", unbalanced)
 	parseErr(t, "((+ 5 (* 3 7)))))", unbalanced)
 
-	args := "not enough arguments"
+	args := "not enough arguments: +"
 	parseErr(t, "(+)", args)
 	parseErr(t, "(+ 5)", args)
 	parseErr(t, "(+ 5 (+ 6))", args)
@@ -94,16 +94,19 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(let ((a 1)) (define b a))", "define must be at the top level")
 	parseErr(t, "(define a (+))", args)
 	parseErr(t, "(define a 5.3)", "bad element: 5.3")
+
+	parseErr(t, "(badFun)", "unknown function: badFun")
 }
 
 func TestRuntimeErrors(t *testing.T) {
-	runtimeErr(t, "(+ a a)", "arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(list (+ a a))", "arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(let ((y (+ a a))) y)", "arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(let ((y 3)) (+ a a))", "arithmetic on non-integer: \"a\"")
+	err := `bad arithmetic argument: "a"`
+	runtimeErr(t, `(+ "a" "a")`, err)
+	runtimeErr(t, `(list (+ "a" "a"))`, err)
+	runtimeErr(t, `(let ((y (+ "a" "a"))) y)`, err)
+	runtimeErr(t, `(let ((y 3)) (+ "a" "a"))`, err)
 
 	runtimeErr(t, "(define a 3) (define a 3)", `attempt to redefine: "a"`)
-	runtimeErr(t, "(define a (+ 3 b ))", `arithmetic on non-integer: "b"`)
+	runtimeErr(t, "(define a (+ 3 b ))", "unassigned variable: b")
 }
 
 func TestQuery(t *testing.T) {

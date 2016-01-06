@@ -21,19 +21,23 @@ func parse(reader io.Reader) (astRoot, error) {
 		scanErrors = append(scanErrors, msg)
 	}
 
-	p1, err := parseText(&s, 0)
+	pt, err := parseText(&s, 0)
 	if s.ErrorCount != 0 {
 		return nil, errors.New(strings.Join(scanErrors, "\n"))
 	} else if err != nil {
 		return nil, err
 	}
 
-	ast, err := parseList(p1, true)
-	if err != nil {
-		return nil, err
+	var root []ast
+	for _, iface := range pt {
+		p, err := parseInterface(iface, true)
+		if err != nil {
+			return nil, err
+		}
+		root = append(root, p)
 	}
 
-	return astRoot(ast), nil
+	return astRoot(root), nil
 }
 
 func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
@@ -99,21 +103,6 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 	}
 
 	switch first {
-	case "+":
-		do := func(a, b int) int { return a + b }
-		return parseArith("+", do, list[1:])
-	case "-":
-		do := func(a, b int) int { return a - b }
-		return parseArith("-", do, list[1:])
-	case "*":
-		do := func(a, b int) int { return a * b }
-		return parseArith("*", do, list[1:])
-	case "/":
-		do := func(a, b int) int { return a / b }
-		return parseArith("/", do, list[1:])
-	case "%":
-		do := func(a, b int) int { return a % b }
-		return parseArith("%", do, list[1:])
 	case "let":
 		if len(list) != 3 {
 			return nil, errors.New(fmt.Sprintf(
@@ -131,8 +120,6 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 		}
 
 		return astLet{binds, tree}, nil
-	case "list":
-		return parseList(list[1:], false)
 	case "define":
 		if root != true {
 			return nil,
@@ -144,21 +131,31 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 			return nil, err
 		}
 		return astDefine(bind), nil
+	default:
+		return parseFunc(first, list[1:])
 	}
-
-	return nil, errors.New("expresssions must begin with keywords")
 }
 
-func parseList(list []interface{}, root bool) (astListOp, error) {
-	result := []ast{}
-	for _, elem := range list {
-		parsed, err := parseInterface(elem, root)
+func parseFunc(fn astIdent, ifaceArgs []interface{}) (ast, error) {
+	fni, ok := funcImplMap[fn]
+	if !ok {
+		return nil, fmt.Errorf("unknown function: %s", fn)
+	}
+
+	if len(ifaceArgs) < fni.minArgs {
+		return nil, fmt.Errorf("not enough arguments: %s", fn)
+	}
+
+	var args []ast
+	for _, arg := range ifaceArgs {
+		eval, err := parseInterface(arg, false)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, parsed)
+		args = append(args, eval)
 	}
-	return astListOp(result), nil
+
+	return astFunc{fn, fni.do, args}, nil
 }
 
 func parseBindList(bindIface interface{}) ([]astBind, error) {
@@ -200,21 +197,4 @@ func parseBind(iface interface{}) (astBind, error) {
 	}
 
 	return astBind{name, tree}, nil
-}
-
-func parseArith(name string, do func(int, int) int, args []interface{}) (ast, error) {
-	if len(args) < 2 {
-		return nil, errors.New("not enough arguments")
-	}
-
-	astArgs := []ast{}
-	for _, iface := range args {
-		tree, err := parseInterface(iface, false)
-		if err != nil {
-			return nil, err
-		}
-		astArgs = append(astArgs, tree)
-	}
-
-	return astArith{name, do, astArgs}, nil
 }

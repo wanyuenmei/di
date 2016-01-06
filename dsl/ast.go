@@ -22,9 +22,9 @@ type astLet struct {
 	ast   ast
 }
 
-type astArith struct {
-	name string
-	do   func(int, int) int
+type astFunc struct {
+	fn   astIdent
+	do   func([]ast) (ast, error)
 	args []ast
 }
 
@@ -36,8 +36,7 @@ type astRoot []ast
 * DI system. */
 type astDefine astBind
 
-type astListOp []ast /* A data list before evaluation (include the 'list' keyword). */
-type astList []ast   /* A data list after evaluation. */
+type astList []ast /* A data list after evaluation. */
 
 type astIdent string /* Identities, i.e. key words, variable names etc. */
 
@@ -47,10 +46,6 @@ type astInt int
 
 func (root astRoot) String() string {
 	return fmt.Sprintf("%s", sliceStr(root))
-}
-
-func (list astListOp) String() string {
-	return astList(append([]ast{astIdent("list")}, list...)).String()
 }
 
 func (list astList) String() string {
@@ -70,8 +65,8 @@ func (x astInt) String() string {
 	return fmt.Sprintf("%d", x)
 }
 
-func (at astArith) String() string {
-	return fmt.Sprintf("(%s %s)", at.name, sliceStr(at.args))
+func (fn astFunc) String() string {
+	return fmt.Sprintf("(%s)", sliceStr(append([]ast{fn.fn}, fn.args...)))
 }
 
 func (def astDefine) String() string {
@@ -94,10 +89,6 @@ func (root astRoot) eval(binds map[astIdent]ast) (ast, error) {
 		return nil, err
 	}
 	return astRoot(results.(astList)), nil
-}
-
-func (list astListOp) eval(binds map[astIdent]ast) (ast, error) {
-	return astList(list).eval(binds)
 }
 
 func (list astList) eval(binds map[astIdent]ast) (ast, error) {
@@ -129,27 +120,18 @@ func (x astInt) eval(binds map[astIdent]ast) (ast, error) {
 	return x, nil
 }
 
-func (at astArith) eval(binds map[astIdent]ast) (ast, error) {
-	args := []int{}
-	for _, ast := range at.args {
-		evaled, err := ast.eval(binds)
+func (fn astFunc) eval(binds map[astIdent]ast) (ast, error) {
+	var args []ast
+
+	for _, arg := range fn.args {
+		eval, err := arg.eval(binds)
 		if err != nil {
+			return nil, err
 		}
-
-		val, ok := evaled.(astInt)
-		if !ok {
-			return nil, fmt.Errorf("arithmetic on non-integer: \"%s\"", ast)
-		}
-		args = append(args, int(val))
+		args = append(args, eval)
 	}
 
-	/* The parser guarantees that there is at last one arg. */
-	total := args[0]
-	for _, x := range args[1:] {
-		total = at.do(total, x)
-	}
-
-	return astInt(total), nil
+	return fn.do(args)
 }
 
 func (def astDefine) eval(binds map[astIdent]ast) (ast, error) {
