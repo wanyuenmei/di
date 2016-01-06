@@ -38,6 +38,12 @@ type astRoot astList
 * DI system. */
 type astDefine astBind
 
+type astAtom struct {
+	typ       astIdent   // Type of the atom, currently only "docker" is supported.
+	arg       ast        // Argument for running the atom.
+	container *Container // The container resulting from evaluation.
+}
+
 type astIdent string /* Identities, i.e. key words, variable names etc. */
 
 /* Atoms. */
@@ -81,6 +87,10 @@ func (lt astLet) String() string {
 	}
 	bindStr := strings.Join(bindSlice, " ")
 	return fmt.Sprintf("(let (%s) %s)", bindStr, lt.ast)
+}
+
+func (atom astAtom) String() string {
+	return fmt.Sprintf("(atom %s %s)", atom.typ, atom.arg)
 }
 
 func sliceStr(asts []ast) string {

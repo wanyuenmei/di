@@ -5,10 +5,12 @@ import "fmt"
 type evalCtx struct {
 	binds   map[astIdent]ast
 	defines map[astIdent]ast
+
+	containers []*Container
 }
 
 func eval(parsed ast) (ast, evalCtx, error) {
-	ctx := evalCtx{make(map[astIdent]ast), make(map[astIdent]ast)}
+	ctx := evalCtx{make(map[astIdent]ast), make(map[astIdent]ast), nil}
 	evaluated, err := parsed.eval(&ctx)
 	if err != nil {
 		return nil, evalCtx{}, err
@@ -56,6 +58,30 @@ func (def astDefine) eval(ctx *evalCtx) (ast, error) {
 	ctx.binds[def.ident] = result
 
 	return astDefine{def.ident, result}, nil
+}
+
+func (atom astAtom) eval(ctx *evalCtx) (ast, error) {
+	if atom.container != nil {
+		panic("Not Reached") // This atom has already been evaluated.
+	}
+
+	if atom.typ != "docker" {
+		return nil, fmt.Errorf("unknown atom type: %s", atom.typ)
+	}
+
+	eval, err := atom.arg.eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	arg, ok := eval.(astString)
+	if !ok {
+		return nil, fmt.Errorf("atom argument must be a string, found: %s", eval)
+	}
+
+	container := &Container{string(arg)}
+	ctx.containers = append(ctx.containers, container)
+	return astAtom{atom.typ, eval, container}, nil
 }
 
 func (lt astLet) eval(ctx *evalCtx) (ast, error) {

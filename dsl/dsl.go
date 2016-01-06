@@ -13,6 +13,10 @@ type Dsl struct {
 	ctx  evalCtx
 }
 
+type Container struct {
+	Image string
+}
+
 func New(reader io.Reader) (Dsl, error) {
 	parsed, err := parse(reader)
 	if err != nil {
@@ -24,6 +28,10 @@ func New(reader io.Reader) (Dsl, error) {
 		return Dsl{}, err
 	}
 	return Dsl{spec, ctx}, nil
+}
+
+func (dsl Dsl) QueryContainers() []*Container {
+	return dsl.ctx.containers
 }
 
 func (dsl Dsl) QueryInt(key string) int {

@@ -126,6 +126,12 @@ func parseInterface(p1 interface{}) (ast, error) {
 			return nil, err
 		}
 		return astDefine(bind), nil
+	case "atom":
+		bind, err := parseBind(list[1:])
+		if err != nil {
+			return nil, err
+		}
+		return astAtom{bind.ident, bind.ast, nil}, nil
 	default:
 		return parseFunc(first, list[1:])
 	}
@@ -181,7 +187,7 @@ func parseBind(iface interface{}) (astBind, error) {
 		return astBind{}, ErrBinding
 	}
 
-	name, ok := pair[0].(astIdent)
+	ident, ok := pair[0].(astIdent)
 	if !ok {
 		return astBind{}, ErrBinding
 	}
@@ -191,5 +197,5 @@ func parseBind(iface interface{}) (astBind, error) {
 		return astBind{}, err
 	}
 
-	return astBind{name, tree}, nil
+	return astBind{ident, tree}, nil
 }

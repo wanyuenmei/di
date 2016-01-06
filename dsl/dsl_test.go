@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestArith(t *testing.T) {
@@ -67,6 +69,40 @@ func TestList(t *testing.T) {
 	parseTest(t, `(let ((a 2)) (makeList a 3))`, `(3 3)`)
 }
 
+func TestAtom(t *testing.T) {
+	checkContainers := func(code, expectedCode string, expStr ...string) {
+		var expected []*Container
+		for _, e := range expStr {
+			expected = append(expected, &Container{e})
+		}
+
+		ctx := parseTest(t, code, expectedCode)
+		if !reflect.DeepEqual(ctx.containers, expected) {
+			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+				code, ctx.containers, expected))
+		}
+	}
+
+	code := `(atom docker "a")`
+	checkContainers(code, code, "a")
+
+	code = `(atom docker "a") (atom docker "a")`
+	checkContainers(code, code, "a", "a")
+
+	code = `(makeList 2 (list (atom docker "a") (atom docker "b")))`
+	exp := `(((atom docker "a") (atom docker "b"))` +
+		` ((atom docker "a") (atom docker "b")))`
+	checkContainers(code, exp, "a", "b", "a", "b")
+
+	code = `(let ((a "foo") (b "bar")) (list (atom docker a) (atom docker b)))`
+	exp = `((atom docker "foo") (atom docker "bar"))`
+	checkContainers(code, exp, "foo", "bar")
+
+	runtimeErr(t, `(atom foo "bar")`, `unknown atom type: foo`)
+	runtimeErr(t, `(atom docker bar)`, `unassigned variable: bar`)
+	runtimeErr(t, `(atom docker 1)`, `atom argument must be a string, found: 1`)
+}
+
 func TestScanError(t *testing.T) {
 	parseErr(t, "\"foo", "literal not terminated")
 }
@@ -101,6 +137,7 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(define a 5.3)", "bad element: 5.3")
 
 	parseErr(t, "(badFun)", "unknown function: badFun")
+	parseErr(t, "(atom)", "error parsing bindings")
 }
 
 func TestRuntimeErrors(t *testing.T) {
@@ -134,7 +171,9 @@ func TestQuery(t *testing.T) {
 		(define a (+ 1 2))
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
-		(define d (list "1" 2 "3"))`))
+		(define d (list "1" 2 "3"))
+		(atom docker b)
+		(atom docker b)`))
 	if err != nil {
 		t.Error(err)
 		return
@@ -180,30 +219,36 @@ func TestQuery(t *testing.T) {
 	if val := dsl.QueryStrSlice("a"); val != nil {
 		t.Error(val, "!=", nil)
 	}
+
+	if val := dsl.QueryContainers(); len(val) != 2 {
+		t.Error(val)
+	}
 }
 
-func parseTest(t *testing.T, code, evalExpected string) {
+func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 	parsed, err := parse(strings.NewReader(code))
 	if err != nil {
 		t.Error(fmt.Sprintf("%s: %s", code, err))
-		return
+		return evalCtx{}
 	}
 
 	if str := parsed.String(); str != code {
 		t.Errorf("Parse expected \"%s\" got \"%s\"", code, str)
-		return
+		return evalCtx{}
 	}
 
-	result, _, err := eval(parsed)
+	result, ctx, err := eval(parsed)
 	if err != nil {
 		t.Error(fmt.Sprintf("%s: %s", code, err))
-		return
+		return evalCtx{}
 	}
 
 	if result.String() != evalExpected {
 		t.Errorf("Eval expected \"%s\" got \"%s\"", evalExpected, result)
-		return
+		return evalCtx{}
 	}
+
+	return ctx
 }
 
 func parseErr(t *testing.T, code, expectedErr string) {
