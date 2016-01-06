@@ -1,7 +1,6 @@
 package dsl
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -118,7 +117,7 @@ func (ident astIdent) eval(binds map[astIdent]ast) (ast, error) {
 	if val, ok := binds[ident]; ok {
 		return val, nil
 	} else {
-		return nil, errors.New(fmt.Sprintf("Unassigned variable: %s", ident))
+		return nil, fmt.Errorf("unassigned variable: %s", ident)
 	}
 }
 
@@ -139,8 +138,7 @@ func (at astArith) eval(binds map[astIdent]ast) (ast, error) {
 
 		val, ok := evaled.(astInt)
 		if !ok {
-			err := fmt.Sprintf("Arithmetic on non-integer: \"%s\"", ast)
-			return nil, errors.New(err)
+			return nil, fmt.Errorf("arithmetic on non-integer: \"%s\"", ast)
 		}
 		args = append(args, int(val))
 	}
@@ -156,8 +154,7 @@ func (at astArith) eval(binds map[astIdent]ast) (ast, error) {
 
 func (def astDefine) eval(binds map[astIdent]ast) (ast, error) {
 	if _, ok := binds[def.name]; ok {
-		return nil, errors.New(fmt.Sprintf(
-			"Attempt to redefine: \"%s\"", def.name))
+		return nil, fmt.Errorf("attempt to redefine: \"%s\"", def.name)
 	}
 
 	result, err := def.ast.eval(binds)

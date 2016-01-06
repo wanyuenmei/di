@@ -9,8 +9,8 @@ import (
 	"text/scanner"
 )
 
-var ErrUnbalancedParens = errors.New("Unbalanced Parenthesis")
-var ErrBinding = errors.New("Error parsing bindings")
+var ErrUnbalancedParens = errors.New("unbalanced Parenthesis")
+var ErrBinding = errors.New("error parsing bindings")
 
 func parse(reader io.Reader) (astRoot, error) {
 	var s scanner.Scanner
@@ -86,11 +86,11 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 	case astString:
 		return elem, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("Bad element: %s", elem))
+		return nil, errors.New(fmt.Sprintf("bad element: %s", elem))
 	}
 
 	if len(list) == 0 {
-		return nil, errors.New(fmt.Sprintf("Bad element: %s", list))
+		return nil, errors.New(fmt.Sprintf("bad element: %s", list))
 	}
 
 	switch first := list[0].(type) {
@@ -116,8 +116,7 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 		switch first {
 		case "let":
 			if len(list) != 3 {
-				return nil, errors.New(fmt.Sprintf(
-					"Not enough arguments: %s", list))
+				return nil, fmt.Errorf("not enough arguments: %s", list)
 			}
 
 			binds, err := parseBindList(list[1])
@@ -135,8 +134,7 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 			return parseList(list[1:], false)
 		case "define":
 			if root != true {
-				return nil,
-					errors.New("'define' must be at the top level")
+				return nil, errors.New("define must be at the top level")
 			}
 
 			bind, err := parseBind(list[1:])
@@ -147,7 +145,7 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 		}
 	}
 
-	return nil, errors.New("Lists must start with operators")
+	return nil, errors.New("lists must start with operators")
 }
 
 func parseList(list []interface{}, root bool) (astListOp, error) {
@@ -205,7 +203,7 @@ func parseBind(iface interface{}) (astBind, error) {
 
 func parseArith(name string, do func(int, int) int, args []interface{}) (ast, error) {
 	if len(args) < 2 {
-		return nil, errors.New("Not Enough Arguments")
+		return nil, errors.New("not enough arguments")
 	}
 
 	astArgs := []ast{}

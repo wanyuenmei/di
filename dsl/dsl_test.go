@@ -63,28 +63,27 @@ func TestList(t *testing.T) {
 
 func TestScanError(t *testing.T) {
 	parseErr(t, "\"foo", "literal not terminated")
-
 }
 
 func TestParseErrors(t *testing.T) {
-	parseErr(t, "(1 2 3)", "Lists must start with operators")
+	parseErr(t, "(1 2 3)", "lists must start with operators")
 
-	unbalanced := "Unbalanced Parenthesis"
+	unbalanced := "unbalanced Parenthesis"
 	parseErr(t, "(", unbalanced)
 	parseErr(t, ")", unbalanced)
 	parseErr(t, "())", unbalanced)
 	parseErr(t, "(((())", unbalanced)
 	parseErr(t, "((+ 5 (* 3 7)))))", unbalanced)
 
-	args := "Not Enough Arguments"
+	args := "not enough arguments"
 	parseErr(t, "(+)", args)
 	parseErr(t, "(+ 5)", args)
 	parseErr(t, "(+ 5 (+ 6))", args)
 
-	bindErr := "Error parsing bindings"
-	parseErr(t, "()", "Bad element: []")
-	parseErr(t, "4.3", "Bad element: 4.3")
-	parseErr(t, "(let)", "Not enough arguments: [let]")
+	bindErr := "error parsing bindings"
+	parseErr(t, "()", "bad element: []")
+	parseErr(t, "4.3", "bad element: 4.3")
+	parseErr(t, "(let)", "not enough arguments: [let]")
 	parseErr(t, "(let 3 a)", bindErr)
 	parseErr(t, "(let (a) a)", bindErr)
 	parseErr(t, "(let ((a)) a)", bindErr)
@@ -92,18 +91,19 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(let ((a (+))) a)", args)
 	parseErr(t, "(let ((a 3)) (+))", args)
 
-	parseErr(t, "(let ((a 1)) (define b a))", "'define' must be at the top level")
+	parseErr(t, "(let ((a 1)) (define b a))", "define must be at the top level")
 	parseErr(t, "(define a (+))", args)
+	parseErr(t, "(define a 5.3)", "bad element: 5.3")
 }
 
 func TestRuntimeErrors(t *testing.T) {
-	runtimeErr(t, "(+ a a)", "Arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(list (+ a a))", "Arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(let ((y (+ a a))) y)", "Arithmetic on non-integer: \"a\"")
-	runtimeErr(t, "(let ((y 3)) (+ a a))", "Arithmetic on non-integer: \"a\"")
+	runtimeErr(t, "(+ a a)", "arithmetic on non-integer: \"a\"")
+	runtimeErr(t, "(list (+ a a))", "arithmetic on non-integer: \"a\"")
+	runtimeErr(t, "(let ((y (+ a a))) y)", "arithmetic on non-integer: \"a\"")
+	runtimeErr(t, "(let ((y 3)) (+ a a))", "arithmetic on non-integer: \"a\"")
 
-	runtimeErr(t, "(define a 3) (define a 3)", `Attempt to redefine: "a"`)
-	runtimeErr(t, "(define a (+ 3 b ))", `Arithmetic on non-integer: "b"`)
+	runtimeErr(t, "(define a 3) (define a 3)", `attempt to redefine: "a"`)
+	runtimeErr(t, "(define a (+ 3 b ))", `arithmetic on non-integer: "b"`)
 }
 
 func TestQuery(t *testing.T) {
