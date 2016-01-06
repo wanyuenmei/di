@@ -9,8 +9,8 @@ import (
 var log = logging.MustGetLogger("dsl")
 
 type Dsl struct {
-	defines map[astIdent]ast
-	spec    ast
+	spec ast
+	ctx  evalCtx
 }
 
 func New(reader io.Reader) (Dsl, error) {
@@ -19,17 +19,15 @@ func New(reader io.Reader) (Dsl, error) {
 		return Dsl{}, err
 	}
 
-	defines := make(map[astIdent]ast)
-	spec, err := parsed.eval(defines)
+	spec, ctx, err := eval(parsed)
 	if err != nil {
 		return Dsl{}, err
 	}
-
-	return Dsl{defines, spec}, nil
+	return Dsl{spec, ctx}, nil
 }
 
 func (dsl Dsl) QueryInt(key string) int {
-	result, ok := dsl.defines[astIdent(key)]
+	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
 		log.Warning("%s undefined", key)
 		return 0
@@ -44,7 +42,7 @@ func (dsl Dsl) QueryInt(key string) int {
 }
 
 func (dsl Dsl) QueryString(key string) string {
-	result, ok := dsl.defines[astIdent(key)]
+	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
 		log.Warning("%s undefined", key)
 		return ""
@@ -59,7 +57,7 @@ func (dsl Dsl) QueryString(key string) string {
 }
 
 func (dsl Dsl) QueryStrSlice(key string) []string {
-	result, ok := dsl.defines[astIdent(key)]
+	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
 		log.Warning("%s undefined", key)
 		return nil

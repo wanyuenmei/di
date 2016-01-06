@@ -96,7 +96,6 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(let ((a (+))) a)", args)
 	parseErr(t, "(let ((a 3)) (+))", args)
 
-	parseErr(t, "(let ((a 1)) (define b a))", "define must be at the top level")
 	parseErr(t, "(define a (+))", args)
 	parseErr(t, "(define a 5.3)", "bad element: 5.3")
 
@@ -192,7 +191,7 @@ func parseTest(t *testing.T, code, evalExpected string) {
 		return
 	}
 
-	result, err := parsed.eval(make(map[astIdent]ast))
+	result, _, err := eval(parsed)
 	if err != nil {
 		t.Error(fmt.Sprintf("%s: %s", code, err))
 		return
@@ -218,7 +217,7 @@ func runtimeErr(t *testing.T, code, expectedErr string) {
 		return
 	}
 
-	_, err = prog.eval(make(map[astIdent]ast))
+	_, _, err = eval(prog)
 	if fmt.Sprintf("%s", err) != expectedErr {
 		t.Errorf("%s: %s", code, err)
 		return

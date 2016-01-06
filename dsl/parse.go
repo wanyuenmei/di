@@ -30,7 +30,7 @@ func parse(reader io.Reader) (astRoot, error) {
 
 	var root []ast
 	for _, iface := range pt {
-		p, err := parseInterface(iface, true)
+		p, err := parseInterface(iface)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 	}
 }
 
-func parseInterface(p1 interface{}, root bool) (ast, error) {
+func parseInterface(p1 interface{}) (ast, error) {
 	var list []interface{}
 	switch elem := p1.(type) {
 	case []interface{}:
@@ -114,18 +114,13 @@ func parseInterface(p1 interface{}, root bool) (ast, error) {
 			return nil, err
 		}
 
-		tree, err := parseInterface(list[2], false)
+		tree, err := parseInterface(list[2])
 		if err != nil {
 			return nil, err
 		}
 
 		return astLet{binds, tree}, nil
 	case "define":
-		if root != true {
-			return nil,
-				errors.New("define must be at the top level")
-		}
-
 		bind, err := parseBind(list[1:])
 		if err != nil {
 			return nil, err
@@ -148,7 +143,7 @@ func parseFunc(fn astIdent, ifaceArgs []interface{}) (ast, error) {
 
 	var args []ast
 	for _, arg := range ifaceArgs {
-		eval, err := parseInterface(arg, false)
+		eval, err := parseInterface(arg)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +186,7 @@ func parseBind(iface interface{}) (astBind, error) {
 		return astBind{}, ErrBinding
 	}
 
-	tree, err := parseInterface(pair[1], false)
+	tree, err := parseInterface(pair[1])
 	if err != nil {
 		return astBind{}, err
 	}
