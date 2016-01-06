@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/NetSys/di/db"
 	. "github.com/NetSys/di/minion/docker"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestNone(t *testing.T) {
-	conn, fd := initTest()
+	sv, conn, fd := initTest()
 
 	if len(fd.running) > 0 {
 		t.Errorf("fd.running = %s; want <empty>", spew.Sdump(fd.running))
@@ -31,6 +30,7 @@ func TestNone(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
+	sv.runOnce()
 
 	if len(fd.running) > 0 {
 		t.Errorf("fd.running = %s; want <none>", spew.Sdump(fd.running))
@@ -42,7 +42,7 @@ func TestNone(t *testing.T) {
 }
 
 func TestMaster(t *testing.T) {
-	conn, fd := initTest()
+	sv, conn, fd := initTest()
 	ip := "1.2.3.4"
 	token := "1"
 	conn.Transact(func(view db.Database) error {
@@ -53,7 +53,7 @@ func TestMaster(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp := map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
@@ -81,7 +81,7 @@ func TestMaster(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp = map[Image][]string{
 		Etcd:      etcdArgsMaster(ip, token),
@@ -104,7 +104,7 @@ func TestMaster(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp = map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
@@ -121,7 +121,7 @@ func TestMaster(t *testing.T) {
 }
 
 func TestWorker(t *testing.T) {
-	conn, fd := initTest()
+	sv, conn, fd := initTest()
 	ip := "1.2.3.4"
 	token := "1"
 	conn.Transact(func(view db.Database) error {
@@ -132,7 +132,7 @@ func TestWorker(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp := map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -158,7 +158,7 @@ func TestWorker(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp = map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -181,7 +181,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestChange(t *testing.T) {
-	conn, fd := initTest()
+	sv, conn, fd := initTest()
 	ip := "1.2.3.4"
 	token := "1"
 	leaderIP := "5.6.7.8"
@@ -194,7 +194,7 @@ func TestChange(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp := map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -221,7 +221,7 @@ func TestChange(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp = map[Image][]string{
 		Etcd:    etcdArgsMaster(ip, token),
@@ -242,7 +242,7 @@ func TestChange(t *testing.T) {
 		view.Commit(m)
 		return nil
 	})
-	wait()
+	sv.runOnce()
 
 	exp = map[Image][]string{
 		Etcd:          etcdArgsWorker(token),
@@ -263,7 +263,7 @@ func TestChange(t *testing.T) {
 	}
 }
 
-func initTest() (db.Conn, fakeDocker) {
+func initTest() (supervisor, db.Conn, fakeDocker) {
 	conn := db.New()
 	fd := fakeDocker{make(map[Image][]string),
 		make(map[Image][]string)}
@@ -276,7 +276,9 @@ func initTest() (db.Conn, fakeDocker) {
 		view.Commit(m)
 		return nil
 	})
-	return conn, fd
+	sv := supervisor{conn: conn, dk: fd}
+	sv.runOnce()
+	return sv, conn, fd
 }
 
 type fakeDocker struct {
@@ -341,10 +343,6 @@ func ovsExecArgs(ip, leader string) []string {
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", ip),
 		"external_ids:ovn-encap-type=\"geneve\"",
 	}
-}
-
-func wait() {
-	time.Sleep(50 * time.Millisecond)
 }
 
 func validateImage(image Image) {

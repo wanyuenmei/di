@@ -11,7 +11,8 @@ import (
 var log = logging.MustGetLogger("supervisor")
 
 type supervisor struct {
-	dk docker.Client
+	conn db.Conn
+	dk   docker.Client
 
 	role      db.Role
 	etcdToken string
@@ -21,41 +22,45 @@ type supervisor struct {
 }
 
 func Run(conn db.Conn, dk docker.Client) {
-	sv := supervisor{dk: dk, role: db.None}
+	sv := supervisor{conn: conn, dk: dk}
 	for range conn.Trigger(db.MinionTable).C {
-		var minion db.Minion
-		minions := conn.SelectFromMinion(nil)
-		if len(minions) == 1 {
-			minion = minions[0]
-		}
-
-		if sv.role == minion.Role &&
-			sv.etcdToken == minion.EtcdToken &&
-			sv.leaderIP == minion.LeaderIP &&
-			sv.IP == minion.PrivateIP &&
-			sv.leader == minion.Leader {
-			continue
-		}
-
-		if minion.Role != sv.role {
-			sv.dk.RemoveAll()
-		}
-
-		switch minion.Role {
-		case db.Master:
-			sv.updateMaster(minion.PrivateIP, minion.EtcdToken,
-				minion.Leader)
-		case db.Worker:
-			sv.updateWorker(minion.PrivateIP, minion.LeaderIP,
-				minion.EtcdToken)
-		}
-
-		sv.role = minion.Role
-		sv.etcdToken = minion.EtcdToken
-		sv.leaderIP = minion.LeaderIP
-		sv.IP = minion.PrivateIP
-		sv.leader = minion.Leader
+		sv.runOnce()
 	}
+}
+
+func (sv supervisor) runOnce() {
+	var minion db.Minion
+	minions := sv.conn.SelectFromMinion(nil)
+	if len(minions) == 1 {
+		minion = minions[0]
+	}
+
+	if sv.role == minion.Role &&
+		sv.etcdToken == minion.EtcdToken &&
+		sv.leaderIP == minion.LeaderIP &&
+		sv.IP == minion.PrivateIP &&
+		sv.leader == minion.Leader {
+		return
+	}
+
+	if minion.Role != sv.role {
+		sv.dk.RemoveAll()
+	}
+
+	switch minion.Role {
+	case db.Master:
+		sv.updateMaster(minion.PrivateIP, minion.EtcdToken,
+			minion.Leader)
+	case db.Worker:
+		sv.updateWorker(minion.PrivateIP, minion.LeaderIP,
+			minion.EtcdToken)
+	}
+
+	sv.role = minion.Role
+	sv.etcdToken = minion.EtcdToken
+	sv.leaderIP = minion.LeaderIP
+	sv.IP = minion.PrivateIP
+	sv.leader = minion.Leader
 }
 
 func (sv supervisor) updateWorker(IP, leaderIP, etcdToken string) {
