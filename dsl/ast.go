@@ -13,7 +13,7 @@ type ast interface {
 }
 
 type astBind struct {
-	name astIdent
+	ident astIdent
 	ast
 }
 
@@ -70,13 +70,13 @@ func (fn astFunc) String() string {
 }
 
 func (def astDefine) String() string {
-	return fmt.Sprintf("(define %s %s)", def.name, def.ast)
+	return fmt.Sprintf("(define %s %s)", def.ident, def.ast)
 }
 
 func (lt astLet) String() string {
 	bindSlice := []string{}
 	for _, bind := range lt.binds {
-		bindStr := fmt.Sprintf("(%s %s)", bind.name, bind.ast)
+		bindStr := fmt.Sprintf("(%s %s)", bind.ident, bind.ast)
 		bindSlice = append(bindSlice, bindStr)
 	}
 	bindStr := strings.Join(bindSlice, " ")

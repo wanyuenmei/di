@@ -53,8 +53,8 @@ func (fn astFunc) eval(ctx evalCtx) (ast, error) {
 }
 
 func (def astDefine) eval(ctx evalCtx) (ast, error) {
-	if _, ok := ctx.defines[def.name]; ok {
-		return nil, fmt.Errorf("attempt to redefine: \"%s\"", def.name)
+	if _, ok := ctx.defines[def.ident]; ok {
+		return nil, fmt.Errorf("attempt to redefine: \"%s\"", def.ident)
 	}
 
 	result, err := def.ast.eval(ctx)
@@ -62,17 +62,17 @@ func (def astDefine) eval(ctx evalCtx) (ast, error) {
 		return nil, err
 	}
 
-	ctx.defines[def.name] = result
-	ctx.binds[def.name] = result
+	ctx.defines[def.ident] = result
+	ctx.binds[def.ident] = result
 
-	return astDefine{def.name, result}, nil
+	return astDefine{def.ident, result}, nil
 }
 
 func (lt astLet) eval(ctx evalCtx) (ast, error) {
 	oldBinds := make(map[astIdent]ast)
 	for _, bind := range lt.binds {
-		if val, ok := ctx.binds[bind.name]; ok {
-			oldBinds[bind.name] = val
+		if val, ok := ctx.binds[bind.ident]; ok {
+			oldBinds[bind.ident] = val
 		}
 	}
 
@@ -82,7 +82,7 @@ func (lt astLet) eval(ctx evalCtx) (ast, error) {
 			return nil, err
 		}
 
-		ctx.binds[bind.name] = val
+		ctx.binds[bind.ident] = val
 	}
 
 	result, err := lt.ast.eval(ctx)
@@ -91,10 +91,10 @@ func (lt astLet) eval(ctx evalCtx) (ast, error) {
 	}
 
 	for _, bind := range lt.binds {
-		if val, ok := oldBinds[bind.name]; ok {
-			ctx.binds[bind.name] = val
+		if val, ok := oldBinds[bind.ident]; ok {
+			ctx.binds[bind.ident] = val
 		} else {
-			delete(ctx.binds, bind.name)
+			delete(ctx.binds, bind.ident)
 		}
 	}
 
