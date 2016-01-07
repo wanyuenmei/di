@@ -5,16 +5,17 @@ import "fmt"
 type funcImpl struct {
 	do      func([]ast) (ast, error)
 	minArgs int
+	lazy    bool
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"+":        {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
-	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
-	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
-	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
-	"list":     {listImpl, 0},
-	"makeList": {makeListImpl, 2},
+	"+":        {arithFun(func(a, b int) int { return a + b }), 2, false},
+	"-":        {arithFun(func(a, b int) int { return a - b }), 2, false},
+	"*":        {arithFun(func(a, b int) int { return a * b }), 2, false},
+	"/":        {arithFun(func(a, b int) int { return a / b }), 2, false},
+	"%":        {arithFun(func(a, b int) int { return a % b }), 2, false},
+	"list":     {listImpl, 0, false},
+	"makeList": {makeListImpl, 2, true},
 }
 
 func arithFun(do func(a, b int) int) func([]ast) (ast, error) {

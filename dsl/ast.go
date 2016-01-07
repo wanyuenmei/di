@@ -23,9 +23,9 @@ type astLet struct {
 }
 
 type astFunc struct {
-	fn   astIdent
-	do   func([]ast) (ast, error)
-	args []ast
+	ident astIdent
+	fn    funcImpl
+	args  []ast
 }
 
 type astList []ast /* A data list after evaluation. */
@@ -66,7 +66,7 @@ func (x astInt) String() string {
 }
 
 func (fn astFunc) String() string {
-	return fmt.Sprintf("(%s)", sliceStr(append([]ast{fn.fn}, fn.args...)))
+	return fmt.Sprintf("(%s)", sliceStr(append([]ast{fn.ident}, fn.args...)))
 }
 
 func (def astDefine) String() string {
