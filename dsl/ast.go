@@ -9,7 +9,7 @@ import (
 * It can be transformed into its evaluated form my calling the eval() method. */
 type ast interface {
 	String() string
-	eval(evalCtx) (ast, error)
+	eval(*evalCtx) (ast, error)
 }
 
 type astBind struct {

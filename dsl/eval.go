@@ -9,7 +9,7 @@ type evalCtx struct {
 
 func eval(parsed ast) (ast, evalCtx, error) {
 	ctx := evalCtx{make(map[astIdent]ast), make(map[astIdent]ast)}
-	evaluated, err := parsed.eval(ctx)
+	evaluated, err := parsed.eval(&ctx)
 	if err != nil {
 		return nil, evalCtx{}, err
 	}
@@ -17,7 +17,7 @@ func eval(parsed ast) (ast, evalCtx, error) {
 	return evaluated, ctx, nil
 }
 
-func (root astRoot) eval(ctx evalCtx) (ast, error) {
+func (root astRoot) eval(ctx *evalCtx) (ast, error) {
 	results, err := astList(root).eval(ctx)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (root astRoot) eval(ctx evalCtx) (ast, error) {
 	return astRoot(results.(astList)), nil
 }
 
-func (list astList) eval(ctx evalCtx) (ast, error) {
+func (list astList) eval(ctx *evalCtx) (ast, error) {
 	result := []ast{}
 	for _, elem := range list {
 		evaled, err := elem.eval(ctx)
@@ -38,7 +38,7 @@ func (list astList) eval(ctx evalCtx) (ast, error) {
 	return astList(result), nil
 }
 
-func (fn astFunc) eval(ctx evalCtx) (ast, error) {
+func (fn astFunc) eval(ctx *evalCtx) (ast, error) {
 	var args []ast
 
 	for _, arg := range fn.args {
@@ -52,7 +52,7 @@ func (fn astFunc) eval(ctx evalCtx) (ast, error) {
 	return fn.do(args)
 }
 
-func (def astDefine) eval(ctx evalCtx) (ast, error) {
+func (def astDefine) eval(ctx *evalCtx) (ast, error) {
 	if _, ok := ctx.defines[def.ident]; ok {
 		return nil, fmt.Errorf("attempt to redefine: \"%s\"", def.ident)
 	}
@@ -68,7 +68,7 @@ func (def astDefine) eval(ctx evalCtx) (ast, error) {
 	return astDefine{def.ident, result}, nil
 }
 
-func (lt astLet) eval(ctx evalCtx) (ast, error) {
+func (lt astLet) eval(ctx *evalCtx) (ast, error) {
 	oldBinds := make(map[astIdent]ast)
 	for _, bind := range lt.binds {
 		if val, ok := ctx.binds[bind.ident]; ok {
@@ -101,7 +101,7 @@ func (lt astLet) eval(ctx evalCtx) (ast, error) {
 	return result, nil
 }
 
-func (ident astIdent) eval(ctx evalCtx) (ast, error) {
+func (ident astIdent) eval(ctx *evalCtx) (ast, error) {
 	if val, ok := ctx.binds[ident]; ok {
 		return val, nil
 	} else {
@@ -109,10 +109,10 @@ func (ident astIdent) eval(ctx evalCtx) (ast, error) {
 	}
 }
 
-func (str astString) eval(ctx evalCtx) (ast, error) {
+func (str astString) eval(ctx *evalCtx) (ast, error) {
 	return str, nil
 }
 
-func (x astInt) eval(ctx evalCtx) (ast, error) {
+func (x astInt) eval(ctx *evalCtx) (ast, error) {
 	return x, nil
 }
