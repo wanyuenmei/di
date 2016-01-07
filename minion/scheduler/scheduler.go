@@ -5,13 +5,13 @@ import "github.com/NetSys/di/db"
 type Container struct {
 	ID    string
 	IP    string
-	Label string
+	Image string
 }
 
 type scheduler interface {
 	get() ([]Container, error)
 
-	boot(toBoot int)
+	boot(toBoot []db.Container)
 
 	terminate(ids []string)
 }
@@ -46,19 +46,19 @@ func syncContainers(conn db.Conn, sched scheduler) {
 			return
 		}
 
-		var nBoot int
+		var boot []db.Container
 		var term []string
 		conn.Transact(func(view db.Database) error {
-			term, nBoot = syncDB(view, schedC)
+			term, boot = syncDB(view, schedC)
 			return nil
 		})
 
-		sched.boot(nBoot)
+		sched.boot(boot)
 		sched.terminate(term)
 	}
 }
 
-func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
+func syncDB(view db.Database, schedC []Container) (term []string, boot []db.Container) {
 	containers := view.SelectFromContainer(nil)
 	var unassigned []db.Container
 	cmap := make(map[string]db.Container)
@@ -72,11 +72,8 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 
 	for _, sc := range schedC {
 		if dbc, ok := cmap[sc.ID]; ok {
-			if len(dbc.Labels) != 1 {
-				panic("Unimplemented")
-			}
 			/* XXX: Change the label without rebooting the container. */
-			if dbc.Labels[0] == sc.Label {
+			if dbc.Image == sc.Image {
 				writeContainer(view, dbc, sc)
 			} else {
 				dbc.SchedID = ""
@@ -91,7 +88,7 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 		}
 	}
 
-	return term, len(unassigned)
+	return term, unassigned
 }
 
 func writeContainer(view db.Database, dbc db.Container, sc Container) {

@@ -26,6 +26,7 @@ message Endpoint {
 
     Type type = 1;
     repeated string labels = 2;
+    string image = 3;
 }
 
 message EndpointList {

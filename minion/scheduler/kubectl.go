@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/NetSys/di/db"
 	"github.com/op/go-logging"
 	"github.com/satori/go.uuid"
 	"golang.org/x/build/kubernetes"
@@ -48,23 +49,29 @@ func (k kubectl) get() ([]Container, error) {
 
 	var result []Container
 	for _, pod := range pods {
+		if len(pod.Spec.Containers) != 1 {
+			panic("Unimplemented")
+		}
 		result = append(result, Container{
 			ID:    pod.ObjectMeta.Name,
 			IP:    pod.Status.PodIP,
-			Label: pod.ObjectMeta.Labels[DI_LABEL],
+			Image: pod.Spec.Containers[0].Image,
 		})
 	}
 	return result, err
 }
 
-func (k kubectl) boot(n int) {
+func (k kubectl) boot(toBoot []db.Container) {
 	var wg sync.WaitGroup
-	wg.Add(n)
+	wg.Add(len(toBoot))
 	defer wg.Wait()
 
-	for i := 0; i < n; i++ {
+	for _, dbc := range toBoot {
 		go func() {
-			k.bootContainer()
+			if len(dbc.Labels) != 1 {
+				panic("Unimplemented")
+			}
+			k.bootContainer(dbc.Image)
 			wg.Done()
 		}()
 	}
@@ -81,7 +88,7 @@ func (k kubectl) terminate(ids []string) {
 	}
 }
 
-func (k kubectl) bootContainer() {
+func (k kubectl) bootContainer(image string) {
 	id := uuid.NewV4().String()
 
 	/* Since a pod is the atomic unit of kubernetes, we have to do this
@@ -93,14 +100,11 @@ func (k kubectl) bootContainer() {
 		TypeMeta: api.TypeMeta{APIVersion: "v1", Kind: "Pod"},
 		ObjectMeta: api.ObjectMeta{
 			Name: id,
-			Labels: map[string]string{
-				DI_LABEL: id,
-			},
 		},
 		Spec: api.PodSpec{
 			Containers: []api.Container{{
 				Name:    id,
-				Image:   "alpine",
+				Image:   image,
 				Command: []string{"tail", "-f", "/dev/null"},
 			},
 			},

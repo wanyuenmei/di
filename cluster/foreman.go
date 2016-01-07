@@ -98,6 +98,9 @@ func (fm *foreman) runOnce() {
 		fm.endpoints = append(fm.endpoints, &pb.Endpoint{
 			Type:   pb.Endpoint_Container,
 			Labels: container.Labels,
+			/* Image will be specified in the language in the future. Just
+			 * using alpine for now. */
+			Image: "alpine",
 		})
 	}
 

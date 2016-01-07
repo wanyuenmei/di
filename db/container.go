@@ -13,6 +13,7 @@ type Container struct {
 
 	ClusterID int
 	SchedID   string
+	Image     string
 	Labels    []string
 	IP        string
 }

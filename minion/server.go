@@ -132,6 +132,7 @@ func setEndpointsTxn(view db.Database, eps__ []*pb.Endpoint) {
 			}
 		}
 		dbc.Labels = eps[bestIndex].Labels
+		dbc.Image = eps[bestIndex].Image
 		view.Commit(dbc)
 
 		//Delete the used element.
@@ -146,6 +147,7 @@ func setEndpointsTxn(view db.Database, eps__ []*pb.Endpoint) {
 	for _, ep := range eps {
 		dbc := view.InsertContainer()
 		dbc.Labels = ep.Labels
+		dbc.Image = ep.Image
 		view.Commit(dbc)
 	}
 }

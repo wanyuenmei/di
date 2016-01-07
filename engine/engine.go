@@ -162,6 +162,7 @@ func containerTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 			container := view.InsertContainer()
 			container.ClusterID = clusterID
 			container.Labels = []string{"Red"}
+			container.Image = "alpine"
 			view.Commit(container)
 		}
 	}
@@ -176,6 +177,7 @@ func containerTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 			container := view.InsertContainer()
 			container.ClusterID = clusterID
 			container.Labels = []string{"Blue"}
+			container.Image = "alpine"
 			view.Commit(container)
 		}
 	}
