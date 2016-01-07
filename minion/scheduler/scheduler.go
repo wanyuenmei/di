@@ -79,6 +79,8 @@ func syncDB(view db.Database, schedC []Container) (term []string, nBoot int) {
 			if dbc.Labels[0] == sc.Label {
 				writeContainer(view, dbc, sc)
 			} else {
+				dbc.SchedID = ""
+				view.Commit(dbc)
 				term = append(term, sc.ID)
 			}
 		} else if len(unassigned) > 0 {
