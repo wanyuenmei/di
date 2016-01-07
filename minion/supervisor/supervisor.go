@@ -28,7 +28,7 @@ func Run(conn db.Conn, dk docker.Client) {
 	}
 }
 
-func (sv supervisor) runOnce() {
+func (sv *supervisor) runOnce() {
 	var minion db.Minion
 	minions := sv.conn.SelectFromMinion(nil)
 	if len(minions) == 1 {
@@ -63,7 +63,7 @@ func (sv supervisor) runOnce() {
 	sv.leader = minion.Leader
 }
 
-func (sv supervisor) updateWorker(IP, leaderIP, etcdToken string) {
+func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	if sv.etcdToken != etcdToken {
 		sv.dk.Remove(docker.Etcd)
 	}
@@ -92,7 +92,7 @@ func (sv supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	})
 }
 
-func (sv supervisor) updateMaster(IP, etcdToken string, leader bool) {
+func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
 	if sv.IP != IP || sv.etcdToken != etcdToken {
 		sv.dk.Remove(docker.Etcd)
 	}
