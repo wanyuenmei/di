@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -11,6 +10,7 @@ import (
 )
 
 var log = logging.MustGetLogger("engine")
+var myIP = util.MyIp
 
 // UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
 func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
@@ -88,8 +88,8 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		return m.ClusterID == clusterID && m.Role == db.Worker
 	})
 
-	mSort(masters).sort()
-	mSort(workers).sort()
+	masters = db.SortMachines(masters)
+	workers = db.SortMachines(workers)
 
 	var changes []db.Machine
 
@@ -200,38 +200,4 @@ func resolveACLs(acls []string) []string {
 	}
 
 	return result
-}
-
-var myIP = util.MyIp
-
-type mSort []db.Machine
-
-func (machines mSort) sort() {
-	sort.Stable(machines)
-}
-
-func (machines mSort) Len() int {
-	return len(machines)
-}
-
-func (machines mSort) Swap(i, j int) {
-	machines[i], machines[j] = machines[j], machines[i]
-}
-
-func (machines mSort) Less(i, j int) bool {
-	I, J := machines[i], machines[j]
-
-	upI := I.PublicIP != "" && I.PrivateIP != ""
-	upJ := J.PublicIP != "" && J.PrivateIP != ""
-	downI := I.PublicIP == "" && I.PrivateIP == ""
-	downJ := J.PublicIP == "" && J.PrivateIP == ""
-
-	switch {
-	case upI != upJ:
-		return upI
-	case downI != downJ:
-		return !downI
-	default:
-		return I.ID < J.ID
-	}
 }

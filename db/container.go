@@ -12,10 +12,12 @@ type Container struct {
 	ID int
 
 	ClusterID int
-	SchedID   string
 	Image     string
 	Labels    []string
-	IP        string
+
+	// Used only by the minion.
+	IP      string
+	SchedID string
 }
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -67,21 +69,22 @@ func (c Container) String() string {
 	return fmt.Sprintf("Container-%d{%s}", c.ID, strings.Join(tags, ", "))
 }
 
-// SortContainersByID sorts 'containers' by their database IDs.
-func SortContainersByID(containers []Container) {
-	sort.Stable(containerByID(containers))
+func (c Container) less(r row) bool {
+	return c.ID < r.(Container).ID
 }
 
-type containerByID []Container
+func SortContainers(containers []Container) []Container {
+	rows := make([]row, 0, len(containers))
+	for _, m := range containers {
+		rows = append(rows, m)
+	}
 
-func (containers containerByID) Len() int {
-	return len(containers)
-}
+	sort.Sort(rowSlice(rows))
 
-func (containers containerByID) Swap(i, j int) {
-	containers[i], containers[j] = containers[j], containers[i]
-}
+	containers = make([]Container, 0, len(containers))
+	for _, r := range rows {
+		containers = append(containers, r.(Container))
+	}
 
-func (containers containerByID) Less(i, j int) bool {
-	return containers[i].ID < containers[j].ID
+	return containers
 }

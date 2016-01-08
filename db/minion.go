@@ -81,3 +81,7 @@ func (m Minion) String() string {
 
 	return fmt.Sprintf("Minion-%d{%s}", m.ID, strings.Join(tags, ", "))
 }
+
+func (m Minion) less(r row) bool {
+	return m.ID < r.(Minion).ID
+}

@@ -68,21 +68,35 @@ func (m Machine) String() string {
 	return fmt.Sprintf("Machine-%d{%s}", m.ID, strings.Join(tags, ", "))
 }
 
-// SortMachinesByID sorts 'machines' by their database IDs.
-func SortMachinesByID(machines []Machine) {
-	sort.Stable(machineByID(machines))
+func (m Machine) less(arg row) bool {
+	l, r := m, arg.(Machine)
+	upl := l.PublicIP != "" && l.PrivateIP != ""
+	upr := r.PublicIP != "" && r.PrivateIP != ""
+	downl := l.PublicIP == "" && l.PrivateIP == ""
+	downr := r.PublicIP == "" && r.PrivateIP == ""
+
+	switch {
+	case upl != upr:
+		return upl
+	case downl != downr:
+		return !downl
+	default:
+		return l.ID < r.ID
+	}
 }
 
-type machineByID []Machine
+func SortMachines(machines []Machine) []Machine {
+	rows := make([]row, 0, len(machines))
+	for _, m := range machines {
+		rows = append(rows, m)
+	}
 
-func (machines machineByID) Len() int {
-	return len(machines)
-}
+	sort.Sort(rowSlice(rows))
 
-func (machines machineByID) Swap(i, j int) {
-	machines[i], machines[j] = machines[j], machines[i]
-}
+	machines = make([]Machine, 0, len(machines))
+	for _, r := range rows {
+		machines = append(machines, r.(Machine))
+	}
 
-func (machines machineByID) Less(i, j int) bool {
-	return machines[i].ID < machines[j].ID
+	return machines
 }

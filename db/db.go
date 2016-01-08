@@ -24,6 +24,7 @@ type Trigger struct {
 type row interface {
 	id() int
 	tt() TableType
+	less(row) bool
 	String() string
 }
 
@@ -145,4 +146,18 @@ func (db Database) Remove(r row) {
 func (db Database) nextID() int {
 	*db.idAlloc += 1
 	return *db.idAlloc
+}
+
+type rowSlice []row
+
+func (rows rowSlice) Len() int {
+	return len(rows)
+}
+
+func (rows rowSlice) Swap(i, j int) {
+	rows[i], rows[j] = rows[j], rows[i]
+}
+
+func (rows rowSlice) Less(i, j int) bool {
+	return rows[i].less(rows[j])
 }

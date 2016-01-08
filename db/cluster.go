@@ -1,9 +1,6 @@
 package db
 
-import (
-	"fmt"
-	"sort"
-)
+import "fmt"
 
 // A Cluster is a group of Machines which can operate containers.
 type Cluster struct {
@@ -49,21 +46,6 @@ func (c Cluster) String() string {
 		c.ID, c.Provider, c.Namespace, c.AdminACL)
 }
 
-// SortClustersByID sorts 'clusters' by their database ID.
-func SortClustersByID(clusters []Cluster) {
-	sort.Stable(clusterByID(clusters))
-}
-
-type clusterByID []Cluster
-
-func (clusters clusterByID) Len() int {
-	return len(clusters)
-}
-
-func (clusters clusterByID) Swap(i, j int) {
-	clusters[i], clusters[j] = clusters[j], clusters[i]
-}
-
-func (clusters clusterByID) Less(i, j int) bool {
-	return clusters[i].ID < clusters[j].ID
+func (c Cluster) less(r row) bool {
+	return c.ID < r.(Cluster).ID
 }

@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -19,7 +20,13 @@ func (conn Conn) runLogger() {
 func (conn Conn) logTable(t TableType) {
 	var strs []string
 	conn.Transact(func(view Database) error {
-		for _, r := range view.tables[t].rows {
+		var rows []row
+		for _, v := range view.tables[t].rows {
+			rows = append(rows, v)
+		}
+
+		sort.Sort(rowSlice(rows))
+		for _, r := range rows {
 			strs = append(strs, fmt.Sprintf("\t%s\n", r))
 		}
 		return nil
