@@ -150,7 +150,7 @@ func parseFunc(fn astIdent, ifaceArgs []interface{}) (ast, error) {
 		args = append(args, eval)
 	}
 
-	return astFunc{fn, fni, args}, nil
+	return astFunc{fn, fni.do, args}, nil
 }
 
 func parseBindList(bindIface interface{}) ([]astBind, error) {

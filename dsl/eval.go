@@ -39,26 +39,7 @@ func (list astList) eval(ctx *evalCtx) (ast, error) {
 }
 
 func (fn astFunc) eval(ctx *evalCtx) (ast, error) {
-	args := fn.args
-	if !fn.fn.lazy {
-		args = nil
-		for _, arg := range fn.args {
-			eval, err := arg.eval(ctx)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, eval)
-		}
-	}
-
-	result, err := fn.fn.do(args)
-	if err != nil {
-		return nil, err
-	} else if !fn.fn.lazy {
-		return result, err
-	}
-
-	return result.eval(ctx)
+	return fn.do(ctx, fn.args)
 }
 
 func (def astDefine) eval(ctx *evalCtx) (ast, error) {

@@ -24,7 +24,7 @@ type astLet struct {
 
 type astFunc struct {
 	ident astIdent
-	fn    funcImpl
+	do    func(*evalCtx, []ast) (ast, error)
 	args  []ast
 }
 

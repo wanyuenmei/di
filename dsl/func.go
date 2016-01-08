@@ -3,23 +3,27 @@ package dsl
 import "fmt"
 
 type funcImpl struct {
-	do      func([]ast) (ast, error)
+	do      func(*evalCtx, []ast) (ast, error)
 	minArgs int
-	lazy    bool
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"+":        {arithFun(func(a, b int) int { return a + b }), 2, false},
-	"-":        {arithFun(func(a, b int) int { return a - b }), 2, false},
-	"*":        {arithFun(func(a, b int) int { return a * b }), 2, false},
-	"/":        {arithFun(func(a, b int) int { return a / b }), 2, false},
-	"%":        {arithFun(func(a, b int) int { return a % b }), 2, false},
-	"list":     {listImpl, 0, false},
-	"makeList": {makeListImpl, 2, true},
+	"+":        {arithFun(func(a, b int) int { return a + b }), 2},
+	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
+	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
+	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
+	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
+	"list":     {listImpl, 0},
+	"makeList": {makeListImpl, 2},
 }
 
-func arithFun(do func(a, b int) int) func([]ast) (ast, error) {
-	return func(args []ast) (ast, error) {
+func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
+	return func(ctx *evalCtx, args__ []ast) (ast, error) {
+		args, err := evalArgs(ctx, args__)
+		if err != nil {
+			return nil, err
+		}
+
 		var ints []int
 		for _, arg := range args {
 			ival, ok := arg.(astInt)
@@ -39,12 +43,18 @@ func arithFun(do func(a, b int) int) func([]ast) (ast, error) {
 	}
 }
 
-func listImpl(args []ast) (ast, error) {
-	return astList(args), nil
+func listImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	return astList(args), err
 }
 
-func makeListImpl(args []ast) (ast, error) {
-	count, ok := args[0].(astInt)
+func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
+	eval, err := args[0].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	count, ok := eval.(astInt)
 	if !ok || count < 0 {
 		return nil, fmt.Errorf("makeList must begin with a positive integer, "+
 			"found: %s", args[0])
@@ -52,7 +62,24 @@ func makeListImpl(args []ast) (ast, error) {
 
 	var result []ast
 	for i := 0; i < int(count); i++ {
-		result = append(result, args[1])
+		eval, err := args[1].eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, eval)
 	}
 	return astList(result), nil
+}
+
+func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
+	var result []ast
+	for _, a := range args {
+		eval, err := a.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, eval)
+	}
+
+	return result, nil
 }
