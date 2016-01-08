@@ -39,6 +39,7 @@ type Provider int
 const (
 	// AmazonSpot runs spot requests on Amazon EC2.
 	AmazonSpot Provider = iota
+	Google
 )
 
 // ParseProvider returns the Provider represented by 'name' or an error.
@@ -46,6 +47,8 @@ func ParseProvider(name string) (Provider, error) {
 	switch name {
 	case "AmazonSpot":
 		return AmazonSpot, nil
+	case "Google":
+		return Google, nil
 	default:
 		return 0, fmt.Errorf("Unknown provider: %s", name)
 	}

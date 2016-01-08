@@ -75,9 +75,16 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 	keys []string) *cluster {
 
 	var cloud provider
+	var err error
 	switch dbp {
 	case db.AmazonSpot:
 		cloud = newAWS(conn, id, namespace)
+	case db.Google:
+		// XXX: not sure what to do with the error here
+		cloud, err = newGCE(conn, id, namespace)
+		if err != nil {
+			log.Error("%+v", err)
+		}
 	default:
 		panic("Unimplemented")
 	}
