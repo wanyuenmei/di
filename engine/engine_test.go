@@ -23,8 +23,6 @@ func TestEngine(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 2)
 (define WorkerCount 3)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 
@@ -62,8 +60,6 @@ func TestEngine(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 4)
 (define WorkerCount 5)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 
@@ -121,8 +117,6 @@ func TestEngine(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
@@ -154,8 +148,6 @@ func TestEngine(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
@@ -187,8 +179,6 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
@@ -221,8 +211,6 @@ func TestEngine(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 0)
 (define WorkerCount 1)
-(define RedCount 4)
-(define BlueCount 5)
 (define AdminACL (list "1.2.3.4/32"))
 (define SSHKeys (list "foo"))`
 	UpdatePolicy(conn, prog(t, code))
@@ -248,6 +236,91 @@ func TestEngine(t *testing.T) {
 	}
 }
 
+func TestContainer(t *testing.T) {
+	spew := spew.NewDefaultConfig()
+	spew.MaxDepth = 2
+	conn := db.New()
+
+	check := func(code string, red, blue, yellow int) error {
+		UpdatePolicy(conn, prog(t, code))
+		return conn.Transact(func(view db.Database) error {
+			var redCount, blueCount, yellowCount int
+
+			containers := view.SelectFromContainer(nil)
+			for _, c := range containers {
+				if len(c.Labels) != 1 {
+					err := spew.Sprintf("two many labels: %s", c)
+					return errors.New(err)
+				}
+
+				switch c.Labels[0] {
+				case "Red":
+					redCount++
+				case "Blue":
+					blueCount++
+				case "Yellow":
+					yellowCount++
+				default:
+					err := spew.Sprintf("unkonwn label: %s", c)
+					return errors.New(err)
+				}
+			}
+
+			if red != redCount || blue != blueCount ||
+				yellow != yellowCount {
+				return errors.New(
+					spew.Sprintf("bad containers: %s", containers))
+			}
+
+			return nil
+		})
+	}
+
+	code := `
+(define Namespace "Namespace")
+(define Provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount 1)
+(label "Red"  (makeList 2 (atom docker "alpine")))
+(label "Blue" (makeList 2 (atom docker "alpine")))`
+	check(code, 2, 2, 0)
+
+	code = `
+(define Namespace "Namespace")
+(define Provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount 1)
+(label "Red"  (makeList 3 (atom docker "alpine")))`
+	check(code, 3, 0, 0)
+
+	code = `
+(define Namespace "Namespace")
+(define Provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount 1)
+(label "Red"  (makeList 1 (atom docker "alpine")))
+(label "Blue"  (makeList 5 (atom docker "alpine")))
+(label "Yellow"  (makeList 10 (atom docker "alpine")))`
+	check(code, 1, 5, 10)
+
+	code = `
+(define Namespace "Namespace")
+(define Provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount 1)
+(label "Red"  (makeList 30 (atom docker "alpine")))
+(label "Blue"  (makeList 4 (atom docker "alpine")))
+(label "Yellow"  (makeList 7 (atom docker "alpine")))`
+	check(code, 30, 4, 7)
+
+	code = `
+(define Namespace "Namespace")
+(define Provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount 1)`
+	check(code, 0, 0, 0)
+}
+
 func TestSort(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
@@ -259,8 +332,6 @@ func TestSort(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 3)
 (define WorkerCount 1)
-(define RedCount 0)
-(define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
 	err := conn.Transact(func(view db.Database) error {
@@ -290,8 +361,6 @@ func TestSort(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 2)
 (define WorkerCount 1)
-(define RedCount 0)
-(define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
 	err = conn.Transact(func(view db.Database) error {
@@ -321,8 +390,6 @@ func TestSort(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(define RedCount 0)
-(define BlueCount 0)
 (define AdminACL (list))
 (define SSHKeys (list))`))
 	err = conn.Transact(func(view db.Database) error {
@@ -359,8 +426,6 @@ func TestLocal(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(define RedCount 0)
-(define BlueCount 0)
 (define AdminACL (list "1.2.3.4/32" "local"))
 (define SSHKeys (list))`
 

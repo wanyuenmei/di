@@ -135,51 +135,32 @@ func containerTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		return c.ClusterID == clusterID
 	})
 
-	var reds, blues []db.Container
-	for _, container := range containers {
-		if len(container.Labels) != 1 {
-			panic("Unimplemented")
+	dslContainers := dsl.QueryContainers()
+	if len(containers) > len(dslContainers) {
+		for _, c := range containers[len(dslContainers):] {
+			view.Remove(c)
 		}
-
-		switch container.Labels[0] {
-		case "Red":
-			reds = append(reds, container)
-		case "Blue":
-			blues = append(blues, container)
-		default:
-			view.Remove(container)
-		}
-
+		containers = containers[:len(dslContainers)]
 	}
 
-	redCount := dsl.QueryInt("RedCount")
-	if len(reds) > redCount {
-		for _, container := range reds[redCount:] {
-			view.Remove(container)
-		}
-	} else {
-		for i := 0; i < redCount-len(reds); i++ {
-			container := view.InsertContainer()
-			container.ClusterID = clusterID
-			container.Labels = []string{"Red"}
-			container.Image = "alpine"
-			view.Commit(container)
-		}
+	for len(containers) < len(dslContainers) {
+		containers = append(containers, view.InsertContainer())
 	}
 
-	blueCount := dsl.QueryInt("BlueCount")
-	if len(blues) > blueCount {
-		for _, container := range blues[blueCount:] {
-			view.Remove(container)
+	// Make sure the container assignments are consistent across runs.
+	containers = db.SortContainers(containers)
+
+	for i, dc := range dslContainers {
+		c := containers[i]
+		if c.IP != "" || c.SchedID != "" {
+			// This code is wrong if these values are meaningful
+			panic("Not Reached")
 		}
-	} else {
-		for i := 0; i < blueCount-len(blues); i++ {
-			container := view.InsertContainer()
-			container.ClusterID = clusterID
-			container.Labels = []string{"Blue"}
-			container.Image = "alpine"
-			view.Commit(container)
-		}
+
+		c.ClusterID = clusterID
+		c.Image = dc.Image
+		c.Labels = dc.Labels
+		view.Commit(c)
 	}
 
 	return nil
