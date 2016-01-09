@@ -31,9 +31,14 @@ func TestArith(t *testing.T) {
 }
 
 func TestStrings(t *testing.T) {
-	parseTest(t, `"foo"`, `"foo"`)
-	parseTest(t, `"foo" "bar"`, `"foo" "bar"`)
-	parseTest(t, `"foo" 5 "bar"`, `"foo" 5 "bar"`)
+	code := `"foo"`
+	parseTest(t, code, code)
+
+	code = "\"foo\"\n\"bar\""
+	parseTest(t, code, code)
+
+	code = "\"foo\"\n5\n\"bar\""
+	parseTest(t, code, code)
 }
 
 func TestLet(t *testing.T) {
@@ -45,13 +50,21 @@ func TestLet(t *testing.T) {
 }
 
 func TestDefine(t *testing.T) {
-	parseTest(t, "(define a 1)", "(define a 1)")
-	parseTest(t, "(define a 1) (define b 2)", "(define a 1) (define b 2)")
-	parseTest(t, "(define a 1) 3 (define b 2)", "(define a 1) 3 (define b 2)")
+	code := "(define a 1)"
+	parseTest(t, code, code)
+
+	code = "(define a 1)\n(define b 2)"
+	parseTest(t, code, code)
+
+	code = "(define a 1)\n3\n(define b 2)"
+	parseTest(t, code, code)
+
 	parseTest(t, "(define a (+ 5 7))", "(define a 12)")
+
 	parseTest(t, "(define a (+ 5 7))", "(define a 12)")
-	parseTest(t, "(define a (+ 1 1)) (define b (* a 2))",
-		"(define a 2) (define b 4)")
+
+	parseTest(t, "(define a (+ 1 1))\n(define b (* a 2))",
+		"(define a 2)\n(define b 4)")
 }
 
 func TestList(t *testing.T) {
@@ -86,7 +99,7 @@ func TestAtom(t *testing.T) {
 	code := `(atom docker "a")`
 	checkContainers(code, code, "a")
 
-	code = `(atom docker "a") (atom docker "a")`
+	code = "(atom docker \"a\")\n(atom docker \"a\")"
 	checkContainers(code, code, "a", "a")
 
 	code = `(makeList 2 (list (atom docker "a") (atom docker "b")))`
@@ -104,11 +117,11 @@ func TestAtom(t *testing.T) {
 }
 
 func TestLabel(t *testing.T) {
-	code := `(label "foo" (atom docker "a")) ` +
-		`(label "bar" "foo" (atom docker "b")) ` +
-		`(label "baz" "foo" "bar") ` +
-		`(label "baz2" "baz") ` +
-		`(label "qux" (atom docker "c"))`
+	code := `(label "foo" (atom docker "a"))
+(label "bar" "foo" (atom docker "b"))
+(label "baz" "foo" "bar")
+(label "baz2" "baz")
+(label "qux" (atom docker "c"))`
 	ctx := parseTest(t, code, code)
 
 	expected := []*Container{
@@ -120,8 +133,10 @@ func TestLabel(t *testing.T) {
 			code, ctx.containers, expected))
 	}
 
-	code = `(label "foo" (makeList 2 (atom docker "a"))) (label "bar" "foo")`
-	exp := `(label "foo" (list (atom docker "a") (atom docker "a"))) (label "bar" "foo")`
+	code = `(label "foo" (makeList 2 (atom docker "a")))` +
+		"\n(label \"bar\" \"foo\")"
+	exp := `(label "foo" (list (atom docker "a") (atom docker "a")))` +
+		"\n(label \"bar\" \"foo\")"
 	ctx = parseTest(t, code, exp)
 	expected = []*Container{
 		{"a", []string{"foo", "bar"}},

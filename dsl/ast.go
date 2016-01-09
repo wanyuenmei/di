@@ -51,7 +51,7 @@ type astString string
 type astInt int
 
 func (root astRoot) String() string {
-	return fmt.Sprintf("%s", sliceStr(root))
+	return fmt.Sprintf("%s", sliceStr(root, "\n"))
 }
 
 func (list astList) String() string {
@@ -59,7 +59,7 @@ func (list astList) String() string {
 		return "(list)"
 	}
 
-	return fmt.Sprintf("(list %s)", sliceStr(list))
+	return fmt.Sprintf("(list %s)", sliceStr(list, " "))
 }
 
 func (ident astIdent) String() string {
@@ -76,7 +76,7 @@ func (x astInt) String() string {
 }
 
 func (fn astFunc) String() string {
-	return fmt.Sprintf("(%s)", sliceStr(append([]ast{fn.ident}, fn.args...)))
+	return fmt.Sprintf("(%s)", sliceStr(append([]ast{fn.ident}, fn.args...), " "))
 }
 
 func (def astDefine) String() string {
@@ -97,11 +97,11 @@ func (atom astAtom) String() string {
 	return fmt.Sprintf("(atom %s %s)", atom.typ, atom.arg)
 }
 
-func sliceStr(asts []ast) string {
+func sliceStr(asts []ast, sep string) string {
 	slice := []string{}
 	for _, elem := range asts {
 		slice = append(slice, elem.String())
 	}
 
-	return strings.Join(slice, " ")
+	return strings.Join(slice, sep)
 }
