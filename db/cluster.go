@@ -8,6 +8,7 @@ type Cluster struct {
 
 	Provider  Provider
 	Namespace string // Cloud Provider Namespace
+	Spec      string
 
 	/* XXX: These belong in a separate Adminstration table of some sort. */
 	SSHKeys  []string
@@ -42,7 +43,7 @@ func (c Cluster) tt() TableType {
 }
 
 func (c Cluster) String() string {
-	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s",
+	return fmt.Sprintf("Cluster-%d{%s-%s, ACl: %s}",
 		c.ID, c.Provider, c.Namespace, c.AdminACL)
 }
 

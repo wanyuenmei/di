@@ -127,7 +127,7 @@ func startTest() (foreman, *clients) {
 	fm := createForeman(db.New(), 1)
 	clients := &clients{make(map[string]*fakeClient), 0}
 	fm.newClient = func(ip string) (client, error) {
-		fc := &fakeClient{clients, ip, pb.MinionConfig{}, nil}
+		fc := &fakeClient{clients, ip, pb.MinionConfig{}}
 		clients.clients[ip] = fc
 		clients.newCalls++
 		return fc, nil
@@ -145,7 +145,6 @@ type fakeClient struct {
 	clients *clients
 	ip      string
 	mc      pb.MinionConfig
-	eps     []*pb.Endpoint
 }
 
 func (fc *fakeClient) setMinion(mc pb.MinionConfig) error {
@@ -155,11 +154,6 @@ func (fc *fakeClient) setMinion(mc pb.MinionConfig) error {
 
 func (fc *fakeClient) getMinion() (pb.MinionConfig, error) {
 	return fc.mc, nil
-}
-
-func (fc *fakeClient) setEndpoints(eps []*pb.Endpoint) error {
-	fc.eps = eps
-	return nil
 }
 
 func (fc *fakeClient) Close() {

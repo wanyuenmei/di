@@ -90,3 +90,7 @@ func (dsl Dsl) QueryStrSlice(key string) []string {
 
 	return slice
 }
+
+func (dsl Dsl) String() string {
+	return dsl.spec.String()
+}

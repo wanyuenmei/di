@@ -35,10 +35,6 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 		return err
 	}
 
-	if err = containerTxn(view, dsl, cluster); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -68,6 +64,7 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 	cluster.Namespace = Namespace
 	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
 	cluster.SSHKeys = dsl.QueryStrSlice("SSHKeys")
+	cluster.Spec = dsl.String()
 	view.Commit(cluster)
 
 	return cluster.ID, nil
@@ -125,42 +122,6 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		} else {
 			view.Remove(change)
 		}
-	}
-
-	return nil
-}
-
-func containerTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
-	containers := view.SelectFromContainer(func(c db.Container) bool {
-		return c.ClusterID == clusterID
-	})
-
-	dslContainers := dsl.QueryContainers()
-	if len(containers) > len(dslContainers) {
-		for _, c := range containers[len(dslContainers):] {
-			view.Remove(c)
-		}
-		containers = containers[:len(dslContainers)]
-	}
-
-	for len(containers) < len(dslContainers) {
-		containers = append(containers, view.InsertContainer())
-	}
-
-	// Make sure the container assignments are consistent across runs.
-	containers = db.SortContainers(containers)
-
-	for i, dc := range dslContainers {
-		c := containers[i]
-		if c.IP != "" || c.SchedID != "" {
-			// This code is wrong if these values are meaningful
-			panic("Not Reached")
-		}
-
-		c.ClusterID = clusterID
-		c.Image = dc.Image
-		c.Labels = dc.Labels
-		view.Commit(c)
 	}
 
 	return nil

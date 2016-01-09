@@ -2,22 +2,19 @@ package db
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 )
 
 // A Container row is created for each container specified by the policy.  Each row will
-// eventually be instantiated within its corresponding cluster. */
+// eventually be instantiated within its corresponding cluster.
+// Used only by the minion.
 type Container struct {
 	ID int
 
-	ClusterID int
-	Image     string
-	Labels    []string
-
-	// Used only by the minion.
 	IP      string
 	SchedID string
+	Image   string
+	Labels  []string
 }
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -50,10 +47,6 @@ func (c Container) tt() TableType {
 func (c Container) String() string {
 	var tags []string
 
-	if c.ClusterID != 0 {
-		tags = append(tags, fmt.Sprintf("Cluster-%d", c.ClusterID))
-	}
-
 	if c.SchedID != "" {
 		tags = append(tags, fmt.Sprintf("SchedID: %s", c.SchedID))
 	}
@@ -71,20 +64,4 @@ func (c Container) String() string {
 
 func (c Container) less(r row) bool {
 	return c.ID < r.(Container).ID
-}
-
-func SortContainers(containers []Container) []Container {
-	rows := make([]row, 0, len(containers))
-	for _, m := range containers {
-		rows = append(rows, m)
-	}
-
-	sort.Sort(rowSlice(rows))
-
-	containers = make([]Container, 0, len(containers))
-	for _, r := range rows {
-		containers = append(containers, r.(Container))
-	}
-
-	return containers
 }
