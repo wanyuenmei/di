@@ -1,0 +1,79 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure(2) do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "boxcutter/ubuntu1510"
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Set the Timezone
+  config.vm.provision :shell, :inline => "echo \"America/Los_Angeles\" | tee /etc/timezone && dpkg-reconfigure --frontend noninteractive tzdata"
+
+  # bootstrap development tools
+  config.vm.provision "shell", inline: <<-SHELL
+    # install necessary tools
+    apt-get update
+    apt-get install -y golang docker.io git g++
+    usermod -g docker vagrant
+
+    # install protobuf compiler
+    cd /tmp
+    curl -sOL https://github.com/google/protobuf/releases/download/v3.0.0-beta-2/protobuf-cpp-3.0.0-beta-2.tar.gz
+    tar xf /tmp/protobuf*.tar.gz
+    cd /tmp/protobuf*
+    ./configure --prefix=/usr && make && make install
+  SHELL
+
+  # bootstrap developer workspace
+  config.vm.provision "shell", privileged: false, inline: <<-SHELL
+    cat << 'EOF' >> ~/setup_workspace.sh
+    #!/usr/bin/env bash
+    export GOPATH=$HOME/work
+    export PATH=$PATH:$GOPATH/bin
+
+    mkdir $HOME/work
+
+    # checkout the di repo
+    git clone https://github.com/NetSys/di.git $GOPATH/src/github.com/NetSys/di
+    echo "Installing di dependencies.. (this takes a couple minutes)"
+    go get github.com/NetSys/di/...
+
+    go get -u github.com/golang/protobuf/proto
+    go get -u github.com/golang/protobuf/protoc-gen-go
+    go get golang.org/x/tools/cmd/stringer
+
+    echo "Done!"
+    echo "Don't forget to update your \\$GOPATH and \\$PATH in your dotfiles"
+EOF
+    # the above EOF can't be indented or else the heredoc won't be interpreted correctly
+    chmod +x ~/setup_workspace.sh
+  SHELL
+end
