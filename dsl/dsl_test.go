@@ -286,6 +286,19 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 		return evalCtx{}
 	}
 
+	// The code may be re-evaluated by the minions.  If that happens, the result
+	// should be exactly the same.
+	eval2, _, err := eval(result)
+	if err != nil {
+		t.Error(fmt.Sprintf("%s: %s", code, err))
+		return evalCtx{}
+	}
+
+	if eval2.String() != result.String() {
+		t.Errorf("\nEval expected \"%s\"\ngot \"%s\"", result, eval2)
+		return evalCtx{}
+	}
+
 	return ctx
 }
 
