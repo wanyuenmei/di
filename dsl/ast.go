@@ -39,9 +39,9 @@ type astRoot astList
 type astDefine astBind
 
 type astAtom struct {
-	typ       astIdent   // Type of the atom, currently only "docker" is supported.
-	arg       ast        // Argument for running the atom.
-	container *Container // The container resulting from evaluation.
+	typ   astIdent // Type of the atom, currently only "docker" is supported.
+	arg   ast      // Argument for running the atom.
+	index int      // After evaluation, index in the evalCtx.
 }
 
 type astIdent string /* Identities, i.e. key words, variable names etc. */

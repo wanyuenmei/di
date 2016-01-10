@@ -92,7 +92,7 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
 		case astAtom:
-			containers = append(containers, t.container)
+			containers = append(containers, ctx.containers[t.index])
 		case astString:
 			children, ok := ctx.labels[string(t)]
 			if !ok {

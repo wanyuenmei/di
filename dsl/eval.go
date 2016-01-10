@@ -71,10 +71,6 @@ func (def astDefine) eval(ctx *evalCtx) (ast, error) {
 }
 
 func (atom astAtom) eval(ctx *evalCtx) (ast, error) {
-	if atom.container != nil {
-		panic("Not Reached") // This atom has already been evaluated.
-	}
-
 	if atom.typ != "docker" {
 		return nil, fmt.Errorf("unknown atom type: %s", atom.typ)
 	}
@@ -89,9 +85,17 @@ func (atom astAtom) eval(ctx *evalCtx) (ast, error) {
 		return nil, fmt.Errorf("atom argument must be a string, found: %s", eval)
 	}
 
+	index := len(ctx.containers)
+	if atom.index != 0 && atom.index != index {
+		// This is the second evaluation of the spec , but this time the atom
+		// ended up at a different index.  This means evaluation was not
+		// deterministic and we have a serious bug.
+		panic("Not Reached")
+	}
+
 	container := &Container{string(arg), nil}
 	ctx.containers = append(ctx.containers, container)
-	return astAtom{atom.typ, eval, container}, nil
+	return astAtom{atom.typ, eval, index}, nil
 }
 
 func (lt astLet) eval(ctx *evalCtx) (ast, error) {

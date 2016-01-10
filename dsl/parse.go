@@ -131,7 +131,7 @@ func parseInterface(p1 interface{}) (ast, error) {
 		if err != nil {
 			return nil, err
 		}
-		return astAtom{bind.ident, bind.ast, nil}, nil
+		return astAtom{bind.ident, bind.ast, 0}, nil
 	default:
 		return parseFunc(first, list[1:])
 	}
