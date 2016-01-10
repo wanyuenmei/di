@@ -55,18 +55,18 @@ func TestDefine(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	parseTest(t, "(list)", "()")
-	parseTest(t, "(list 1)", "(1)")
-	parseTest(t, "(list 1 2)", "(1 2)")
-	parseTest(t, "(list 1 2 (list))", "(1 2 ())")
-	parseTest(t, `(list 1 2 (list "a" "b" 3))`, `(1 2 ("a" "b" 3))`)
-	parseTest(t, `(list 1 2 (+ 1 2))`, `(1 2 3)`)
+	parseTest(t, "(list)", "(list)")
+	parseTest(t, "(list 1)", "(list 1)")
+	parseTest(t, "(list 1 2)", "(list 1 2)")
+	parseTest(t, "(list 1 2 (list))", "(list 1 2 (list))")
+	parseTest(t, `(list 1 2 (list "a" "b" 3))`, `(list 1 2 (list "a" "b" 3))`)
+	parseTest(t, `(list 1 2 (+ 1 2))`, `(list 1 2 3)`)
 
-	parseTest(t, `(makeList 0 1)`, `()`)
-	parseTest(t, `(makeList 1 1)`, `(1)`)
-	parseTest(t, `(makeList 2 1)`, `(1 1)`)
-	parseTest(t, `(makeList 3 (+ 1 1))`, `(2 2 2)`)
-	parseTest(t, `(let ((a 2)) (makeList a 3))`, `(3 3)`)
+	parseTest(t, `(makeList 0 1)`, `(list)`)
+	parseTest(t, `(makeList 1 1)`, `(list 1)`)
+	parseTest(t, `(makeList 2 1)`, `(list 1 1)`)
+	parseTest(t, `(makeList 3 (+ 1 1))`, `(list 2 2 2)`)
+	parseTest(t, `(let ((a 2)) (makeList a 3))`, `(list 3 3)`)
 }
 
 func TestAtom(t *testing.T) {
@@ -90,12 +90,12 @@ func TestAtom(t *testing.T) {
 	checkContainers(code, code, "a", "a")
 
 	code = `(makeList 2 (list (atom docker "a") (atom docker "b")))`
-	exp := `(((atom docker "a") (atom docker "b"))` +
-		` ((atom docker "a") (atom docker "b")))`
+	exp := `(list (list (atom docker "a") (atom docker "b"))` +
+		` (list (atom docker "a") (atom docker "b")))`
 	checkContainers(code, exp, "a", "b", "a", "b")
 
 	code = `(let ((a "foo") (b "bar")) (list (atom docker a) (atom docker b)))`
-	exp = `((atom docker "foo") (atom docker "bar"))`
+	exp = `(list (atom docker "foo") (atom docker "bar"))`
 	checkContainers(code, exp, "foo", "bar")
 
 	runtimeErr(t, `(atom foo "bar")`, `unknown atom type: foo`)
@@ -121,7 +121,7 @@ func TestLabel(t *testing.T) {
 	}
 
 	code = `(label "foo" (makeList 2 (atom docker "a"))) (label "bar" "foo")`
-	exp := `(label "foo" ((atom docker "a") (atom docker "a"))) (label "bar" "foo")`
+	exp := `(label "foo" (list (atom docker "a") (atom docker "a"))) (label "bar" "foo")`
 	ctx = parseTest(t, code, exp)
 	expected = []*Container{
 		{"a", []string{"foo", "bar"}},

@@ -55,7 +55,11 @@ func (root astRoot) String() string {
 }
 
 func (list astList) String() string {
-	return fmt.Sprintf("(%s)", sliceStr(list))
+	if len(list) == 0 {
+		return "(list)"
+	}
+
+	return fmt.Sprintf("(list %s)", sliceStr(list))
 }
 
 func (ident astIdent) String() string {
