@@ -13,12 +13,12 @@ import (
 
 const TEST_IMAGE = "alpine"
 
-func TestEndpointTxn(t *testing.T) {
+func TestContainerTxn(t *testing.T) {
 	conn := db.New()
 	trigg := conn.Trigger(db.ContainerTable).C
 
 	spec := ""
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if fired(trigg) {
@@ -26,14 +26,14 @@ func TestEndpointTxn(t *testing.T) {
 	}
 
 	spec = `(label "a" (atom docker "alpine"))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
 		t.Error("Expected Database Change")
 	}
 
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if fired(trigg) {
@@ -42,7 +42,7 @@ func TestEndpointTxn(t *testing.T) {
 
 	spec = `(label "b" (atom docker "alpine"))
 		 (label "a" "b" (atom docker "alpine"))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
@@ -51,7 +51,7 @@ func TestEndpointTxn(t *testing.T) {
 
 	spec = `(label "b" (atom docker "alpine"))
 		 (label "a" "b" (atom docker "ubuntu"))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
@@ -60,7 +60,7 @@ func TestEndpointTxn(t *testing.T) {
 
 	spec = `(label "b" (atom docker "ubuntu"))
 		 (label "a" "b" (atom docker "alpine"))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
@@ -68,7 +68,7 @@ func TestEndpointTxn(t *testing.T) {
 	}
 
 	spec = `(label "a" (makeList 2 (atom docker "alpine")))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
@@ -76,7 +76,7 @@ func TestEndpointTxn(t *testing.T) {
 	}
 
 	spec = `(label "a" (atom docker "alpine"))`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
@@ -86,14 +86,14 @@ func TestEndpointTxn(t *testing.T) {
 	spec = `(label "b" (atom docker "alpine"))
 	        (label "c" (atom docker "alpine"))
 	        (label "a" "b" "c")`
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if !fired(trigg) {
 		t.Error("Expected Database Change")
 	}
 
-	if err := testEndpointTxn(conn, spec); err != "" {
+	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
 	if fired(trigg) {
@@ -101,7 +101,7 @@ func TestEndpointTxn(t *testing.T) {
 	}
 }
 
-func testEndpointTxn(conn db.Conn, spec string) string {
+func testContainerTxn(conn db.Conn, spec string) string {
 	var containers []db.Container
 	conn.Transact(func(view db.Database) error {
 		UpdatePolicy(view, spec)
