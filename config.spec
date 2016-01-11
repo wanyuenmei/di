@@ -9,3 +9,5 @@
 
 (label "Red"  (makeList WorkerCount       (atom docker "alpine")))
 (label "Blue" (makeList (* 2 WorkerCount) (atom docker "alpine")))
+(connect (1024 65535) "Red" "Blue")
+(connect (1024 65535) "Blue" "Red")

@@ -81,7 +81,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.EtcdToken = msg.EtcdToken
 		view.Commit(minion)
 
-		UpdatePolicy(view, msg.Spec)
+		updatePolicy(view, msg.Spec)
 
 		return nil
 	})

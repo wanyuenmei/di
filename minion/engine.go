@@ -7,14 +7,53 @@ import (
 	"github.com/NetSys/di/dsl"
 )
 
-func UpdatePolicy(view db.Database, spec string) {
+func updatePolicy(view db.Database, spec string) {
 	compiled, err := dsl.New(strings.NewReader(spec))
 	if err != nil {
 		log.Warning("Invalid spec: %s", err)
 		return
 	}
 
-	dslSlice := compiled.QueryContainers()
+	updateContainers(view, compiled)
+	updateConnections(view, compiled)
+}
+
+func updateConnections(view db.Database, spec dsl.Dsl) {
+	dslSlice := spec.QueryConnections()
+
+	dslMap := make(map[dsl.Connection]struct{})
+	for _, c := range dslSlice {
+		dslMap[c] = struct{}{}
+	}
+
+	for _, dbc := range view.SelectFromConnection(nil) {
+		dslC := dsl.Connection{
+			From:    dbc.From,
+			To:      dbc.To,
+			MinPort: dbc.MinPort,
+			MaxPort: dbc.MaxPort,
+		}
+
+		if _, ok := dslMap[dslC]; ok {
+			delete(dslMap, dslC)
+			continue
+		} else {
+			view.Remove(dbc)
+		}
+	}
+
+	for dslc := range dslMap {
+		dbc := view.InsertConnection()
+		dbc.From = dslc.From
+		dbc.To = dslc.To
+		dbc.MinPort = dslc.MinPort
+		dbc.MaxPort = dslc.MaxPort
+		view.Commit(dbc)
+	}
+}
+
+func updateContainers(view db.Database, spec dsl.Dsl) {
+	dslSlice := spec.QueryContainers()
 	dbSlice := view.SelectFromContainer(nil)
 
 	for _, dbc := range dbSlice {

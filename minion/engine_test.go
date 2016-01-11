@@ -104,7 +104,7 @@ func TestContainerTxn(t *testing.T) {
 func testContainerTxn(conn db.Conn, spec string) string {
 	var containers []db.Container
 	conn.Transact(func(view db.Database) error {
-		UpdatePolicy(view, spec)
+		updatePolicy(view, spec)
 		containers = view.SelectFromContainer(nil)
 		return nil
 	})
@@ -132,6 +132,121 @@ func testContainerTxn(conn db.Conn, spec string) string {
 
 	if len(containers) > 0 {
 		return spew.Sprintf("Unexpected containers: %s", containers)
+	}
+
+	return ""
+}
+
+func TestConnectionTxn(t *testing.T) {
+	conn := db.New()
+	trigg := conn.Trigger(db.ConnectionTable).C
+
+	spec := ""
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if fired(trigg) {
+		t.Error("Unexpected Database Change")
+	}
+
+	spec = `(label "a" (atom docker "alpine"))
+	        (connect 80 "a" "a")`
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if !fired(trigg) {
+		t.Error("Expected Database Change")
+	}
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if fired(trigg) {
+		t.Error("Unexpected Database Change")
+	}
+
+	spec = `(label "a" (atom docker "alpine"))
+	        (connect 90 "a" "a")`
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if !fired(trigg) {
+		t.Error("Expected Database Change")
+	}
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if fired(trigg) {
+		t.Error("Unexpected Database Change")
+	}
+
+	spec = `(label "a" (atom docker "alpine"))
+                (label "b" (atom docker "alpine"))
+                (label "c" (atom docker "alpine"))
+	        (connect 90 "b" "a" "c")
+	        (connect 100 "b" "b")
+	        (connect 101 "c" "a")`
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if !fired(trigg) {
+		t.Error("Expected Database Change")
+	}
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if fired(trigg) {
+		t.Error("Unexpected Database Change")
+	}
+
+	spec = `(label "a" (atom docker "alpine"))
+                (label "b" (atom docker "alpine"))
+                (label "c" (atom docker "alpine"))`
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if !fired(trigg) {
+		t.Error("Expected Database Change")
+	}
+	if err := testConnectionTxn(conn, spec); err != "" {
+		t.Error(err)
+	}
+	if fired(trigg) {
+		t.Error("Unexpected Database Change")
+	}
+}
+
+func testConnectionTxn(conn db.Conn, spec string) string {
+	var connections []db.Connection
+	conn.Transact(func(view db.Database) error {
+		updatePolicy(view, spec)
+		connections = view.SelectFromConnection(nil)
+		return nil
+	})
+
+	compiled, err := dsl.New(strings.NewReader(spec))
+	if err != nil {
+		return err.Error()
+	}
+
+	exp := compiled.QueryConnections()
+	for _, e := range exp {
+		found := false
+		for i, c := range connections {
+			if e.From == c.From && e.To == c.To && e.MinPort == c.MinPort &&
+				e.MaxPort == c.MaxPort {
+				connections = append(connections[:i], connections[i+1:]...)
+				found = true
+				break
+			}
+		}
+
+		if found == false {
+			return fmt.Sprintf("Missing expected connection: %s", e)
+		}
+	}
+
+	if len(connections) > 0 {
+		return spew.Sprintf("Unexpected connections: %s", connections)
 	}
 
 	return ""

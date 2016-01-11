@@ -10,9 +10,16 @@ const (
 	/* Used by the minions. */
 	ContainerTable
 	MinionTable
+	ConnectionTable
 )
 
-var allTables = []TableType{ClusterTable, MachineTable, ContainerTable, MinionTable}
+var allTables = []TableType{
+	ClusterTable,
+	MachineTable,
+	ContainerTable,
+	MinionTable,
+	ConnectionTable,
+}
 
 type table struct {
 	rows map[int]row
