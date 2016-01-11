@@ -13,8 +13,8 @@ var funcImplMap = map[astIdent]funcImpl{
 	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
 	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
 	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
-	"list":     {listImpl, 0},
 	"label":    {labelImpl, 2},
+	"list":     {listImpl, 0},
 	"makeList": {makeListImpl, 2},
 }
 
@@ -42,34 +42,6 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 
 		return astInt(total), nil
 	}
-}
-
-func listImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
-	return astList(args), err
-}
-
-func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
-	eval, err := args[0].eval(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	count, ok := eval.(astInt)
-	if !ok || count < 0 {
-		return nil, fmt.Errorf("makeList must begin with a positive integer, "+
-			"found: %s", args[0])
-	}
-
-	var result []ast
-	for i := 0; i < int(count); i++ {
-		eval, err := args[1].eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, eval)
-	}
-	return astList(result), nil
 }
 
 func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
@@ -122,6 +94,34 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 
 	ctx.labels[label] = containers
 	return astFunc{astIdent("label"), labelImpl, args}, nil
+}
+
+func listImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	return astList(args), err
+}
+
+func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
+	eval, err := args[0].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	count, ok := eval.(astInt)
+	if !ok || count < 0 {
+		return nil, fmt.Errorf("makeList must begin with a positive integer, "+
+			"found: %s", args[0])
+	}
+
+	var result []ast
+	for i := 0; i < int(count); i++ {
+		eval, err := args[1].eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, eval)
+	}
+	return astList(result), nil
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
