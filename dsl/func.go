@@ -13,6 +13,7 @@ var funcImplMap = map[astIdent]funcImpl{
 	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
 	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
 	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
+	"connect":  {connectImpl, 3},
 	"label":    {labelImpl, 2},
 	"list":     {listImpl, 0},
 	"makeList": {makeListImpl, 2},
@@ -42,6 +43,76 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 
 		return astInt(total), nil
 	}
+}
+
+func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+
+	var min, max int
+	switch t := args[0].(type) {
+	case astInt:
+		min, max = int(t), int(t)
+	case astList:
+		if len(t) != 2 {
+			return nil, fmt.Errorf("port range must have two ints: %s", t)
+		}
+
+		minAst, minOK := t[0].(astInt)
+		maxAst, maxOK := t[1].(astInt)
+		if !minOK || !maxOK {
+			return nil, fmt.Errorf("port range must have two ints: %s", t)
+		}
+
+		min, max = int(minAst), int(maxAst)
+	default:
+		return nil, fmt.Errorf("port range must be an int or a list of ints:"+
+			" %s", args[0])
+	}
+
+	if min < 0 || max > 65535 {
+		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
+	}
+
+	if min > max {
+		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
+	}
+
+	var labels []string
+	for _, arg := range flatten(args[1:]) {
+		label, ok := arg.(astString)
+		if !ok {
+			err := fmt.Errorf("connect applies to labels: %s", arg)
+			return nil, err
+		}
+
+		if _, ok := ctx.labels[string(label)]; !ok {
+			return nil, fmt.Errorf("connect undefined label: %s",
+				label)
+		}
+
+		labels = append(labels, string(label))
+	}
+
+	from := labels[0]
+	for _, to := range labels[1:] {
+		cn := Connection{
+			From:    from,
+			To:      to,
+			MinPort: min,
+			MaxPort: max,
+		}
+		ctx.connections[cn] = struct{}{}
+	}
+
+	newArgs := args[0:1]
+	for _, label := range labels {
+		newArgs = append(newArgs, astString(label))
+	}
+
+	return astFunc{astIdent("connect"), connectImpl, newArgs}, nil
 }
 
 func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {

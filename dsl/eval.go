@@ -2,17 +2,12 @@ package dsl
 
 import "fmt"
 
-type Atom struct {
-	atom   astAtom
-	labels []string
-}
-
 type evalCtx struct {
-	binds   map[astIdent]ast
-	defines map[astIdent]ast
-	labels  map[string][]*Container
-
-	containers []*Container
+	binds       map[astIdent]ast
+	defines     map[astIdent]ast
+	labels      map[string][]*Container
+	connections map[Connection]struct{}
+	containers  []*Container
 }
 
 func eval(parsed ast) (ast, evalCtx, error) {
@@ -20,6 +15,7 @@ func eval(parsed ast) (ast, evalCtx, error) {
 		make(map[astIdent]ast),
 		make(map[astIdent]ast),
 		make(map[string][]*Container),
+		make(map[Connection]struct{}),
 		nil}
 	evaluated, err := parsed.eval(&ctx)
 	if err != nil {

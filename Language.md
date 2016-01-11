@@ -98,7 +98,7 @@ to atoms implementing the *to* label over the specified network *port*.
 (connect 1433 webTier database)
 
 # Allow members of the database tier to talk to each other over any port
-(connect * database database)
+(connect (list 0 65535) database database)
 ```
 ##### Service Discovery
 The labels used in the **connect** keyword have real meaning in the

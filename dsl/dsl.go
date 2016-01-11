@@ -18,6 +18,13 @@ type Container struct {
 	Labels []string
 }
 
+type Connection struct {
+	From    string
+	To      string
+	MinPort int
+	MaxPort int
+}
+
 func New(reader io.Reader) (Dsl, error) {
 	parsed, err := parse(reader)
 	if err != nil {
@@ -33,6 +40,14 @@ func New(reader io.Reader) (Dsl, error) {
 
 func (dsl Dsl) QueryContainers() []*Container {
 	return dsl.ctx.containers
+}
+
+func (dsl Dsl) QueryConnections() []Connection {
+	var connections []Connection
+	for c := range dsl.ctx.connections {
+		connections = append(connections, c)
+	}
+	return connections
 }
 
 func (dsl Dsl) QueryInt(key string) int {

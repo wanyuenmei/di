@@ -154,6 +154,63 @@ func TestLabel(t *testing.T) {
 		"attempt to redefine label: foo")
 }
 
+func TestConnect(t *testing.T) {
+	code := `(label "a" (atom docker "alpine"))
+(label "b" (atom docker "alpine"))
+(label "c" (atom docker "alpine"))
+(label "d" (atom docker "alpine"))
+(label "e" (atom docker "alpine"))
+(label "f" (atom docker "alpine"))
+(label "g" (atom docker "alpine"))
+(connect 80 "a" "b")
+(connect 80 "a" "b" "c")
+(connect (list 1 65534) "b" "c")
+(connect (list 0 65535) "a" "c")
+(connect 443 "c" "d" "e" "f")
+(connect (list 100 65535) "g" "g")`
+	ctx := parseTest(t, code, code)
+
+	expected := map[Connection]struct{}{
+		{"a", "b", 80, 80}:     {},
+		{"a", "c", 80, 80}:     {},
+		{"b", "c", 1, 65534}:   {},
+		{"a", "c", 0, 65535}:   {},
+		{"c", "d", 443, 443}:   {},
+		{"c", "e", 443, 443}:   {},
+		{"c", "f", 443, 443}:   {},
+		{"g", "g", 100, 65535}: {},
+	}
+
+	for exp := range expected {
+		if _, ok := ctx.connections[exp]; !ok {
+			t.Error(spew.Sprintf("Missing connection: %s", exp))
+			continue
+		}
+
+		delete(ctx.connections, exp)
+	}
+
+	if len(ctx.connections) > 0 {
+		t.Error(spew.Sprintf("Unexpected connections: %s", ctx.connections))
+	}
+
+	runtimeErr(t, `(connect a "foo" "bar")`, "unassigned variable: a")
+	runtimeErr(t, `(connect (list 80) "foo" "bar")`,
+		"port range must have two ints: (list 80)")
+	runtimeErr(t, `(connect (list 0 70000) "foo" "bar")`,
+		"invalid port range: [0, 70000]")
+	runtimeErr(t, `(connect (list (- 0 10) 10) "foo" "bar")`,
+		"invalid port range: [-10, 10]")
+	runtimeErr(t, `(connect (list 100 10) "foo" "bar")`,
+		"invalid port range: [100, 10]")
+	runtimeErr(t, `(connect "80" "foo" "bar")`,
+		"port range must be an int or a list of ints: \"80\"")
+	runtimeErr(t, `(connect (list "a" "b") "foo" "bar")`,
+		"port range must have two ints: (list \"a\" \"b\")")
+	runtimeErr(t, `(connect 80 4 5)`, "connect applies to labels: 4")
+	runtimeErr(t, `(connect 80 "foo" "foo")`, "connect undefined label: \"foo\"")
+}
+
 func TestScanError(t *testing.T) {
 	parseErr(t, "\"foo", "literal not terminated")
 }
