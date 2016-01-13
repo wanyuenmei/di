@@ -11,6 +11,7 @@ const (
 	ContainerTable
 	MinionTable
 	ConnectionTable
+	LabelTable
 )
 
 var allTables = map[TableType]string{
@@ -19,6 +20,7 @@ var allTables = map[TableType]string{
 	ContainerTable:  "Container",
 	MinionTable:     "Minion",
 	ConnectionTable: "Connection",
+	LabelTable:      "Label",
 }
 
 type table struct {

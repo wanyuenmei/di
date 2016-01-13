@@ -1,4 +1,4 @@
-package main
+package consensus
 
 import (
 	"time"
@@ -12,8 +12,8 @@ const electionTTL = 30
 const bootDelay = 30
 const leaderKey = "/minion/leader"
 
-func watchLeader(conn db.Conn) {
-	kapi, watch := etcdConnect()
+func watchLeader(conn db.Conn, kapi client.KeysAPI) {
+	watch := watchChan(kapi, leaderKey, 1*time.Second)
 	trigg := conn.TriggerTick(electionTTL, db.MinionTable)
 	for {
 		resp, _ := kapi.Get(ctx(), leaderKey, &client.GetOptions{Quorum: true})
@@ -39,14 +39,14 @@ func watchLeader(conn db.Conn) {
 	}
 }
 
-func campaign(conn db.Conn) {
+func campaign(conn db.Conn, kapi client.KeysAPI) {
+	watch := watchChan(kapi, leaderKey, 1*time.Second)
 	trigg := conn.TriggerTick(electionTTL/2, db.MinionTable)
-	kapi, watchChan := etcdConnect()
 	oldMaster := false
 
 	for {
 		select {
-		case <-watchChan:
+		case <-watch:
 		case <-trigg.C:
 		}
 
@@ -117,36 +117,6 @@ func commitLeader(conn db.Conn, leader bool, ip ...string) {
 		}
 		return nil
 	})
-}
-
-func etcdConnect() (client.KeysAPI, <-chan struct{}) {
-	var etcd client.Client
-	for {
-		var err error
-		etcd, err = client.New(client.Config{
-			Endpoints: []string{"http://127.0.0.1:2379"},
-			Transport: client.DefaultTransport,
-		})
-		if err != nil {
-			log.Warning("Failed to connect to ETCD: %s", err)
-			time.Sleep(30 * time.Second)
-			continue
-		}
-
-		break
-	}
-
-	kapi := client.NewKeysAPI(etcd)
-	c := make(chan struct{})
-	go func() {
-		watcher := kapi.Watcher(leaderKey, nil)
-		for {
-			c <- struct{}{}
-			watcher.Next(context.Background())
-		}
-	}()
-
-	return kapi, c
 }
 
 func ctx() context.Context {
