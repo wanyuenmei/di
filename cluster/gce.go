@@ -36,11 +36,9 @@ import (
 )
 
 // XXX: Properly use/configue cloudConfig, db, ACL, ssh keys
-// XXX: Currently the oauth method is interative (it opens up in the browser),
+// XXX: Currently the oauth method is interactive (it opens up in the browser),
 // this should be changed to something non-interative to be used in a server
 // environment.
-// XXX: Make use of GCE InstanceGroups to be able to make multiple clusters
-// within the same project namespace
 
 const COMPUTE_BASE_URL string = "https://www.googleapis.com/compute/v1/projects"
 
@@ -48,18 +46,26 @@ var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
 
 type gceCluster struct {
-	projId   string // project ID
-	zone     string
-	imgURL   string // url to the VM image
+	projId   string // gce project ID
+	zone     string // gce zone
+	imgURL   string // gce url to the VM image
 	machType string // gce machine type
 	baseURL  string // gce project specific url prefix
-	id       int    // the id of the cluster, used externally
+
+	ns string // cluster namespace
+	id int    // the id of the cluster, used externally
 }
 
 // Create a GCE cluster.
 //
+// Clusters are differentiated (namespace) by setting the description and
+// filtering off of that.
+//
 // XXX: A lot of the fields are hardcoded.
 func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
+	if namespace == "" {
+		panic("newGCE(): namespace CANNOT be empty")
+	}
 	err := gceInit()
 	if err != nil {
 		log.Error("Initialize GCE failed")
@@ -67,10 +73,11 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	}
 
 	clst := &gceCluster{
-		projId:   namespace,
+		projId:   "declarative-infrastructure",
 		zone:     "us-central1-a",
 		machType: "f1-micro",
 		id:       clusterId,
+		ns:       namespace,
 		imgURL: fmt.Sprintf(
 			"%s/%s",
 			COMPUTE_BASE_URL,
@@ -82,7 +89,8 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 }
 
 func (clst *gceCluster) get() ([]machine, error) {
-	list, err := gceService.Instances.List(clst.projId, clst.zone).Do()
+	list, err := gceService.Instances.List(clst.projId, clst.zone).
+		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
 	if err != nil {
 		log.Error("%+v", err)
 		return nil, err
@@ -215,7 +223,8 @@ func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
 // XXX: currently only defines the bare minimum
 func (clst *gceCluster) instanceNew(name string) (*compute.Operation, error) {
 	instance := &compute.Instance{
-		Name: name,
+		Name:        name,
+		Description: clst.ns,
 		MachineType: fmt.Sprintf("%s/zones/%s/machineTypes/%s",
 			clst.baseURL,
 			clst.zone,
