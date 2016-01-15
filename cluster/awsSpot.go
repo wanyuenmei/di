@@ -13,7 +13,7 @@ import (
 )
 
 const SPOT_PRICE = "0.02"
-const AMI = "ami-4ff8eb2e"
+const AMI = "ami-313e2450"
 const INSTANCE_TYPE = "m3.medium"
 const AWS_REGION = "us-west-2"
 
