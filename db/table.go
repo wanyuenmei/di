@@ -13,12 +13,12 @@ const (
 	ConnectionTable
 )
 
-var allTables = []TableType{
-	ClusterTable,
-	MachineTable,
-	ContainerTable,
-	MinionTable,
-	ConnectionTable,
+var allTables = map[TableType]string{
+	ClusterTable:    "Cluster",
+	MachineTable:    "Machine",
+	ContainerTable:  "Container",
+	MinionTable:     "Minion",
+	ConnectionTable: "Connection",
 }
 
 type table struct {
@@ -57,16 +57,5 @@ func (t *table) alert() {
 }
 
 func (t TableType) String() string {
-	switch t {
-	case ClusterTable:
-		return "Cluster"
-	case MachineTable:
-		return "Machine"
-	case ContainerTable:
-		return "Container"
-	case MinionTable:
-		return "Minion"
-	default:
-		panic("Unimplemented")
-	}
+	return allTables[t]
 }

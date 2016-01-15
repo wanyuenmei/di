@@ -41,7 +41,7 @@ var log = logging.MustGetLogger("database")
 // New creates a connection to a brand new database.
 func New() Conn {
 	db := Database{make(map[TableType]*table), new(int)}
-	for _, t := range allTables {
+	for t := range allTables {
 		db.tables[t] = newTable()
 	}
 
