@@ -161,29 +161,31 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 			return m.ClusterID == clst.id
 		})
 
-		unassigned := []db.Machine{}
-		cidMap := make(map[string]db.Machine)
-		for _, machine := range machines {
-			if machine.CloudID == "" {
-				unassigned = append(unassigned, machine)
+		cloudMap := make(map[string]machine)
+		for _, m := range cloudMachines {
+			cloudMap[m.id] = m
+		}
+
+		var unassigned []db.Machine
+		for _, m := range machines {
+			if cm, ok := cloudMap[m.CloudID]; ok {
+				writeMachine(view, m, cm)
+				delete(cloudMap, m.CloudID)
 			} else {
-				cidMap[machine.CloudID] = machine
+				unassigned = append(unassigned, m)
 			}
 		}
 
-		for _, cm := range cloudMachines {
-			if machine, ok := cidMap[cm.id]; ok {
-				writeMachine(view, machine, cm)
-			} else if len(unassigned) > 0 {
-				assignment := unassigned[0]
+		for id, m := range cloudMap {
+			if len(unassigned) == 0 {
+				terminateSet = append(terminateSet, id)
+			} else {
+				writeMachine(view, unassigned[0], m)
 				unassigned = unassigned[1:]
-				writeMachine(view, assignment, cm)
-			} else {
-				terminateSet = append(terminateSet, cm.id)
 			}
 		}
-
 		nBoot = len(unassigned)
+
 		return nil
 	})
 
