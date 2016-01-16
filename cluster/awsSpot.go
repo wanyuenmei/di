@@ -12,9 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-const SPOT_PRICE = "0.02"
+const SPOT_PRICE = "0.1"
 const AMI = "ami-2de0fa4c"
-const INSTANCE_TYPE = "m3.medium"
+const INSTANCE_TYPE = "m4.large"
 const AWS_REGION = "us-west-2"
 
 type awsSpotCluster struct {
