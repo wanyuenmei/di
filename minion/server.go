@@ -32,7 +32,6 @@ func minionServerRun(conn db.Conn) {
 
 	s := grpc.NewServer()
 	pb.RegisterMinionServer(s, server)
-	log.Info("Waiting for configuration.")
 	s.Serve(sock)
 }
 
@@ -68,6 +67,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 		var minion db.Minion
 		switch len(minionSlice) {
 		case 0:
+			log.Info("Received initial configuation")
 			minion = view.InsertMinion()
 		case 1:
 			minion = minionSlice[0]
