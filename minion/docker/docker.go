@@ -14,7 +14,7 @@ type Image string
 
 const (
 	// Etcd consnesus provider.
-	Etcd Image = "quay.io/coreos/etcd:v2.1.3"
+	Etcd Image = "quay.io/coreos/etcd:v2.2.4"
 
 	// Kubelet implements the kubernetes cluster scheduler.
 	Kubelet Image = "quay.io/netsys/kubelet"
