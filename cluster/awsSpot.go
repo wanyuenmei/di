@@ -83,14 +83,6 @@ func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 }
 
 func (clst awsSpotCluster) stop(ids []string) error {
-	_, err := clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: aws.StringSlice(ids),
-	})
-	if err != nil {
-		log.Warning("Failed to cancel spot requests: %s", err)
-		return err
-	}
-
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: aws.StringSlice(ids),
@@ -115,6 +107,14 @@ func (clst awsSpotCluster) stop(ids []string) error {
 			log.Warning("Failed to terminate machines: %s", err)
 			/* May as well attempt to cancel the spot requests. */
 		}
+	}
+
+	_, err = clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
+		SpotInstanceRequestIds: aws.StringSlice(ids),
+	})
+	if err != nil {
+		log.Warning("Failed to cancel spot requests: %s", err)
+		return err
 	}
 
 	if err := clst.wait(ids, false); err != nil {
