@@ -36,6 +36,16 @@ func (db Database) SelectFromContainer(check func(Container) bool) []Container {
 	return result
 }
 
+// SelectFromContainer gets all containers in the database that satisfy the 'check'.
+func (conn Conn) SelectFromContainer(check func(Container) bool) []Container {
+	var containers []Container
+	conn.Transact(func(view Database) error {
+		containers = view.SelectFromContainer(check)
+		return nil
+	})
+	return containers
+}
+
 func (c Container) id() int {
 	return c.ID
 }
