@@ -139,14 +139,7 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 		return nil, err
 	}
 
-	insts, err := clst.DescribeInstances(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("instance.group-name"),
-				Values: []*string{aws.String(clst.namespace)},
-			},
-		},
-	})
+	insts, err := clst.DescribeInstances(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +165,6 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 		if spot.InstanceId != nil {
 			awsInst := instMap[*spot.InstanceId]
 			if awsInst != nil {
-				delete(instMap, *spot.InstanceId)
 				if *awsInst.State.Name != ec2.InstanceStateNamePending &&
 					*awsInst.State.Name != ec2.InstanceStateNameRunning {
 					continue
@@ -189,26 +181,6 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 		}
 
 		machines = append(machines, machine)
-	}
-
-	if len(instMap) > 0 {
-		var ids []string
-		for id := range instMap {
-			ids = append(ids, id)
-		}
-
-		// Very rarely, aws will lose the tag associated with a spot request.
-		// This will leave us with instances in the appropriate security group,
-		// that we can't find by describing the spot instance requests.  For now,
-		// we'll just terminate these zombie instances.
-		log.Warning("Attempt to cleanup untagged instances: %s", ids)
-
-		_, err = clst.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: aws.StringSlice(ids),
-		})
-		if err != nil {
-			log.Warning("Failed to terminate machines: %s", err)
-		}
 	}
 
 	return machines, nil
