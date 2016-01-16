@@ -68,9 +68,6 @@ func (k kubectl) boot(toBoot []db.Container) {
 
 	for _, dbc := range toBoot {
 		go func() {
-			if len(dbc.Labels) != 1 {
-				panic("Unimplemented")
-			}
 			k.bootContainer(dbc.Image)
 			wg.Done()
 		}()
