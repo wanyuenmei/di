@@ -10,6 +10,9 @@ import (
 
 var log = logging.MustGetLogger("supervisor")
 
+const etcdHeartbeatInterval = "500"
+const etcdElectionTimeout = "5000"
+
 type supervisor struct {
 	conn db.Conn
 	dk   docker.Client
@@ -72,7 +75,9 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 		sv.dk.Remove(docker.Kubelet)
 	}
 
-	etcdArgs := []string{"--discovery=" + etcdToken, "--proxy=on"}
+	etcdArgs := []string{"--discovery=" + etcdToken, "--proxy=on",
+		"--heartbeat-interval=" + etcdHeartbeatInterval,
+		"--election-timeout=" + etcdElectionTimeout}
 	sv.dk.Run(docker.Etcd, etcdArgs)
 	sv.dk.Run(docker.Ovsdb, nil)
 	sv.dk.Run(docker.Ovsvswitchd, nil)
@@ -127,6 +132,8 @@ func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
 		fmt.Sprintf("--listen-peer-urls=http://%s:2380", IP),
 		fmt.Sprintf("--initial-advertise-peer-urls=http://%s:2380", IP),
 		"--listen-client-urls=http://0.0.0.0:2379",
+		"--heartbeat-interval=" + etcdHeartbeatInterval,
+		"--election-timeout=" + etcdElectionTimeout,
 	}
 	sv.dk.Run(docker.Etcd, etcdArgs)
 	sv.dk.Run(docker.Ovsdb, nil)
