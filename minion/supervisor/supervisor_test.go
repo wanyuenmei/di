@@ -371,11 +371,18 @@ func etcdArgsMaster(ip, etcd string) []string {
 		fmt.Sprintf("--listen-peer-urls=http://%s:2380", ip),
 		fmt.Sprintf("--initial-advertise-peer-urls=http://%s:2380", ip),
 		"--listen-client-urls=http://0.0.0.0:2379",
+		"--heartbeat-interval=500",
+		"--election-timeout=5000",
 	}
 }
 
 func etcdArgsWorker(etcd string) []string {
-	return []string{"--discovery=" + etcd, "--proxy=on"}
+	return []string{
+		"--discovery=" + etcd,
+		"--proxy=on",
+		"--heartbeat-interval=500",
+		"--election-timeout=5000",
+	}
 }
 
 func ovsExecArgs(id, ip, leader string) []string {
