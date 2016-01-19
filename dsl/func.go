@@ -14,6 +14,7 @@ var funcImplMap = map[astIdent]funcImpl{
 	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
 	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
 	"connect":  {connectImpl, 3},
+	"docker":   {dockerImpl, 1},
 	"label":    {labelImpl, 2},
 	"list":     {listImpl, 0},
 	"makeList": {makeListImpl, 2},
@@ -44,6 +45,29 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 
 		return astInt(total), nil
 	}
+}
+
+func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(args) > 1 {
+		return nil, fmt.Errorf("docker must have one argument")
+	}
+
+	str, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("docker image must be a string: %s", args[0])
+	}
+
+	index := len(ctx.containers)
+
+	container := &Container{string(str), nil}
+	ctx.containers = append(ctx.containers, container)
+
+	return astAtom{astFunc{astIdent("docker"), dockerImpl, args}, index}, nil
 }
 
 func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {

@@ -25,7 +25,7 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))`
+	spec = `(label "a" (docker "alpine"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -40,8 +40,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "b" (atom docker "alpine"))
-		 (label "a" "b" (atom docker "alpine"))`
+	spec = `(label "b" (docker "alpine"))
+		 (label "a" "b" (docker "alpine"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -49,8 +49,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "b" (atom docker "alpine"))
-		 (label "a" "b" (atom docker "ubuntu"))`
+	spec = `(label "b" (docker "alpine"))
+		 (label "a" "b" (docker "ubuntu"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -58,8 +58,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "b" (atom docker "ubuntu"))
-		 (label "a" "b" (atom docker "alpine"))`
+	spec = `(label "b" (docker "ubuntu"))
+		 (label "a" "b" (docker "alpine"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -67,7 +67,7 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "a" (makeList 2 (atom docker "alpine")))`
+	spec = `(label "a" (makeList 2 (docker "alpine")))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -75,7 +75,7 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))`
+	spec = `(label "a" (docker "alpine"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -83,8 +83,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "b" (atom docker "alpine"))
-	        (label "c" (atom docker "alpine"))
+	spec = `(label "b" (docker "alpine"))
+	        (label "c" (docker "alpine"))
 	        (label "a" "b" "c")`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
@@ -149,7 +149,7 @@ func TestConnectionTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))
+	spec = `(label "a" (docker "alpine"))
 	        (connect 80 "a" "a")`
 	if err := testConnectionTxn(conn, spec); err != "" {
 		t.Error(err)
@@ -164,7 +164,7 @@ func TestConnectionTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))
+	spec = `(label "a" (docker "alpine"))
 	        (connect 90 "a" "a")`
 	if err := testConnectionTxn(conn, spec); err != "" {
 		t.Error(err)
@@ -179,9 +179,9 @@ func TestConnectionTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))
-                (label "b" (atom docker "alpine"))
-                (label "c" (atom docker "alpine"))
+	spec = `(label "a" (docker "alpine"))
+                (label "b" (docker "alpine"))
+                (label "c" (docker "alpine"))
 	        (connect 90 "b" "a" "c")
 	        (connect 100 "b" "b")
 	        (connect 101 "c" "a")`
@@ -198,9 +198,9 @@ func TestConnectionTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (atom docker "alpine"))
-                (label "b" (atom docker "alpine"))
-                (label "c" (atom docker "alpine"))`
+	spec = `(label "a" (docker "alpine"))
+                (label "b" (docker "alpine"))
+                (label "c" (docker "alpine"))`
 	if err := testConnectionTxn(conn, spec); err != "" {
 		t.Error(err)
 	}

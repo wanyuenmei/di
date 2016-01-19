@@ -28,6 +28,11 @@ type astFunc struct {
 	args  []ast
 }
 
+type astAtom struct {
+	astFunc
+	index int
+}
+
 type astList []ast /* A data list after evaluation. */
 
 /* The top level is a list of abstract syntax trees, typically populated by define
@@ -37,12 +42,6 @@ type astRoot astList
 /* Define creates a global variable definition which is made avariable to the rest of the
 * DI system. */
 type astDefine astBind
-
-type astAtom struct {
-	typ   astIdent // Type of the atom, currently only "docker" is supported.
-	arg   ast      // Argument for running the atom.
-	index int      // After evaluation, index in the evalCtx.
-}
 
 type astIdent string /* Identities, i.e. key words, variable names etc. */
 
@@ -91,10 +90,6 @@ func (lt astLet) String() string {
 	}
 	bindStr := strings.Join(bindSlice, " ")
 	return fmt.Sprintf("(let (%s) %s)", bindStr, lt.ast)
-}
-
-func (atom astAtom) String() string {
-	return fmt.Sprintf("(atom %s %s)", atom.typ, atom.arg)
 }
 
 func sliceStr(asts []ast, sep string) string {

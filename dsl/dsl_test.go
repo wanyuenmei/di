@@ -97,7 +97,7 @@ func TestList(t *testing.T) {
 	parseTest(t, `(let ((a 2)) (makeList a 3))`, `(list 3 3)`)
 }
 
-func TestAtom(t *testing.T) {
+func TestDocker(t *testing.T) {
 	checkContainers := func(code, expectedCode string, expStr ...string) {
 		var expected []*Container
 		for _, e := range expStr {
@@ -111,32 +111,31 @@ func TestAtom(t *testing.T) {
 		}
 	}
 
-	code := `(atom docker "a")`
+	code := `(docker "a")`
 	checkContainers(code, code, "a")
 
-	code = "(atom docker \"a\")\n(atom docker \"a\")"
+	code = "(docker \"a\")\n(docker \"a\")"
 	checkContainers(code, code, "a", "a")
 
-	code = `(makeList 2 (list (atom docker "a") (atom docker "b")))`
-	exp := `(list (list (atom docker "a") (atom docker "b"))` +
-		` (list (atom docker "a") (atom docker "b")))`
+	code = `(makeList 2 (list (docker "a") (docker "b")))`
+	exp := `(list (list (docker "a") (docker "b"))` +
+		` (list (docker "a") (docker "b")))`
 	checkContainers(code, exp, "a", "b", "a", "b")
 
-	code = `(let ((a "foo") (b "bar")) (list (atom docker a) (atom docker b)))`
-	exp = `(list (atom docker "foo") (atom docker "bar"))`
+	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
+	exp = `(list (docker "foo") (docker "bar"))`
 	checkContainers(code, exp, "foo", "bar")
 
-	runtimeErr(t, `(atom foo "bar")`, `unknown atom type: foo`)
-	runtimeErr(t, `(atom docker bar)`, `unassigned variable: bar`)
-	runtimeErr(t, `(atom docker 1)`, `atom argument must be a string, found: 1`)
+	runtimeErr(t, `(docker bar)`, `unassigned variable: bar`)
+	runtimeErr(t, `(docker 1)`, `docker image must be a string: 1`)
 }
 
 func TestLabel(t *testing.T) {
-	code := `(label "foo" (atom docker "a"))
-(label "bar" "foo" (atom docker "b"))
+	code := `(label "foo" (docker "a"))
+(label "bar" "foo" (docker "b"))
 (label "baz" "foo" "bar")
 (label "baz2" "baz")
-(label "qux" (atom docker "c"))`
+(label "qux" (docker "c"))`
 	ctx := parseTest(t, code, code)
 
 	expected := []*Container{
@@ -148,9 +147,9 @@ func TestLabel(t *testing.T) {
 			code, ctx.containers, expected))
 	}
 
-	code = `(label "foo" (makeList 2 (atom docker "a")))` +
+	code = `(label "foo" (makeList 2 (docker "a")))` +
 		"\n(label \"bar\" \"foo\")"
-	exp := `(label "foo" (list (atom docker "a") (atom docker "a")))` +
+	exp := `(label "foo" (list (docker "a") (docker "a")))` +
 		"\n(label \"bar\" \"foo\")"
 	ctx = parseTest(t, code, exp)
 	expected = []*Container{
@@ -165,18 +164,18 @@ func TestLabel(t *testing.T) {
 	runtimeErr(t, `(label "foo" "bar")`, `undefined label: "bar"`)
 	runtimeErr(t, `(label "foo" 1)`,
 		"label must apply to atoms or other labels, found: 1")
-	runtimeErr(t, `(label "foo" (atom docker "a")) (label "foo" "foo")`,
+	runtimeErr(t, `(label "foo" (docker "a")) (label "foo" "foo")`,
 		"attempt to redefine label: foo")
 }
 
 func TestConnect(t *testing.T) {
-	code := `(label "a" (atom docker "alpine"))
-(label "b" (atom docker "alpine"))
-(label "c" (atom docker "alpine"))
-(label "d" (atom docker "alpine"))
-(label "e" (atom docker "alpine"))
-(label "f" (atom docker "alpine"))
-(label "g" (atom docker "alpine"))
+	code := `(label "a" (docker "alpine"))
+(label "b" (docker "alpine"))
+(label "c" (docker "alpine"))
+(label "d" (docker "alpine"))
+(label "e" (docker "alpine"))
+(label "f" (docker "alpine"))
+(label "g" (docker "alpine"))
 (connect 80 "a" "b")
 (connect 80 "a" "b" "c")
 (connect (list 1 65534) "b" "c")
@@ -260,7 +259,6 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(define a 5.3)", "bad element: 5.3")
 
 	parseErr(t, "(badFun)", "unknown function: badFun")
-	parseErr(t, "(atom)", "error parsing bindings")
 }
 
 func TestRuntimeErrors(t *testing.T) {
@@ -297,8 +295,8 @@ func TestQuery(t *testing.T) {
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
 		(define d (list "1" 2 "3"))
-		(atom docker b)
-		(atom docker b)`))
+		(docker b)
+		(docker b)`))
 	if err != nil {
 		t.Error(err)
 		return

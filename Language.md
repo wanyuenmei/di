@@ -18,7 +18,7 @@ support recursion thus guaranteeing that all specifications terminate.
 
 ## Atoms
 ```
-(atom <type> <value>)
+(docker <image>)
 ```
 Atoms represent the basic unit of computation instantiated by the policy
 language.  Typically these will be containers (or kubernetes pods perhaps), but
@@ -27,17 +27,17 @@ instantiated in the policy language by simply declaring them (along with their
 basic configuration).
 
 ```
-(atom docker ubuntu:15.10) # Boot an Ubuntu 15.10 container.
-(makeList 5 (atom docker ubuntu)) # Boot 5 ubuntu:latest containers.
-(atom hostname external.org) # Register external.org as a reachable hostname.
+(docker ubuntu:15.10) # Boot an Ubuntu 15.10 container.
+(makeList 5 (docker ubuntu)) # Boot 5 ubuntu:latest containers.
+(host external.org) # Register external.org as a reachable hostname.
 ```
 
 Atoms can also be used to describe administrative constructs that aren't
 directly implemented in the dataplane.  Administrators for example:
 
 ```
-(atom github ejj) # Github user ejj
-(atom github melvinw) # Github user melvinw
+(user github ejj) # Github user ejj
+(user github melvinw) # Github user melvinw
 ```
 
 As DI supports more functionality, atoms will naturally expand to implement
@@ -54,23 +54,23 @@ may not label themselves.
 
 ```
 # A database is a postgres container.
-(label database (atom docker postgres))
+(label database (docker postgres))
 
 # These 5 apache containers make up the webTier.
-(label webTier (makeList 5 (atom docker apache))
+(label webTier (makeList 5 (docker apache))
 
 # A deployment consists of a database, a webTier, and a monitoring system
-(label deployment (list database webTier (atom docker monitor)))
+(label deployment (list database webTier (docker monitor)))
 ```
 
 The same labelling construction will be used for authentication policy as well.
 
 ```
 # ejj is a graduate student.
-(label grad (atom github ejj))
+(label grad (user github ejj))
 
 # melvinw is an undergraduate
-(label undergrad (atom github melvinw)
+(label undergrad (user github melvinw)
 
 # Undergraduate and graduate students are admins.
 (label admin (list grad undergrad))

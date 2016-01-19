@@ -281,8 +281,8 @@ func TestContainer(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "Red"  (makeList 2 (atom docker "alpine")))
-(label "Blue" (makeList 2 (atom docker "alpine")))`
+(label "Red"  (makeList 2 (docker "alpine")))
+(label "Blue" (makeList 2 (docker "alpine")))`
 	check(code, 2, 2, 0)
 
 	code = `
@@ -290,7 +290,7 @@ func TestContainer(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "Red"  (makeList 3 (atom docker "alpine")))`
+(label "Red"  (makeList 3 (docker "alpine")))`
 	check(code, 3, 0, 0)
 
 	code = `
@@ -298,9 +298,9 @@ func TestContainer(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "Red"  (makeList 1 (atom docker "alpine")))
-(label "Blue"  (makeList 5 (atom docker "alpine")))
-(label "Yellow"  (makeList 10 (atom docker "alpine")))`
+(label "Red"  (makeList 1 (docker "alpine")))
+(label "Blue"  (makeList 5 (docker "alpine")))
+(label "Yellow"  (makeList 10 (docker "alpine")))`
 	check(code, 1, 5, 10)
 
 	code = `
@@ -308,9 +308,9 @@ func TestContainer(t *testing.T) {
 (define Provider "AmazonSpot")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "Red"  (makeList 30 (atom docker "alpine")))
-(label "Blue"  (makeList 4 (atom docker "alpine")))
-(label "Yellow"  (makeList 7 (atom docker "alpine")))`
+(label "Red"  (makeList 30 (docker "alpine")))
+(label "Blue"  (makeList 4 (docker "alpine")))
+(label "Yellow"  (makeList 7 (docker "alpine")))`
 	check(code, 30, 4, 7)
 
 	code = `

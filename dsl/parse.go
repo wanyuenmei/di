@@ -126,12 +126,6 @@ func parseInterface(p1 interface{}) (ast, error) {
 			return nil, err
 		}
 		return astDefine(bind), nil
-	case "atom":
-		bind, err := parseBind(list[1:])
-		if err != nil {
-			return nil, err
-		}
-		return astAtom{bind.ident, bind.ast, 0}, nil
 	default:
 		return parseFunc(first, list[1:])
 	}
