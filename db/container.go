@@ -14,6 +14,7 @@ type Container struct {
 	IP      string
 	SchedID string
 	Image   string
+	Command []string
 	Labels  []string
 }
 

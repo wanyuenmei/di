@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/NetSys/di/db"
@@ -65,6 +66,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		}
 
 		dbc.Image = best.Image
+		dbc.Command = best.Command
 		dbc.Labels = best.Labels
 		view.Commit(dbc)
 	}
@@ -72,6 +74,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 	for _, dslc := range dslSlice {
 		dbc := view.InsertContainer()
 		dbc.Labels = dslc.Labels
+		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
 		view.Commit(dbc)
 	}
@@ -84,7 +87,8 @@ func bestFit(dbc db.Container, dslSlice []*dsl.Container) ([]*dsl.Container,
 	bestIndex := -1
 	bestDistance := -1
 	for i, dslc := range dslSlice {
-		if dbc.Image != dslc.Image {
+		if dbc.Image != dslc.Image ||
+			!reflect.DeepEqual(dbc.Command, dslc.Command) {
 			continue
 		}
 

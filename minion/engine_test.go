@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "a" (docker "alpine"))`
+	spec = `(label "a" (docker "alpine" "tail"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -40,8 +41,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Unexpected Database Change")
 	}
 
-	spec = `(label "b" (docker "alpine"))
-		 (label "a" "b" (docker "alpine"))`
+	spec = `(label "b" (docker "alpine" "tail"))
+		 (label "a" "b" (docker "alpine" "tail"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -49,8 +50,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "b" (docker "alpine"))
-		 (label "a" "b" (docker "ubuntu"))`
+	spec = `(label "b" (docker "alpine" "cat"))
+		 (label "a" "b" (docker "ubuntu" "tail"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -58,8 +59,8 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "b" (docker "ubuntu"))
-		 (label "a" "b" (docker "alpine"))`
+	spec = `(label "b" (docker "ubuntu" "cat"))
+		 (label "a" "b" (docker "alpine" "tail"))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -67,7 +68,7 @@ func TestContainerTxn(t *testing.T) {
 		t.Error("Expected Database Change")
 	}
 
-	spec = `(label "a" (makeList 2 (docker "alpine")))`
+	spec = `(label "a" (makeList 2 (docker "alpine" "cat")))`
 	if err := testContainerTxn(conn, spec); err != "" {
 		t.Error(err)
 	}
@@ -118,7 +119,9 @@ func testContainerTxn(conn db.Conn, spec string) string {
 	for _, e := range exp {
 		found := false
 		for i, c := range containers {
-			if e.Image == c.Image && editDistance(c.Labels, e.Labels) == 0 {
+			if e.Image == c.Image &&
+				reflect.DeepEqual(e.Command, c.Command) &&
+				editDistance(c.Labels, e.Labels) == 0 {
 				containers = append(containers[:i], containers[i+1:]...)
 				found = true
 				break
@@ -126,7 +129,8 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		}
 
 		if found == false {
-			return fmt.Sprintf("Missing expected label set: %s", e)
+			return fmt.Sprintf("Missing expected label set: %s\n%s",
+				e, containers)
 		}
 	}
 

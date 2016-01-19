@@ -21,7 +21,7 @@ func (s swarm) boot(dbcs []db.Container) error {
 	for _, dbc := range dbcs {
 		err := s.dk.Run(docker.RunOptions{
 			Image:  dbc.Image,
-			Args:   []string{"tail", "-f", "/dev/null"},
+			Args:   dbc.Command,
 			Labels: map[string]string{"DI": "Scheduler"},
 		})
 		if err != nil {
