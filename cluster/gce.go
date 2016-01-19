@@ -1,6 +1,11 @@
 package cluster
 
-// SETUP INSTRUCTIONS:
+////// ADDING YOUR SSH KEY:
+//
+// In the Google Developer Console navigate to:
+// Metadata > SSH Keys
+//
+////// SETTING UP API ACCESS:
 //
 // First, in the Google Developer Console navigate to:
 // API Manager > Credentials
@@ -35,7 +40,6 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-// XXX: Properly use/configue cloudConfig, db, ACL, ssh keys
 // XXX: Currently the oauth method is interactive (it opens up in the browser),
 // this should be changed to something non-interative to be used in a server
 // environment.
@@ -66,6 +70,7 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	if namespace == "" {
 		panic("newGCE(): namespace CANNOT be empty")
 	}
+
 	err := gceInit()
 	if err != nil {
 		log.Error("Initialize GCE failed")
@@ -81,7 +86,7 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 		imgURL: fmt.Sprintf(
 			"%s/%s",
 			COMPUTE_BASE_URL,
-			"coreos-cloud/global/images/coreos-stable-835-9-0-v20151208"),
+			"coreos-cloud/global/images/coreos-beta-899-3-0-v20160115"),
 	}
 	clst.baseURL = fmt.Sprintf("%s/%s", COMPUTE_BASE_URL, clst.projId)
 
@@ -118,7 +123,7 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 	var ids []string
 	for i := 0; i < count; i++ {
 		name := "di-" + uuid.NewV4().String()
-		_, err := clst.instanceNew(name)
+		_, err := clst.instanceNew(name, cloudConfig)
 		if err != nil {
 			return err
 		}
@@ -153,9 +158,9 @@ func (clst *gceCluster) stop(ids []string) error {
 	return nil
 }
 
-// XXX
+// Disconnect
 func (clst *gceCluster) disconnect() {
-	// stub
+	// Nothing to do here
 }
 
 // Blocking wait with a hardcoded timeout.
@@ -221,7 +226,7 @@ func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
 //
 // XXX: all kinds of hardcoded junk in here
 // XXX: currently only defines the bare minimum
-func (clst *gceCluster) instanceNew(name string) (*compute.Operation, error) {
+func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.Operation, error) {
 	instance := &compute.Instance{
 		Name:        name,
 		Description: clst.ns,
@@ -246,6 +251,18 @@ func (clst *gceCluster) instanceNew(name string) (*compute.Operation, error) {
 					},
 				},
 				Network: clst.baseURL + "/global/networks/default",
+			},
+		},
+		Metadata: &compute.Metadata{
+			Items: []*compute.MetadataItems{
+				{
+					// There is a generic startup script method and a
+					// CoreOS specific way of startup scripting
+					//
+					//Key:   "startup-script", //XXX This is the GENERIC way
+					Key:   "user-data", //XXX This is CoreOS SPECIFIC
+					Value: &cloudConfig,
+				},
 			},
 		},
 	}
