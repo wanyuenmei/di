@@ -39,6 +39,21 @@ func TestStrings(t *testing.T) {
 
 	code = "\"foo\"\n5\n\"bar\""
 	parseTest(t, code, code)
+
+	code = `(sprintf "foo")`
+	parseTest(t, code, `"foo"`)
+
+	code = `(sprintf "%s %s" "foo" "bar")`
+	parseTest(t, code, `"foo bar"`)
+
+	code = `(sprintf "%s %d" "foo" 3)`
+	parseTest(t, code, `"foo 3"`)
+
+	code = `(sprintf "%s %s" "foo" (list 1 2 3))`
+	parseTest(t, code, `"foo (list 1 2 3)"`)
+
+	runtimeErr(t, "(sprintf a)", "unassigned variable: a")
+	runtimeErr(t, "(sprintf 1)", "sprintf format must be a string: 1")
 }
 
 func TestLet(t *testing.T) {

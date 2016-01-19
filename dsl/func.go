@@ -8,15 +8,16 @@ type funcImpl struct {
 }
 
 var funcImplMap = map[astIdent]funcImpl{
+	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
+	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
 	"+":        {arithFun(func(a, b int) int { return a + b }), 2},
 	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
-	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
 	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
-	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
 	"connect":  {connectImpl, 3},
 	"label":    {labelImpl, 2},
 	"list":     {listImpl, 0},
 	"makeList": {makeListImpl, 2},
+	"sprintf":  {sprintfImpl, 1},
 }
 
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
@@ -193,6 +194,35 @@ func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
 		result = append(result, eval)
 	}
 	return astList(result), nil
+}
+
+func sprintfImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+
+	format, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("sprintf format must be a string: %s", args[0])
+	}
+
+	var ifaceArgs []interface{}
+	for _, arg := range args[1:] {
+		var iface interface{}
+		switch t := arg.(type) {
+		case astString:
+			iface = string(t)
+		case astInt:
+			iface = int(t)
+		default:
+			iface = t
+		}
+
+		ifaceArgs = append(ifaceArgs, iface)
+	}
+
+	return astString(fmt.Sprintf(string(format), ifaceArgs...)), nil
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
