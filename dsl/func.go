@@ -48,26 +48,32 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 }
 
 func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+	evalArgs, err := evalArgs(ctx, args__)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(args) > 1 {
-		return nil, fmt.Errorf("docker must have one argument")
-	}
-
-	str, ok := args[0].(astString)
-	if !ok {
-		return nil, fmt.Errorf("docker image must be a string: %s", args[0])
+	var args []string
+	for _, ev := range evalArgs {
+		arg, ok := ev.(astString)
+		if !ok {
+			return nil, fmt.Errorf("docker arguments must be strings: %s",
+				ev)
+		}
+		args = append(args, string(arg))
 	}
 
 	index := len(ctx.containers)
 
-	container := &Container{string(str), nil}
+	var command []string
+	if len(args) > 1 {
+		command = args[1:]
+	}
+
+	container := &Container{args[0], command, nil}
 	ctx.containers = append(ctx.containers, container)
 
-	return astAtom{astFunc{astIdent("docker"), dockerImpl, args}, index}, nil
+	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
 }
 
 func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {

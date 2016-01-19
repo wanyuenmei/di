@@ -98,12 +98,7 @@ func TestList(t *testing.T) {
 }
 
 func TestDocker(t *testing.T) {
-	checkContainers := func(code, expectedCode string, expStr ...string) {
-		var expected []*Container
-		for _, e := range expStr {
-			expected = append(expected, &Container{e, nil})
-		}
-
+	checkContainers := func(code, expectedCode string, expected ...*Container) {
 		ctx := parseTest(t, code, expectedCode)
 		if !reflect.DeepEqual(ctx.containers, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
@@ -112,22 +107,31 @@ func TestDocker(t *testing.T) {
 	}
 
 	code := `(docker "a")`
-	checkContainers(code, code, "a")
+	checkContainers(code, code, &Container{"a", nil, nil})
 
 	code = "(docker \"a\")\n(docker \"a\")"
-	checkContainers(code, code, "a", "a")
+	checkContainers(code, code, &Container{"a", nil, nil}, &Container{"a", nil, nil})
 
 	code = `(makeList 2 (list (docker "a") (docker "b")))`
 	exp := `(list (list (docker "a") (docker "b"))` +
 		` (list (docker "a") (docker "b")))`
-	checkContainers(code, exp, "a", "b", "a", "b")
+	checkContainers(code, exp,
+		&Container{"a", nil, nil},
+		&Container{"b", nil, nil},
+		&Container{"a", nil, nil},
+		&Container{"b", nil, nil})
+	code = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
+	checkContainers(code, code,
+		&Container{"a", []string{"c"}, nil},
+		&Container{"b", []string{"d", "e", "f"}, nil})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
-	checkContainers(code, exp, "foo", "bar")
+	checkContainers(code, exp, &Container{"foo", nil, nil},
+		&Container{"bar", nil, nil})
 
 	runtimeErr(t, `(docker bar)`, `unassigned variable: bar`)
-	runtimeErr(t, `(docker 1)`, `docker image must be a string: 1`)
+	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
 }
 
 func TestLabel(t *testing.T) {
@@ -139,9 +143,9 @@ func TestLabel(t *testing.T) {
 	ctx := parseTest(t, code, code)
 
 	expected := []*Container{
-		{"a", []string{"foo", "bar", "baz", "baz2"}},
-		{"b", []string{"bar", "baz", "baz2"}},
-		{"c", []string{"qux"}}}
+		{"a", nil, []string{"foo", "bar", "baz", "baz2"}},
+		{"b", nil, []string{"bar", "baz", "baz2"}},
+		{"c", nil, []string{"qux"}}}
 	if !reflect.DeepEqual(ctx.containers, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, ctx.containers, expected))
@@ -153,8 +157,8 @@ func TestLabel(t *testing.T) {
 		"\n(label \"bar\" \"foo\")"
 	ctx = parseTest(t, code, exp)
 	expected = []*Container{
-		{"a", []string{"foo", "bar"}},
-		{"a", []string{"foo", "bar"}}}
+		{"a", nil, []string{"foo", "bar"}},
+		{"a", nil, []string{"foo", "bar"}}}
 	if !reflect.DeepEqual(ctx.containers, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, ctx.containers, expected))

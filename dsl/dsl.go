@@ -14,8 +14,9 @@ type Dsl struct {
 }
 
 type Container struct {
-	Image  string
-	Labels []string
+	Image   string
+	Command []string
+	Labels  []string
 }
 
 type Connection struct {
