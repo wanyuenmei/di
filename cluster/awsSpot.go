@@ -126,20 +126,19 @@ func (clst awsSpotCluster) stop(ids []string) error {
 }
 
 func (clst awsSpotCluster) get() ([]machine, error) {
-	spots, err := clst.DescribeSpotInstanceRequests(
-		&ec2.DescribeSpotInstanceRequestsInput{
-			Filters: []*ec2.Filter{
-				{
-					Name:   aws.String("tag-key"),
-					Values: []*string{aws.String(clst.namespace)},
-				},
-			},
-		})
+	spots, err := clst.DescribeSpotInstanceRequests(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	insts, err := clst.DescribeInstances(nil)
+	insts, err := clst.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("instance.group-name"),
+				Values: []*string{aws.String(clst.namespace)},
+			},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -158,25 +157,52 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 			continue
 		}
 
+		var inst *ec2.Instance
+		if spot.InstanceId != nil {
+			inst = instMap[*spot.InstanceId]
+		}
+
+		// Due to a race condition in the AWS API, it's possible that spot
+		// requests might lose their Tags.  If handled naively, those spot
+		// requests would technically be without a namespace, meaning the
+		// instances they create would be live forever as zombies.
+		//
+		// To mitigate this issue, we rely not only on the spot request tags, but
+		// additionally on the instance security group.  If a spot request has a
+		// running instance in the appropriate security group, it is by
+		// definition in our namespace.  Thus, we only check the tags for spot
+		// requests without running instances.
+		if inst == nil {
+			var isOurs bool
+			for _, tag := range spot.Tags {
+				ns := clst.namespace
+				if tag != nil && tag.Key != nil && *tag.Key == ns {
+					isOurs = true
+					break
+				}
+			}
+
+			if !isOurs {
+				continue
+			}
+		}
+
 		machine := machine{
 			id: *spot.SpotInstanceRequestId,
 		}
 
-		if spot.InstanceId != nil {
-			awsInst := instMap[*spot.InstanceId]
-			if awsInst != nil {
-				if *awsInst.State.Name != ec2.InstanceStateNamePending &&
-					*awsInst.State.Name != ec2.InstanceStateNameRunning {
-					continue
-				}
+		if inst != nil {
+			if *inst.State.Name != ec2.InstanceStateNamePending &&
+				*inst.State.Name != ec2.InstanceStateNameRunning {
+				continue
+			}
 
-				if awsInst.PublicIpAddress != nil {
-					machine.publicIP = *awsInst.PublicIpAddress
-				}
+			if inst.PublicIpAddress != nil {
+				machine.publicIP = *inst.PublicIpAddress
+			}
 
-				if awsInst.PrivateIpAddress != nil {
-					machine.privateIP = *awsInst.PrivateIpAddress
-				}
+			if inst.PrivateIpAddress != nil {
+				machine.privateIP = *inst.PrivateIpAddress
 			}
 		}
 
