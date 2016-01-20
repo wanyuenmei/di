@@ -56,9 +56,9 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:    etcdArgsMaster(ip, token),
-		ovsdb:   nil,
-		kubelet: kubeletArgsMaster(ip),
+		etcd:  etcdArgsMaster(ip, token),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -86,7 +86,7 @@ func TestMaster(t *testing.T) {
 	exp = map[string][]string{
 		etcd:      etcdArgsMaster(ip, token),
 		ovsdb:     nil,
-		kubelet:   kubeletArgsMaster(ip),
+		swarm:     swarmArgsMaster(ip),
 		ovnnorthd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -107,9 +107,9 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:    etcdArgsMaster(ip, token),
-		ovsdb:   nil,
-		kubelet: kubeletArgsMaster(ip),
+		etcd:  etcdArgsMaster(ip, token),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -165,7 +165,7 @@ func TestWorker(t *testing.T) {
 		ovncontroller: nil,
 		ovsvswitchd:   nil,
 		ovnoverlay:    nil,
-		kubelet:       kubeletArgsWorker(ip, leaderIP),
+		swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -208,7 +208,7 @@ func TestChange(t *testing.T) {
 		ovncontroller: nil,
 		ovsvswitchd:   nil,
 		ovnoverlay:    nil,
-		kubelet:       kubeletArgsWorker(ip, leaderIP),
+		swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -238,9 +238,9 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:    etcdArgsMaster(ip, token),
-		ovsdb:   nil,
-		kubelet: kubeletArgsMaster(ip),
+		etcd:  etcdArgsMaster(ip, token),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -264,7 +264,7 @@ func TestChange(t *testing.T) {
 		ovncontroller: nil,
 		ovnoverlay:    nil,
 		ovsvswitchd:   nil,
-		kubelet:       kubeletArgsWorker(ip, leaderIP),
+		swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -367,12 +367,15 @@ func (f fakeDocker) List(filters map[string][]string) ([]docker.Container, error
 	panic("Supervisor does not List()")
 }
 
-func kubeletArgsMaster(ip string) []string {
-	return []string{"/usr/bin/boot-master", ip}
+func swarmArgsMaster(ip string) []string {
+	addr := ip + ":2377"
+	return []string{"manage", "--replication", "--addr=" + addr,
+		"--host=" + addr, "etcd://127.0.0.1:2379"}
 }
 
-func kubeletArgsWorker(ip, leader string) []string {
-	return []string{"/usr/bin/boot-worker", ip, leader}
+func swarmArgsWorker(ip string) []string {
+	addr := fmt.Sprintf("--addr=%s:2375", ip)
+	return []string{"join", addr, "etcd://127.0.0.1:2379"}
 }
 
 func etcdArgsMaster(ip, etcd string) []string {
@@ -410,7 +413,7 @@ func ovsExecArgs(id, ip, leader string) []string {
 func validateImage(image string) {
 	switch image {
 	case etcd:
-	case kubelet:
+	case swarm:
 	case ovnnorthd:
 	case ovnoverlay:
 	case ovncontroller:

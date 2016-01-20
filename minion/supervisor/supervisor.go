@@ -12,7 +12,7 @@ var log = logging.MustGetLogger("supervisor")
 
 const (
 	etcd          = "etcd"
-	kubelet       = "kubelet"
+	swarm         = "swarm"
 	ovnnorthd     = "ovn-northd"
 	ovncontroller = "ovn-controller"
 	ovnoverlay    = "ovn-overlay"
@@ -22,12 +22,12 @@ const (
 
 var images = map[string]string{
 	etcd:          "quay.io/coreos/etcd:v2.2.4",
-	kubelet:       "quay.io/netsys/kubelet",
-	ovnnorthd:     "quay.io/netsys/ovn-northd",
 	ovncontroller: "quay.io/netsys/ovn-controller",
+	ovnnorthd:     "quay.io/netsys/ovn-northd",
 	ovnoverlay:    "quay.io/netsys/ovn-overlay",
-	ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
 	ovsdb:         "quay.io/netsys/ovsdb-server",
+	ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
+	swarm:         "swarm:1.0.1",
 }
 
 const etcdHeartbeatInterval = "500"
@@ -97,7 +97,7 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	}
 
 	if sv.leaderIP != leaderIP || sv.IP != IP {
-		sv.Remove(kubelet)
+		sv.Remove(swarm)
 	}
 
 	sv.run(etcd, "--discovery="+etcdToken, "--proxy=on",
@@ -111,7 +111,7 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 		return
 	}
 
-	sv.run(kubelet, "/usr/bin/boot-worker", IP, leaderIP)
+	sv.run(swarm, "join", fmt.Sprintf("--addr=%s:2375", IP), "etcd://127.0.0.1:2379")
 
 	minions := sv.conn.SelectFromMinion(nil)
 	if len(minions) != 1 {
@@ -147,7 +147,7 @@ func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
 	}
 
 	if sv.IP != IP {
-		sv.Remove(kubelet)
+		sv.Remove(swarm)
 	}
 
 	if IP == "" || etcdToken == "" {
@@ -163,7 +163,10 @@ func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
 		"--heartbeat-interval="+etcdHeartbeatInterval,
 		"--election-timeout="+etcdElectionTimeout)
 	sv.run(ovsdb)
-	sv.run(kubelet, "/usr/bin/boot-master", IP)
+
+	swarmAddr := IP + ":2377"
+	sv.run(swarm, "manage", "--replication", "--addr="+swarmAddr,
+		"--host="+swarmAddr, "etcd://127.0.0.1:2379")
 
 	if leader {
 		/* XXX: If we fail to boot ovn-northd, we should give up
@@ -194,17 +197,6 @@ func (sv *supervisor) run(name string, args ...string) {
 		fallthrough
 	case ovncontroller:
 		ro.VolumesFrom = []string{ovsdb}
-	case kubelet:
-		ro.Binds = []string{
-			"/proc:/hostproc:ro",
-			"/var/run:/var/run:rw",
-			"/var/lib/docker:/var/lib/docker:rw",
-			"/etc/docker:/etc/docker:rw",
-			"/dev:/dev:rw",
-			"/sys:/sys:ro",
-		}
-		ro.Privileged = true
-		ro.PidMode = "host" // Use PID=host per the kubernetes documentation.
 	case etcd:
 		fallthrough
 	case ovsdb:

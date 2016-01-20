@@ -1,68 +1,80 @@
 package scheduler
 
-import "github.com/NetSys/di/db"
+import (
+	"fmt"
+	"runtime/debug"
 
-type Container struct {
-	ID    string
-	IP    string
-	Image string
-}
+	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/minion/docker"
+	"github.com/op/go-logging"
+)
+
+var log = logging.MustGetLogger("scheduler")
 
 type scheduler interface {
-	get() ([]Container, error)
+	list() ([]docker.Container, error)
 
-	boot(toBoot []db.Container)
+	boot(toBoot []db.Container) error
 
-	terminate(ids []string)
+	terminate(ids []string) error
 }
 
 func Run(conn db.Conn) {
 	var sched scheduler
-	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable).C {
+	for range conn.TriggerTick(10, db.MinionTable, db.ContainerTable).C {
 		minions := conn.SelectFromMinion(nil)
 		if len(minions) != 1 || minions[0].Role != db.Master ||
-			!minions[0].Leader {
+			minions[0].PrivateIP == "" || !minions[0].Leader {
 			sched = nil
 			continue
 		}
 
 		if sched == nil {
-			var err error
-			sched, err = NewKubectl()
+			ip := minions[0].PrivateIP
+			sched = newSwarm(docker.New(fmt.Sprintf("tcp://%s:2377", ip)))
+		}
+
+		// Each time we run through this loop, we may boot or terminate
+		// containers.  These modification should, in turn, be reflected in the
+		// database themselves.  For this reason, we attempt to sync until no
+		// database modifications happen (up to an arbitrary limit of three
+		// tries).
+		for i := 0; i < 3; i++ {
+			dkc, err := sched.list()
 			if err != nil {
-				continue
+				log.Warning("Failed to get containers: %s", err)
+				return
+			}
+
+			var boot []db.Container
+			var term []string
+			conn.Transact(func(view db.Database) error {
+				term, boot = sync(view, dkc)
+				return nil
+			})
+
+			if len(term) == 0 && len(boot) == 0 {
+				break
+			}
+
+			if err := sched.terminate(term); err != nil {
+				log.Warning("Failed to terminate containers: %s", err)
+				break
+			}
+
+			if err := sched.boot(boot); err != nil {
+				log.Warning("Failed to run containers: %s", err)
+				break
 			}
 		}
-
-		syncContainers(conn, sched)
 	}
 }
 
-func syncContainers(conn db.Conn, sched scheduler) {
-	for i := 0; i < 8; i++ {
-		schedC, err := sched.get()
-		if err != nil {
-			log.Warning("Failed to get containers: %s", err)
-			return
-		}
-
-		var boot []db.Container
-		var term []string
-		conn.Transact(func(view db.Database) error {
-			term, boot = syncDB(view, schedC)
-			return nil
-		})
-
-		sched.boot(boot)
-		sched.terminate(term)
-	}
-}
-
-func syncDB(view db.Database, schedC []Container) (term []string, boot []db.Container) {
-	containers := view.SelectFromContainer(nil)
+func sync(view db.Database, dkcs []docker.Container) ([]string, []db.Container) {
 	var unassigned []db.Container
 	cmap := make(map[string]db.Container)
-	for _, c := range containers {
+
+	for _, c := range view.SelectFromContainer(nil) {
 		if c.SchedID == "" {
 			unassigned = append(unassigned, c)
 		} else {
@@ -70,29 +82,35 @@ func syncDB(view db.Database, schedC []Container) (term []string, boot []db.Cont
 		}
 	}
 
-	for _, sc := range schedC {
-		if dbc, ok := cmap[sc.ID]; ok {
-			/* XXX: Change the label without rebooting the container. */
-			if dbc.Image == sc.Image {
-				writeContainer(view, dbc, sc)
+	var term []string
+	for _, dkc := range dkcs {
+		if dbc, ok := cmap[dkc.ID]; ok {
+			if dbc.Image == dkc.Image {
+				writeContainer(view, dbc, dkc.ID, dkc.IPs)
 			} else {
-				dbc.SchedID = ""
-				view.Commit(dbc)
-				term = append(term, sc.ID)
+				writeContainer(view, dbc, "", nil)
+				term = append(term, dkc.ID)
 			}
 		} else if len(unassigned) > 0 {
-			writeContainer(view, unassigned[0], sc)
+			writeContainer(view, unassigned[0], dkc.ID, dkc.IPs)
 			unassigned = unassigned[1:]
 		} else {
-			term = append(term, sc.ID)
+			term = append(term, dkc.ID)
 		}
 	}
 
 	return term, unassigned
 }
 
-func writeContainer(view db.Database, dbc db.Container, sc Container) {
-	dbc.SchedID = sc.ID
-	dbc.IP = sc.IP
+func writeContainer(view db.Database, dbc db.Container, id string, ips []string) {
+	dbc.SchedID = id
+	dbc.IP = ""
+
+	if len(ips) > 1 {
+		panic("Unimplemented\n" + string(debug.Stack()))
+	} else if len(ips) == 1 {
+		dbc.IP = ips[0]
+	}
+
 	view.Commit(dbc)
 }
