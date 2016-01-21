@@ -16,7 +16,7 @@ func main() {
 	log.Info("Minion Start")
 
 	conn := db.New()
-	go supervisor.Run(conn, docker.New())
+	go supervisor.Run(conn, docker.New("unix:///var/run/docker.sock"))
 	go scheduler.Run(conn)
 	go consensus.Run(conn)
 	minionServerRun(conn)

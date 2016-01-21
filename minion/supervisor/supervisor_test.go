@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/NetSys/di/db"
-	. "github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/di/minion/docker"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -55,10 +55,10 @@ func TestMaster(t *testing.T) {
 	})
 	ctx.run()
 
-	exp := map[Image][]string{
-		Etcd:    etcdArgsMaster(ip, token),
-		Ovsdb:   nil,
-		Kubelet: kubeletArgsMaster(ip),
+	exp := map[string][]string{
+		etcd:    etcdArgsMaster(ip, token),
+		ovsdb:   nil,
+		kubelet: kubeletArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -83,11 +83,11 @@ func TestMaster(t *testing.T) {
 	})
 	ctx.run()
 
-	exp = map[Image][]string{
-		Etcd:      etcdArgsMaster(ip, token),
-		Ovsdb:     nil,
-		Kubelet:   kubeletArgsMaster(ip),
-		Ovnnorthd: nil,
+	exp = map[string][]string{
+		etcd:      etcdArgsMaster(ip, token),
+		ovsdb:     nil,
+		kubelet:   kubeletArgsMaster(ip),
+		ovnnorthd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -106,10 +106,10 @@ func TestMaster(t *testing.T) {
 	})
 	ctx.run()
 
-	exp = map[Image][]string{
-		Etcd:    etcdArgsMaster(ip, token),
-		Ovsdb:   nil,
-		Kubelet: kubeletArgsMaster(ip),
+	exp = map[string][]string{
+		etcd:    etcdArgsMaster(ip, token),
+		ovsdb:   nil,
+		kubelet: kubeletArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -134,10 +134,10 @@ func TestWorker(t *testing.T) {
 	})
 	ctx.run()
 
-	exp := map[Image][]string{
-		Etcd:        etcdArgsWorker(token),
-		Ovsdb:       nil,
-		Ovsvswitchd: nil,
+	exp := map[string][]string{
+		etcd:        etcdArgsWorker(token),
+		ovsdb:       nil,
+		ovsvswitchd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -159,13 +159,13 @@ func TestWorker(t *testing.T) {
 	})
 	ctx.run()
 
-	exp = map[Image][]string{
-		Etcd:          etcdArgsWorker(token),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
-		Ovnoverlay:    nil,
-		Kubelet:       kubeletArgsWorker(ip, leaderIP),
+	exp = map[string][]string{
+		etcd:          etcdArgsWorker(token),
+		ovsdb:         nil,
+		ovncontroller: nil,
+		ovsvswitchd:   nil,
+		ovnoverlay:    nil,
+		kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -178,8 +178,8 @@ func TestWorker(t *testing.T) {
 		mID = m.MinionID
 		return nil
 	})
-	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+	exp = map[string][]string{
+		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -202,13 +202,13 @@ func TestChange(t *testing.T) {
 	})
 	ctx.run()
 
-	exp := map[Image][]string{
-		Etcd:          etcdArgsWorker(token),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
-		Ovnoverlay:    nil,
-		Kubelet:       kubeletArgsWorker(ip, leaderIP),
+	exp := map[string][]string{
+		etcd:          etcdArgsWorker(token),
+		ovsdb:         nil,
+		ovncontroller: nil,
+		ovsvswitchd:   nil,
+		ovnoverlay:    nil,
+		kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -221,14 +221,14 @@ func TestChange(t *testing.T) {
 		mID = m.MinionID
 		return nil
 	})
-	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+	exp = map[string][]string{
+		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
 	}
 
-	delete(ctx.fd.exec, Ovsvswitchd)
+	delete(ctx.fd.exec, ovsvswitchd)
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
@@ -237,10 +237,10 @@ func TestChange(t *testing.T) {
 	})
 	ctx.run()
 
-	exp = map[Image][]string{
-		Etcd:    etcdArgsMaster(ip, token),
-		Ovsdb:   nil,
-		Kubelet: kubeletArgsMaster(ip),
+	exp = map[string][]string{
+		etcd:    etcdArgsMaster(ip, token),
+		ovsdb:   nil,
+		kubelet: kubeletArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -258,21 +258,21 @@ func TestChange(t *testing.T) {
 	})
 	ctx.run()
 
-	exp = map[Image][]string{
-		Etcd:          etcdArgsWorker(token),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovnoverlay:    nil,
-		Ovsvswitchd:   nil,
-		Kubelet:       kubeletArgsWorker(ip, leaderIP),
+	exp = map[string][]string{
+		etcd:          etcdArgsWorker(token),
+		ovsdb:         nil,
+		ovncontroller: nil,
+		ovnoverlay:    nil,
+		ovsvswitchd:   nil,
+		kubelet:       kubeletArgsWorker(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
 			spew.Sdump(exp))
 	}
 
-	exp = map[Image][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+	exp = map[string][]string{
+		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -290,7 +290,7 @@ type testCtx struct {
 func initTest() testCtx {
 	conn := db.New()
 	ctx := testCtx{supervisor{},
-		fakeDocker{make(map[Image][]string), make(map[Image][]string),
+		fakeDocker{make(map[string][]string), make(map[string][]string),
 			make(map[string]bool)},
 		conn, conn.Trigger(db.MinionTable)}
 	ctx.sv.conn = ctx.conn
@@ -315,28 +315,28 @@ func (ctx testCtx) run() {
 }
 
 type fakeDocker struct {
-	running   map[Image][]string
-	exec      map[Image][]string
+	running   map[string][]string
+	exec      map[string][]string
 	lswitches map[string]bool
 }
 
-func (f fakeDocker) Run(image Image, args []string) error {
-	validateImage(image)
-	if _, ok := f.running[image]; ok {
+func (f fakeDocker) Run(opts docker.RunOptions) error {
+	validateImage(opts.Name)
+	if _, ok := f.running[opts.Name]; ok {
 		return nil
 	}
 
-	f.running[image] = args
+	f.running[opts.Name] = opts.Args
 	return nil
 }
 
-func (f fakeDocker) Exec(image Image, cmd []string) error {
+func (f fakeDocker) Exec(image string, cmd ...string) error {
 	validateImage(image)
 	f.exec[image] = cmd
 	return nil
 }
 
-func (f fakeDocker) Remove(image Image) error {
+func (f fakeDocker) Remove(image string) error {
 	validateImage(image)
 	delete(f.running, image)
 	return nil
@@ -353,6 +353,18 @@ func (f fakeDocker) CreateLSwitch(name string) error {
 		f.lswitches[name] = true
 	}
 	return nil
+}
+
+func (f fakeDocker) Pull(image string) error {
+	return nil
+}
+
+func (f fakeDocker) RemoveID(id string) error {
+	panic("Supervisor does not RemoveID()")
+}
+
+func (f fakeDocker) List(filters map[string][]string) ([]docker.Container, error) {
+	panic("Supervisor does not List()")
 }
 
 func kubeletArgsMaster(ip string) []string {
@@ -395,15 +407,15 @@ func ovsExecArgs(id, ip, leader string) []string {
 	}
 }
 
-func validateImage(image Image) {
+func validateImage(image string) {
 	switch image {
-	case Etcd:
-	case Kubelet:
-	case Ovnnorthd:
-	case Ovnoverlay:
-	case Ovncontroller:
-	case Ovsvswitchd:
-	case Ovsdb:
+	case etcd:
+	case kubelet:
+	case ovnnorthd:
+	case ovnoverlay:
+	case ovncontroller:
+	case ovsvswitchd:
+	case ovsdb:
 	default:
 		panic("Bad Image")
 	}
