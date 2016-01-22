@@ -9,5 +9,5 @@
 
 (label "Red"  (makeList WorkerCount       (docker "alpine")))
 (label "Blue" (makeList (* 2 WorkerCount) (docker "alpine")))
-(connect (1024 65535) "Red" "Blue")
-(connect (1024 65535) "Blue" "Red")
+(connect (list 1024 65535) "Red" "Blue")
+(connect (list 1024 65535) "Blue" "Red")
