@@ -43,7 +43,7 @@ func Run(conn db.Conn) {
 			dkc, err := sched.list()
 			if err != nil {
 				log.Warning("Failed to get containers: %s", err)
-				return
+				break
 			}
 
 			var boot []db.Container
