@@ -47,8 +47,15 @@ type RunOptions struct {
 	VolumesFrom []string
 }
 
+type pullRequest struct {
+	image string
+	done  chan error
+}
+
 type docker struct {
 	*dkc.Client
+
+	pullChan chan pullRequest
 }
 
 // New creates client to the docker daemon.
@@ -65,8 +72,32 @@ func New(sock string) Client {
 		break
 	}
 
-	dk := docker{client}
+	dk := docker{client, make(chan pullRequest)}
+	go pullServer(dk)
+
 	return dk
+}
+
+func pullServer(dk docker) {
+	images := make(map[string]struct{})
+
+	for req := range dk.pullChan {
+		if _, ok := images[req.image]; ok {
+			req.done <- nil
+			continue
+		}
+
+		log.Info("Pulling docker image: %s", req.image)
+		opts := dkc.PullImageOptions{Repository: string(req.image)}
+		err := dk.PullImage(opts, dkc.AuthConfiguration{})
+
+		if err != nil {
+			log.Warning("Failed to pull image: %s", req.image)
+		} else {
+			images[req.image] = struct{}{}
+		}
+		req.done <- err
+	}
 }
 
 func (dk docker) Run(opts RunOptions) error {
@@ -150,8 +181,9 @@ func (dk docker) CreateLSwitch(name string) error {
 }
 
 func (dk docker) Pull(image string) error {
-	return dk.PullImage(dkc.PullImageOptions{Repository: string(image)},
-		dkc.AuthConfiguration{})
+	done := make(chan error)
+	dk.pullChan <- pullRequest{image, done}
+	return <-done
 }
 
 func (dk docker) List(filters map[string][]string) ([]Container, error) {
