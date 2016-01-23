@@ -47,7 +47,7 @@ type supervisor struct {
 func Run(conn db.Conn, dk docker.Client) {
 	sv := supervisor{conn: conn, dk: dk}
 
-	for image := range images {
+	for _, image := range images {
 		go sv.dk.Pull(image)
 	}
 
