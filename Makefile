@@ -12,7 +12,9 @@ format:
 	gofmt -w -s .
 
 docker:
-	cd -P minion && CGO_ENABLED=0 go build . && docker build -t quay.io/netsys/di-minion .
+	cd -P minion && \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . && \
+	docker build -t quay.io/netsys/di-minion .
 
 check:
 	go test ./...
