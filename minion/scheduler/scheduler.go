@@ -14,9 +14,9 @@ var log = logging.MustGetLogger("scheduler")
 type scheduler interface {
 	list() ([]docker.Container, error)
 
-	boot(toBoot []db.Container) error
+	boot(toBoot []db.Container)
 
-	terminate(ids []string) error
+	terminate(ids []string)
 }
 
 func Run(conn db.Conn) {
@@ -49,28 +49,20 @@ func Run(conn db.Conn) {
 			var boot []db.Container
 			var term []string
 			conn.Transact(func(view db.Database) error {
-				term, boot = sync(view, dkc)
+				term, boot = syncDB(view, dkc)
 				return nil
 			})
 
 			if len(term) == 0 && len(boot) == 0 {
 				break
 			}
-
-			if err := sched.terminate(term); err != nil {
-				log.Warning("Failed to terminate containers: %s", err)
-				break
-			}
-
-			if err := sched.boot(boot); err != nil {
-				log.Warning("Failed to run containers: %s", err)
-				break
-			}
+			sched.terminate(term)
+			sched.boot(boot)
 		}
 	}
 }
 
-func sync(view db.Database, dkcs []docker.Container) ([]string, []db.Container) {
+func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container) {
 	var unassigned []db.Container
 	cmap := make(map[string]db.Container)
 
