@@ -102,7 +102,13 @@ func (fm *foreman) runOnce() {
 	fm.forEachMinion(func(m *minion) {
 		var err error
 		m.config, err = m.client.getMinion()
-		m.connected = err == nil
+
+		connected := err == nil
+		if connected && !m.connected {
+			log.Info("New Connection: %s", m.machine)
+		}
+
+		m.connected = connected
 	})
 
 	anyConnected := false
@@ -220,7 +226,6 @@ func newClient(ip string) (client, error) {
 		return nil, err
 	}
 
-	log.Info("New Minion Connection: %s", ip)
 	return clientImpl{pb.NewMinionClient(cc), cc}, nil
 }
 
