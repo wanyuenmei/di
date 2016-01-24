@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -23,24 +24,37 @@ func (s swarm) list() ([]docker.Container, error) {
 func (s swarm) boot(dbcs []db.Container) {
 	var wg sync.WaitGroup
 	wg.Add(len(dbcs))
-	defer wg.Wait()
 
+	logChn := make(chan string, 1)
 	for _, dbc := range dbcs {
 		dbc := dbc
 		go func() {
-			log.Info("Starting container: %s %s", dbc.Image,
-				strings.Join(dbc.Command, " "))
 			err := s.dk.Run(docker.RunOptions{
 				Image:  dbc.Image,
 				Args:   dbc.Command,
 				Labels: map[string]string{"DI": "Scheduler"},
 			})
 			if err != nil {
-				log.Warning("Failed to start container %s: %s",
+				msg := fmt.Sprintf("Failed to start container %s: %s",
 					dbc.Image, err)
+				select {
+				case logChn <- msg:
+				default:
+				}
+			} else {
+				log.Info("Started container: %s %s", dbc.Image,
+					strings.Join(dbc.Command, " "))
 			}
 			wg.Done()
 		}()
+	}
+
+	wg.Wait()
+
+	select {
+	case msg := <-logChn:
+		log.Warning(msg)
+	default:
 	}
 }
 
