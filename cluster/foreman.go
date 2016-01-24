@@ -50,6 +50,8 @@ type minion struct {
 func newForeman(conn db.Conn, clusterID int) foreman {
 	fm := createForeman(conn, clusterID)
 	go func() {
+		fm.init()
+
 		for range fm.trigger.C {
 			fm.runOnce()
 		}
@@ -74,6 +76,34 @@ func createForeman(conn db.Conn, clusterID int) foreman {
 
 func (fm *foreman) stop() {
 	fm.trigger.Stop()
+}
+
+func (fm *foreman) init() {
+	time.Sleep(5 * time.Second)
+
+	fm.conn.Transact(func(view db.Database) error {
+		machines := view.SelectFromMachine(func(m db.Machine) bool {
+			return m.ClusterID == fm.clusterID && m.PublicIP != "" &&
+				m.PrivateIP != "" && m.CloudID != ""
+		})
+
+		fm.updateMinionMap(machines)
+
+		fm.forEachMinion(func(m *minion) {
+			var err error
+			m.config, err = m.client.getMinion()
+			m.connected = err == nil
+		})
+
+		for _, m := range fm.minions {
+			if m.connected {
+				m.machine.Role = db.Role(m.config.Role)
+				view.Commit(m.machine)
+			}
+		}
+
+		return nil
+	})
 }
 
 func (fm *foreman) runOnce() {
