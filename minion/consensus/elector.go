@@ -9,7 +9,7 @@ import (
 )
 
 const electionTTL = 30
-const bootDelay = 30
+const bootDelay = 60
 const leaderKey = "/minion/leader"
 
 func watchLeader(conn db.Conn, kapi client.KeysAPI) {

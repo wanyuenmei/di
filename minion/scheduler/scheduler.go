@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
@@ -21,7 +22,7 @@ type scheduler interface {
 
 func Run(conn db.Conn) {
 	var sched scheduler
-	for range conn.TriggerTick(10, db.MinionTable, db.ContainerTable).C {
+	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable).C {
 		minions := conn.SelectFromMinion(nil)
 		if len(minions) != 1 || minions[0].Role != db.Master ||
 			minions[0].PrivateIP == "" || !minions[0].Leader {
@@ -32,6 +33,7 @@ func Run(conn db.Conn) {
 		if sched == nil {
 			ip := minions[0].PrivateIP
 			sched = newSwarm(docker.New(fmt.Sprintf("tcp://%s:2377", ip)))
+			time.Sleep(60 * time.Second)
 		}
 
 		// Each time we run through this loop, we may boot or terminate
