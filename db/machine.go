@@ -76,10 +76,14 @@ func (m Machine) less(arg row) bool {
 	downr := r.PublicIP == "" && r.PrivateIP == ""
 
 	switch {
+	case l.Role != r.Role:
+		return l.Role > r.Role
 	case upl != upr:
 		return upl
 	case downl != downr:
 		return !downl
+	case l.CloudID != r.CloudID:
+		return l.CloudID < r.CloudID
 	default:
 		return l.ID < r.ID
 	}
