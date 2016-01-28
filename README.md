@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/NetSys/di.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/di)
+
 # Development Instructions.
 
 The project is written in Go and therefore follows the standard Go
