@@ -1,7 +1,12 @@
 language: go
-
 go:
-  - 1.5
-
+- 1.5
 install: go get ./... github.com/davecgh/go-spew/spew
 script: make all check
+notifications:
+  slack:
+    rooms:
+      - secure: "VBUq6KFz7bayZ8ltF/bf+d77oiu6rMJ1d/VdZ4Wq3Tiws+FdnScs445qTAEbjcV4wVyRdB4G/Y31eEWPvbfRBtW0KX4SZaj4IoBn5IuwpoO5fFxrW5VFr3HUyGcrWi749ljEP8cnPIwpX80/ce25cgH1fy6b4HO+xOTirf/ia0yTIvZJgX6iiQVAbYgx2BrrwEJA6LQJLpPsLlaDkshWGNmpI9CiCnGtNr/RoOMOLJ5TsZEHBmH9OO0hqiY2krRcTZfWlHglTul7DyZ1qummVTGlBmt3sI6hbku4vURpgUhS7A8teg5+b/7OgWU441ZRFWOGIqKN+NJo/VVHrcP9Cz84A0zp7/ODpGgr8q05pQ/4R+7DSuETHIWr47RELQiouXEaxPnqJMBiBz4cvLMAKMQGJ0etjnhnjIRzomI0vOWQJ4Wt8/Kc1vu7uRHlFyB+Z6L8PL4536PIMyYIquU/9GO7yxLSG+n/nXAyjgx69WCajOoyWUjwF/RZEFx/+ThPaFDBVPyoTm/tf9eFshgKD0UfF9+I9msXRMMOtvY+93WWwe/xzJCVU8lIwC+hhwY/1UuV0nOhfkj9qIsdaEZfWdjk3N7940xzk3zAtKzUHPbEFQjqEMjaiovYuZBcyrk+mI2RgahA1SChLgHYqzEV81UCSuZi5XsK3YYuUo3y7oE="
+      - secure: "ymMHqDtfgJCoWwaoqYeLz+lKd9hDsR9nq9Iki71aHM6tGRH84mrwIv3/MmGXzq1XJgBUQK1HihD3m7mAauWaqTw+o4Xw5iu0LinycsNcBje7+W4GqT7Vpe6WOpGXLRHazvRgoFGUro8oMpuKaqN905u1FDppg5GfgZ0WHHJ3bB29HgfoZgmRm3ZRH4J3jihi5GNL8IAkT5ObOSUQQcjx/gR+I5Ly3HG/GfP0wx/d5Hnw0BN8Z1rc6THZjjse9Tj1qLT1Ox7NQcd1tbQpfx8h+S66Rm4Zz7LzOy7te0nZwEAAiWJaW5QaW9JSSRAy0y5PsyBlylcbZHh56y9CuSTzXNUkOPcWYftjY/JLbUdMNgpSLs5G9ydsNcH9KGuoB6fgZeyID+N2acYf0kJ7cmIGkz8vEZzUlsrSBTNMmwh+Llyred+FlVgQAn5Te0Sl75RGD1PsYZcBLOjJtFbnsRJ541/CHpOSbw0hDfPLquaXDuhCWziixGFQ4wvEwNYpdkfud3lZ70QMWKH9yHdfsNVZ1mBYxAFlsxgWRceAWg/IyuV79ZTFk68grUmgaaCggg/lme6O+MLDvlCXDqqbX6jc/0eYM+c/ONCQoNjLHxhHszsQL1Yt9QZ/7oCQMNqzSTHbTO/8A1u1Wp7sxsk/JQpzWT1vXTYWcymjz55TIih3wEI="
+    on_start: change
+    on_failure: change
