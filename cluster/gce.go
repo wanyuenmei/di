@@ -40,11 +40,12 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-// XXX: Currently the oauth method is interactive (it opens up in the browser),
-// this should be changed to something non-interative to be used in a server
-// environment.
-
 const COMPUTE_BASE_URL string = "https://www.googleapis.com/compute/v1/projects"
+const (
+	// These are the various types of Operations that the GCE API returns
+	ZONE = iota
+	GLOBAL
+)
 
 var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
@@ -93,6 +94,10 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	return clst, nil
 }
 
+// Get a list of machines from the cluster
+//
+// XXX: This doesn't use the instance group listing functionality because
+// listing that way doesn't get you information about the instances
 func (clst *gceCluster) get() ([]machine, error) {
 	list, err := gceService.Instances.List(clst.projId, clst.zone).
 		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
@@ -120,16 +125,21 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 	if count < 0 {
 		return errors.New("count must be >= 0")
 	}
-	var ids []string
+	log.Info("boot(): booting")
+	var ops []*compute.Operation
+	var urls []*compute.InstanceReference
 	for i := 0; i < count; i++ {
 		name := "di-" + uuid.NewV4().String()
-		_, err := clst.instanceNew(name, cloudConfig)
+		op, err := clst.instanceNew(name, cloudConfig)
 		if err != nil {
 			return err
 		}
-		ids = append(ids, name)
+		ops = append(ops, op)
+		urls = append(urls, &compute.InstanceReference{
+			Instance: op.TargetLink,
+		})
 	}
-	err := clst.wait(ids, true)
+	err := clst.wait(ops, ZONE)
 	if err != nil {
 		return err
 	}
@@ -143,14 +153,16 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 //
 // XXX: should probably have a better clean up routine if an error is encountered
 func (clst *gceCluster) stop(ids []string) error {
+	var ops []*compute.Operation
 	for _, id := range ids {
-		_, err := clst.instanceDel(id)
+		op, err := clst.instanceDel(id)
 		if err != nil {
 			log.Error("%+v", err)
 			continue
 		}
+		ops = append(ops, op)
 	}
-	err := clst.wait(ids, false)
+	err := clst.wait(ops, ZONE)
 	if err != nil {
 		log.Error("%+v", err)
 		return err
@@ -160,17 +172,20 @@ func (clst *gceCluster) stop(ids []string) error {
 
 // Disconnect
 func (clst *gceCluster) disconnect() {
-	// Nothing to do here
+	panic("disconnect(): unimplemented! Check the comments on what this should actually do")
+	// should cancel the ACL watch
+	// should delete the instances
+	// should delete the network
 }
 
 // Blocking wait with a hardcoded timeout.
 //
-// If live=true then wait for instance to be active, if live=false then
-// wait for instance to be deleted.
+// Waits on operations, the type of which is indicated by 'domain'. All
+// operations must be of the same 'domain'
 //
 // XXX: maybe not hardcode timeout, and retry interval
-func (clst *gceCluster) wait(ids []string, live bool) error {
-	if len(ids) == 0 {
+func (clst *gceCluster) wait(ops []*compute.Operation, domain int) error {
+	if len(ops) == 0 {
 		return nil
 	}
 
@@ -178,35 +193,31 @@ func (clst *gceCluster) wait(ids []string, live bool) error {
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 
-	var liveCount int
-	// Since this Map is used as a Set the value is not used
-	idSet := make(map[string]struct{})
-	for _, id := range ids {
-		idSet[id] = struct{}{}
-	}
-
-	log.Info("wait(): waiting...")
-	defer log.Info("wait(): finished waiting")
+	var op *compute.Operation = nil
+	var err error = nil
 	for {
 		select {
 		case <-after:
-			return errors.New("wait(): timeout")
+			return errors.New(fmt.Sprintf("wait(): timeout"))
 		case <-tick.C:
-			machs, err := clst.get()
-			if err != nil {
-				return err
-			}
-			liveCount = 0
-			for _, m := range machs {
-				_, inIds := idSet[m.id]
-				if inIds {
-					liveCount++
+			for len(ops) > 0 {
+				switch {
+				case domain == ZONE:
+					op, err = gceService.ZoneOperations.
+						Get(clst.projId, clst.zone, ops[0].Name).Do()
+				case domain == GLOBAL:
+					op, err = gceService.GlobalOperations.
+						Get(clst.projId, ops[0].Name).Do()
 				}
+				if err != nil {
+					return err
+				}
+				if op.Status != "DONE" {
+					break
+				}
+				ops = append(ops[:0], ops[1:]...)
 			}
-			if live && liveCount == len(ids) {
-				return nil
-			}
-			if !live && liveCount == 0 {
+			if len(ops) == 0 {
 				return nil
 			}
 		}
@@ -267,7 +278,8 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 		},
 	}
 
-	op, err := gceService.Instances.Insert(clst.projId, clst.zone, instance).Do()
+	op, err := gceService.Instances.
+		Insert(clst.projId, clst.zone, instance).Do()
 	if err != nil {
 		log.Error("%+v", err)
 		return nil, err
