@@ -31,11 +31,6 @@ func MyIp() (string, error) {
 	return httpRequest("http://checkip.amazonaws.com/")
 }
 
-func NewDiscoveryToken(memberCount int) (string, error) {
-	return httpRequest(fmt.Sprintf("https://discovery.etcd.io/new?size=%d",
-		memberCount))
-}
-
 func CloudConfig(keys []string) string {
 	cloudConfig := `#cloud-config
 

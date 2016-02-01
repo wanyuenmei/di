@@ -11,12 +11,12 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/pb"
-	"github.com/NetSys/di/util"
 )
 
 type client interface {
 	setMinion(pb.MinionConfig) error
 	getMinion() (pb.MinionConfig, error)
+	bootEtcd(pb.EtcdMembers) error
 	Close()
 }
 
@@ -151,7 +151,12 @@ func (fm *foreman) runOnce() {
 		return
 	}
 
-	token := fm.etcdToken()
+	var etcdIPs []string
+	for _, m := range fm.minions {
+		if m.machine.Role == db.Master && m.machine.PrivateIP != "" {
+			etcdIPs = append(etcdIPs, m.machine.PrivateIP)
+		}
+	}
 
 	fm.forEachMinion(func(m *minion) {
 		if !m.connected {
@@ -162,7 +167,6 @@ func (fm *foreman) runOnce() {
 			ID:        m.machine.CloudID,
 			Role:      pb.MinionConfig_Role(m.machine.Role),
 			PrivateIP: m.machine.PrivateIP,
-			EtcdToken: token,
 			Spec:      fm.spec,
 		}
 
@@ -172,6 +176,11 @@ func (fm *foreman) runOnce() {
 
 		err := m.client.setMinion(newConfig)
 		if err != nil {
+			return
+		}
+		err = m.client.bootEtcd(pb.EtcdMembers{IPs: etcdIPs})
+		if err != nil {
+			log.Warning(err.Error())
 			return
 		}
 	})
@@ -201,41 +210,6 @@ func (fm *foreman) updateMinionMap(machines []db.Machine) {
 			delete(fm.minions, k)
 		}
 	}
-}
-
-func (fm *foreman) etcdToken() string {
-	/* XXX: While this logic does ensure that all minions are running with the same
-	* EtcdToken, it doesn't take into acount a lot of the nuances of Etcd cluster
-	* memebership.  For example, the token of an established cluster is not allowed
-	* to change.  We need a more compelling story for this soon. */
-
-	EtcdToken := ""
-	for _, m := range fm.minions {
-		if m.config.EtcdToken != "" {
-			EtcdToken = m.config.EtcdToken
-			break
-		}
-	}
-
-	if EtcdToken != "" {
-		return EtcdToken
-	}
-
-	var masters []db.Machine
-	fm.conn.Transact(func(view db.Database) error {
-		masters = view.SelectFromMachine(func(m db.Machine) bool {
-			return m.ClusterID == fm.clusterID && m.Role == db.Master
-		})
-		return nil
-	})
-
-	EtcdToken, err := newToken(len(masters))
-	if err != nil {
-		log.Warning("Failed to generate discovery token.")
-		return ""
-	}
-
-	return EtcdToken
 }
 
 func (fm *foreman) forEachMinion(do func(minion *minion)) {
@@ -281,8 +255,24 @@ func (c clientImpl) setMinion(cfg pb.MinionConfig) error {
 		}
 		return err
 	} else if reply.Success == false {
-		err := fmt.Errorf("Unsuccessful minion reply: %s", reply.Error)
+		err := fmt.Errorf("unsuccessful minion reply: %s", reply.Error)
 		log.Warning(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (c clientImpl) bootEtcd(members pb.EtcdMembers) error {
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	reply, err := c.BootEtcd(ctx, &members)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
+	} else if reply.Success == false {
+		err := fmt.Errorf("unsuccessful minion reply: %s", reply.Error)
 		return err
 	}
 
@@ -292,5 +282,3 @@ func (c clientImpl) setMinion(cfg pb.MinionConfig) error {
 func (c clientImpl) Close() {
 	c.cc.Close()
 }
-
-var newToken = util.NewDiscoveryToken

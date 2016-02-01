@@ -24,7 +24,6 @@ func TestNone(t *testing.T) {
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.PrivateIP = "1.2.3.4"
-		m.EtcdToken = "EtcdToken"
 		m.Leader = false
 		m.LeaderIP = "5.6.7.8"
 		view.Commit(m)
@@ -44,19 +43,19 @@ func TestNone(t *testing.T) {
 func TestMaster(t *testing.T) {
 	ctx := initTest()
 	ip := "1.2.3.4"
-	token := "1"
+	etcdIPs := []string{""}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdToken = token
+		m.EtcdIPs = etcdIPs
 		view.Commit(m)
 		return nil
 	})
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:  etcdArgsMaster(ip, token),
+		etcd:  etcdArgsMaster(ip, etcdIPs),
 		ovsdb: nil,
 		swarm: swarmArgsMaster(ip),
 	}
@@ -69,14 +68,14 @@ func TestMaster(t *testing.T) {
 		t.Errorf("fd.exec = %s\n\nwant <empty>", spew.Sdump(ctx.fd.exec))
 	}
 
-	/* Change IP, etcd token, and become the leader. */
+	/* Change IP, etcd IPs, and become the leader. */
 	ip = "8.8.8.8"
-	token = "2"
+	etcdIPs = []string{"8.8.8.8"}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdToken = token
+		m.EtcdIPs = etcdIPs
 		m.Leader = true
 		view.Commit(m)
 		return nil
@@ -84,7 +83,7 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:      etcdArgsMaster(ip, token),
+		etcd:      etcdArgsMaster(ip, etcdIPs),
 		ovsdb:     nil,
 		swarm:     swarmArgsMaster(ip),
 		ovnnorthd: nil,
@@ -107,7 +106,7 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, token),
+		etcd:  etcdArgsMaster(ip, etcdIPs),
 		ovsdb: nil,
 		swarm: swarmArgsMaster(ip),
 	}
@@ -123,19 +122,19 @@ func TestMaster(t *testing.T) {
 func TestWorker(t *testing.T) {
 	ctx := initTest()
 	ip := "1.2.3.4"
-	token := "1"
+	etcdIPs := []string{ip}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdToken = token
+		m.EtcdIPs = etcdIPs
 		view.Commit(m)
 		return nil
 	})
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:        etcdArgsWorker(token),
+		etcd:        etcdArgsWorker(etcdIPs),
 		ovsdb:       nil,
 		ovsvswitchd: nil,
 	}
@@ -152,7 +151,7 @@ func TestWorker(t *testing.T) {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdToken = token
+		m.EtcdIPs = etcdIPs
 		m.LeaderIP = leaderIP
 		view.Commit(m)
 		return nil
@@ -160,7 +159,7 @@ func TestWorker(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:          etcdArgsWorker(token),
+		etcd:          etcdArgsWorker(etcdIPs),
 		ovsdb:         nil,
 		ovncontroller: nil,
 		ovsvswitchd:   nil,
@@ -189,13 +188,13 @@ func TestWorker(t *testing.T) {
 func TestChange(t *testing.T) {
 	ctx := initTest()
 	ip := "1.2.3.4"
-	token := "1"
 	leaderIP := "5.6.7.8"
+	etcdIPs := []string{ip, leaderIP}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdToken = token
+		m.EtcdIPs = etcdIPs
 		m.LeaderIP = leaderIP
 		view.Commit(m)
 		return nil
@@ -203,7 +202,7 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:          etcdArgsWorker(token),
+		etcd:          etcdArgsWorker(etcdIPs),
 		ovsdb:         nil,
 		ovncontroller: nil,
 		ovsvswitchd:   nil,
@@ -238,7 +237,7 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, token),
+		etcd:  etcdArgsMaster(ip, etcdIPs),
 		ovsdb: nil,
 		swarm: swarmArgsMaster(ip),
 	}
@@ -259,7 +258,7 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:          etcdArgsWorker(token),
+		etcd:          etcdArgsWorker(etcdIPs),
 		ovsdb:         nil,
 		ovncontroller: nil,
 		ovnoverlay:    nil,
@@ -276,6 +275,98 @@ func TestChange(t *testing.T) {
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
+	}
+}
+
+func TestEtcdAdd(t *testing.T) {
+	ctx := initTest()
+	ip := "1.2.3.4"
+	etcdIPs := []string{ip, "5.6.7.8"}
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		m.Role = db.Master
+		m.PrivateIP = ip
+		m.EtcdIPs = etcdIPs
+		view.Commit(m)
+		return nil
+	})
+	ctx.run()
+
+	exp := map[string][]string{
+		etcd:  etcdArgsMaster(ip, etcdIPs),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
+	}
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
+			spew.Sdump(exp))
+	}
+
+	// Add a new master
+	etcdIPs = append(etcdIPs, "9.10.11.12")
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		m.Role = db.Master
+		m.EtcdIPs = etcdIPs
+		view.Commit(m)
+		return nil
+	})
+	ctx.run()
+
+	exp = map[string][]string{
+		etcd:  etcdArgsMaster(ip, etcdIPs),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
+	}
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
+			spew.Sdump(exp))
+	}
+}
+
+func TestEtcdRemove(t *testing.T) {
+	ctx := initTest()
+	ip := "1.2.3.4"
+	etcdIPs := []string{ip, "5.6.7.8"}
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		m.Role = db.Master
+		m.PrivateIP = ip
+		m.EtcdIPs = etcdIPs
+		view.Commit(m)
+		return nil
+	})
+	ctx.run()
+
+	exp := map[string][]string{
+		etcd:  etcdArgsMaster(ip, etcdIPs),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
+	}
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
+			spew.Sdump(exp))
+	}
+
+	// Remove a master
+	etcdIPs = etcdIPs[1:]
+	ctx.conn.Transact(func(view db.Database) error {
+		m := view.SelectFromMinion(nil)[0]
+		m.Role = db.Master
+		m.EtcdIPs = etcdIPs
+		view.Commit(m)
+		return nil
+	})
+	ctx.run()
+
+	exp = map[string][]string{
+		etcd:  etcdArgsMaster(ip, etcdIPs),
+		ovsdb: nil,
+		swarm: swarmArgsMaster(ip),
+	}
+	if !reflect.DeepEqual(ctx.fd.running, exp) {
+		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
+			spew.Sdump(exp))
 	}
 }
 
@@ -379,25 +470,26 @@ func swarmArgsWorker(ip string) []string {
 	return []string{"join", addr, "etcd://127.0.0.1:2379"}
 }
 
-func etcdArgsMaster(ip, etcd string) []string {
+func etcdArgsMaster(ip string, etcdIPs []string) []string {
 	return []string{
 		fmt.Sprintf("--name=master-%s", ip),
-		fmt.Sprintf("--discovery=%s", etcd),
+		fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		fmt.Sprintf("--advertise-client-urls=http://%s:2379", ip),
 		fmt.Sprintf("--listen-peer-urls=http://%s:2380", ip),
 		fmt.Sprintf("--initial-advertise-peer-urls=http://%s:2380", ip),
 		"--listen-client-urls=http://0.0.0.0:2379",
 		"--heartbeat-interval=500",
+		"--initial-cluster-state=new",
 		"--election-timeout=5000",
 	}
 }
 
-func etcdArgsWorker(etcd string) []string {
+func etcdArgsWorker(etcdIPs []string) []string {
 	return []string{
-		"--discovery=" + etcd,
-		"--proxy=on",
+		fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		"--heartbeat-interval=500",
 		"--election-timeout=5000",
+		"--proxy=on",
 	}
 }
 

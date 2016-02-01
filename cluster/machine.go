@@ -17,7 +17,6 @@ type Machine struct {
 	PublicIP  *string /* IP address of the machine, or nil */
 	PrivateIP *string /* Private IP address of the machine, or nil */
 	State     string
-	EtcdToken string
 	Role      Role
 }
 
@@ -78,10 +77,6 @@ func (machine Machine) String() string {
 
 	if machine.PrivateIP != nil {
 		result += ", " + *machine.PrivateIP
-	}
-
-	if machine.EtcdToken != "" {
-		result += ", " + machine.EtcdToken
 	}
 
 	result += "}"

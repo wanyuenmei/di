@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/NetSys/di/db"
@@ -127,7 +126,7 @@ func startTest() (foreman, *clients) {
 	fm := createForeman(db.New(), 1)
 	clients := &clients{make(map[string]*fakeClient), 0}
 	fm.newClient = func(ip string) (client, error) {
-		fc := &fakeClient{clients, ip, pb.MinionConfig{}}
+		fc := &fakeClient{clients, ip, pb.MinionConfig{}, pb.EtcdMembers{}}
 		clients.clients[ip] = fc
 		clients.newCalls++
 		return fc, nil
@@ -135,20 +134,20 @@ func startTest() (foreman, *clients) {
 	return fm, clients
 }
 
-func init() {
-	newToken = func(n int) (string, error) {
-		return fmt.Sprintf("%d", n), nil
-	}
-}
-
 type fakeClient struct {
-	clients *clients
-	ip      string
-	mc      pb.MinionConfig
+	clients     *clients
+	ip          string
+	mc          pb.MinionConfig
+	etcdMembers pb.EtcdMembers
 }
 
 func (fc *fakeClient) setMinion(mc pb.MinionConfig) error {
 	fc.mc = mc
+	return nil
+}
+
+func (fc *fakeClient) bootEtcd(etcdMembers pb.EtcdMembers) error {
+	fc.etcdMembers = etcdMembers
 	return nil
 }
 

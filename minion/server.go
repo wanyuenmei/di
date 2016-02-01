@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"sort"
 	"time"
 
 	"github.com/NetSys/di/db"
@@ -52,7 +53,6 @@ func (s server) GetMinionConfig(cts context.Context,
 		cfg.ID = m.MinionID
 		cfg.Role = pb.MinionConfig_Role(m.Role)
 		cfg.PrivateIP = m.PrivateIP
-		cfg.EtcdToken = m.EtcdToken
 	default:
 		panic("Not Reached")
 	}
@@ -78,10 +78,33 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.MinionID = msg.ID
 		minion.Role = db.Role(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
-		minion.EtcdToken = msg.EtcdToken
 		view.Commit(minion)
 
 		updatePolicy(view, msg.Spec)
+
+		return nil
+	})
+
+	return &pb.Reply{Success: true}, nil
+}
+
+func (s server) BootEtcd(ctx context.Context,
+	members *pb.EtcdMembers) (*pb.Reply, error) {
+	go s.Transact(func(view db.Database) error {
+		minionSlice := view.SelectFromMinion(nil)
+		var minion db.Minion
+		switch len(minionSlice) {
+		case 0:
+			log.Info("Received initial boot etcd request")
+			minion = view.InsertMinion()
+		case 1:
+			minion = minionSlice[0]
+		default:
+			panic("Not Reached")
+		}
+
+		minion.EtcdIPs = members.IPs
+		view.Commit(minion)
 
 		return nil
 	})

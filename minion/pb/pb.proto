@@ -3,6 +3,7 @@ syntax = "proto3";
 service Minion {
     rpc SetMinionConfig(MinionConfig) returns(Reply) {}
     rpc GetMinionConfig(Request) returns (MinionConfig) {}
+    rpc BootEtcd(EtcdMembers) returns (Reply) {}
 }
 
 message MinionConfig {
@@ -15,8 +16,7 @@ message MinionConfig {
     string ID = 1;
     Role role = 2;
     string PrivateIP = 3;
-    string EtcdToken = 4;
-    string Spec = 5;
+    string Spec = 4;
 }
 
 message Reply {
@@ -25,4 +25,8 @@ message Reply {
 }
 
 message Request {
+}
+
+message EtcdMembers {
+    repeated string IPs = 1;
 }

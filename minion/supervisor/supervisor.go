@@ -2,6 +2,8 @@ package supervisor
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
@@ -37,11 +39,11 @@ type supervisor struct {
 	conn db.Conn
 	dk   docker.Client
 
-	role      db.Role
-	etcdToken string
-	leaderIP  string
-	IP        string
-	leader    bool
+	role     db.Role
+	etcdIPs  []string
+	leaderIP string
+	IP       string
+	leader   bool
 }
 
 func Run(conn db.Conn, dk docker.Client) {
@@ -64,7 +66,7 @@ func (sv *supervisor) runOnce() {
 	}
 
 	if sv.role == minion.Role &&
-		sv.etcdToken == minion.EtcdToken &&
+		reflect.DeepEqual(sv.etcdIPs, minion.EtcdIPs) &&
 		sv.leaderIP == minion.LeaderIP &&
 		sv.IP == minion.PrivateIP &&
 		sv.leader == minion.Leader {
@@ -77,22 +79,22 @@ func (sv *supervisor) runOnce() {
 
 	switch minion.Role {
 	case db.Master:
-		sv.updateMaster(minion.PrivateIP, minion.EtcdToken,
+		sv.updateMaster(minion.PrivateIP, minion.EtcdIPs,
 			minion.Leader)
 	case db.Worker:
 		sv.updateWorker(minion.PrivateIP, minion.LeaderIP,
-			minion.EtcdToken)
+			minion.EtcdIPs)
 	}
 
 	sv.role = minion.Role
-	sv.etcdToken = minion.EtcdToken
+	sv.etcdIPs = minion.EtcdIPs
 	sv.leaderIP = minion.LeaderIP
 	sv.IP = minion.PrivateIP
 	sv.leader = minion.Leader
 }
 
-func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
-	if sv.etcdToken != etcdToken {
+func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string) {
+	if !reflect.DeepEqual(sv.etcdIPs, etcdIPs) {
 		sv.Remove(etcd)
 	}
 
@@ -100,9 +102,10 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 		sv.Remove(swarm)
 	}
 
-	sv.run(etcd, "--discovery="+etcdToken, "--proxy=on",
+	sv.run(etcd, fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		"--heartbeat-interval="+etcdHeartbeatInterval,
-		"--election-timeout="+etcdElectionTimeout)
+		"--election-timeout="+etcdElectionTimeout,
+		"--proxy=on")
 
 	sv.run(ovsdb)
 	sv.run(ovsvswitchd)
@@ -136,8 +139,8 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	sv.run(ovnoverlay)
 }
 
-func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
-	if sv.IP != IP || sv.etcdToken != etcdToken {
+func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
+	if sv.IP != IP || !reflect.DeepEqual(sv.etcdIPs, etcdIPs) {
 		sv.Remove(etcd)
 	}
 
@@ -145,17 +148,18 @@ func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
 		sv.Remove(swarm)
 	}
 
-	if IP == "" || etcdToken == "" {
+	if IP == "" || len(etcdIPs) == 0 {
 		return
 	}
 
 	sv.run(etcd, fmt.Sprintf("--name=master-%s", IP),
-		fmt.Sprintf("--discovery=%s", etcdToken),
+		fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		fmt.Sprintf("--advertise-client-urls=http://%s:2379", IP),
 		fmt.Sprintf("--listen-peer-urls=http://%s:2380", IP),
 		fmt.Sprintf("--initial-advertise-peer-urls=http://%s:2380", IP),
 		"--listen-client-urls=http://0.0.0.0:2379",
 		"--heartbeat-interval="+etcdHeartbeatInterval,
+		"--initial-cluster-state=new",
 		"--election-timeout="+etcdElectionTimeout)
 	sv.run(ovsdb)
 
@@ -213,4 +217,16 @@ func (sv *supervisor) RemoveAll() {
 	for name := range images {
 		sv.Remove(name)
 	}
+}
+
+func initialClusterString(etcdIPs []string) string {
+	var initialCluster []string
+	for _, ip := range etcdIPs {
+		initialCluster = append(initialCluster, fmt.Sprintf("%s=http://%s:2380", nodeName(ip), ip))
+	}
+	return strings.Join(initialCluster, ",")
+}
+
+func nodeName(IP string) string {
+	return fmt.Sprintf("master-%s", IP)
 }
