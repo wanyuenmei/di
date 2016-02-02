@@ -89,6 +89,12 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 			log.Error("%+v", err)
 		}
 		cloudConfig = util.CloudConfigCoreOS(keys)
+	case db.Azure:
+		cloud, err = newAzure(conn, id, namespace)
+		if err != nil {
+			log.Error("%+v", err)
+		}
+		cloudConfig = util.CloudConfigUbuntu(keys)
 	case db.Vagrant:
 		cloud = newVagrant(namespace)
 		if cloud == nil {
