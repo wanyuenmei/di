@@ -85,6 +85,11 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		if err != nil {
 			log.Error("%+v", err)
 		}
+	case db.Vagrant:
+		cloud = newVagrant(namespace)
+		if cloud == nil {
+			log.Error("Vagrant cluster didn't boot.")
+		}
 	default:
 		panic("Unimplemented")
 	}

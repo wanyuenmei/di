@@ -40,6 +40,7 @@ const (
 	// AmazonSpot runs spot requests on Amazon EC2.
 	AmazonSpot Provider = iota
 	Google
+	Vagrant
 )
 
 // ParseProvider returns the Provider represented by 'name' or an error.
@@ -49,6 +50,8 @@ func ParseProvider(name string) (Provider, error) {
 		return AmazonSpot, nil
 	case "Google":
 		return Google, nil
+	case "Vagrant":
+		return Vagrant, nil
 	default:
 		return 0, fmt.Errorf("Unknown provider: %s", name)
 	}

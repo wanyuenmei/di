@@ -4,9 +4,9 @@ package db
 
 import "fmt"
 
-const _Provider_name = "AmazonSpotGoogle"
+const _Provider_name = "AmazonSpotGoogleVagrant"
 
-var _Provider_index = [...]uint8{0, 10, 16}
+var _Provider_index = [...]uint8{0, 10, 16, 23}
 
 func (i Provider) String() string {
 	if i < 0 || i >= Provider(len(_Provider_index)-1) {

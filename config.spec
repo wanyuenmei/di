@@ -1,5 +1,5 @@
 (define Namespace "")
-(define Provider "AmazonSpot")
+(define Provider "Vagrant")
 (define MasterCount 1)
 (define WorkerCount (+ 1 MasterCount))
 (define AdminACL (list "local"))
