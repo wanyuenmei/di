@@ -30,7 +30,6 @@ type Client interface {
 	Remove(name string) error
 	RemoveID(id string) error
 	Pull(image string) error
-	CreateLSwitch(name string) error
 	List(filters map[string][]string) ([]Container, error)
 }
 
@@ -170,14 +169,6 @@ func (dk docker) RemoveID(id string) error {
 	}
 
 	return nil
-}
-
-func (dk docker) CreateLSwitch(name string) error {
-	_, err := dk.CreateNetwork(dkc.CreateNetworkOptions{
-		Name:           name,
-		CheckDuplicate: true,
-		Driver:         "openvswitch"})
-	return err
 }
 
 func (dk docker) Pull(image string) error {

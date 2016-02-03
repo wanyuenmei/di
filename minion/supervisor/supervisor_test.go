@@ -348,13 +348,6 @@ func (f fakeDocker) RemoveAll() {
 	}
 }
 
-func (f fakeDocker) CreateLSwitch(name string) error {
-	if _, ok := f.lswitches[name]; !ok {
-		f.lswitches[name] = true
-	}
-	return nil
-}
-
 func (f fakeDocker) Pull(image string) error {
 	return nil
 }

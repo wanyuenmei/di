@@ -134,11 +134,6 @@ func (sv *supervisor) updateWorker(IP, leaderIP, etcdToken string) {
 	sv.run(ovncontroller)
 
 	sv.run(ovnoverlay)
-
-	/* Create the di logical switch if it doesn't exist. */
-	if err := sv.dk.CreateLSwitch("di"); err != nil {
-		log.Warning("Failed to create LSwitch: %s", err)
-	}
 }
 
 func (sv *supervisor) updateMaster(IP, etcdToken string, leader bool) {
