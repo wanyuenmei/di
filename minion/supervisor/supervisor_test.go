@@ -360,6 +360,14 @@ func (f fakeDocker) List(filters map[string][]string) ([]docker.Container, error
 	panic("Supervisor does not List()")
 }
 
+func (f fakeDocker) Get(id string) (docker.Container, error) {
+	panic("Supervisor does not Get()")
+}
+
+func (f fakeDocker) Copy(id, hostFile, cFile string) error {
+	panic("Supervisor does not Copy()")
+}
+
 func swarmArgsMaster(ip string) []string {
 	addr := ip + ":2377"
 	return []string{"manage", "--replication", "--addr=" + addr,

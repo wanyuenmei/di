@@ -2,6 +2,7 @@ package docker
 
 import (
 	"errors"
+	"os"
 	"strings"
 	"time"
 
@@ -14,13 +15,12 @@ var log = logging.MustGetLogger("docker")
 var errNoSuchContainer = errors.New("container does not exist")
 
 type Container struct {
-	ID    string
-	Image string
-
-	IPs   []string
-	Names []string
-
-	Labels map[string]string
+	ID      string
+	Name    string
+	Image   string
+	IP      string
+	Command []string
+	Pid     int
 }
 
 // A Client to the local docker daemon.
@@ -31,6 +31,8 @@ type Client interface {
 	RemoveID(id string) error
 	Pull(image string) error
 	List(filters map[string][]string) ([]Container, error)
+	Get(id string) (Container, error)
+	Copy(id, hostFile, cFile string) error
 }
 
 type RunOptions struct {
@@ -101,7 +103,7 @@ func pullServer(dk docker) {
 
 func (dk docker) Run(opts RunOptions) error {
 	if opts.Name != "" {
-		_, err := dk.get(opts.Name)
+		_, err := dk.getID(opts.Name)
 		if err == errNoSuchContainer {
 			// Only log the first time we attempt to boot.
 			log.Info("Start Container: %s", opts.Name)
@@ -133,7 +135,7 @@ func (dk docker) Run(opts RunOptions) error {
 }
 
 func (dk docker) Exec(name string, cmd ...string) error {
-	id, err := dk.get(name)
+	id, err := dk.getID(name)
 	if err != nil {
 		return err
 	}
@@ -153,7 +155,7 @@ func (dk docker) Exec(name string, cmd ...string) error {
 }
 
 func (dk docker) Remove(name string) error {
-	id, err := dk.get(name)
+	id, err := dk.getID(name)
 	if err != nil {
 		return nil // Can't remove a non-existent container.
 	}
@@ -179,28 +181,50 @@ func (dk docker) Pull(image string) error {
 
 func (dk docker) List(filters map[string][]string) ([]Container, error) {
 	opts := dkc.ListContainersOptions{All: true, Filters: filters}
-	apic, err := dk.ListContainers(opts)
+	apics, err := dk.ListContainers(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	var containers []Container
-	for _, c := range apic {
-		var ips []string
-		for _, port := range c.Ports {
-			ips = append(ips, port.IP)
+	for _, apic := range apics {
+		c, err := dk.Get(apic.ID)
+		if err != nil {
+			log.Warning("Failed to inspect container %s: %s", apic.ID, err)
+			continue
 		}
 
-		containers = append(containers, Container{
-			Names:  c.Names,
-			ID:     c.ID,
-			IPs:    ips,
-			Image:  c.Image,
-			Labels: c.Labels,
-		})
+		containers = append(containers, c)
 	}
 
 	return containers, nil
+}
+
+func (dk docker) Get(id string) (Container, error) {
+	c, err := dk.InspectContainer(id)
+	if err != nil {
+		return Container{}, err
+	}
+
+	return Container{
+		Name:    c.Name,
+		ID:      c.ID,
+		IP:      c.NetworkSettings.IPAddress,
+		Image:   c.Config.Image,
+		Command: append([]string{c.Path}, c.Args...),
+		Pid:     c.State.Pid,
+	}, nil
+}
+
+func (dk docker) Copy(id, hostFile, cFile string) error {
+	file, err := os.Open(hostFile)
+	if err != nil {
+		return err
+	}
+	return dk.UploadToContainer(id, dkc.UploadToContainerOptions{
+		InputStream: file,
+		Path:        cFile,
+	})
 }
 
 func (dk docker) create(name, image string, args []string,
@@ -209,7 +233,7 @@ func (dk docker) create(name, image string, args []string,
 		return "", err
 	}
 
-	id, err := dk.get(name)
+	id, err := dk.getID(name)
 	if err == nil {
 		return id, nil
 	}
@@ -225,7 +249,7 @@ func (dk docker) create(name, image string, args []string,
 	return container.ID, nil
 }
 
-func (dk docker) get(name string) (string, error) {
+func (dk docker) getID(name string) (string, error) {
 	containers, err := dk.List(nil)
 	if err != nil {
 		return "", err
@@ -233,10 +257,8 @@ func (dk docker) get(name string) (string, error) {
 
 	name = "/" + name
 	for _, c := range containers {
-		for _, cname := range c.Names {
-			if name == cname {
-				return c.ID, nil
-			}
+		if name == c.Name {
+			return c.ID, nil
 		}
 	}
 

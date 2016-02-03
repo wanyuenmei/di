@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-	"runtime/debug"
 	"time"
 
 	"github.com/NetSys/di/db"
@@ -80,13 +79,13 @@ func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container
 	for _, dkc := range dkcs {
 		if dbc, ok := cmap[dkc.ID]; ok {
 			if dbc.Image == dkc.Image {
-				writeContainer(view, dbc, dkc.ID, dkc.IPs)
+				writeContainer(view, dbc, dkc.ID, dkc.IP)
 			} else {
-				writeContainer(view, dbc, "", nil)
+				writeContainer(view, dbc, "", "")
 				term = append(term, dkc.ID)
 			}
 		} else if len(unassigned) > 0 {
-			writeContainer(view, unassigned[0], dkc.ID, dkc.IPs)
+			writeContainer(view, unassigned[0], dkc.ID, dkc.IP)
 			unassigned = unassigned[1:]
 		} else {
 			term = append(term, dkc.ID)
@@ -96,15 +95,8 @@ func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container
 	return term, unassigned
 }
 
-func writeContainer(view db.Database, dbc db.Container, id string, ips []string) {
+func writeContainer(view db.Database, dbc db.Container, id, ip string) {
 	dbc.SchedID = id
-	dbc.IP = ""
-
-	if len(ips) > 1 {
-		panic("Unimplemented\n" + string(debug.Stack()))
-	} else if len(ips) == 1 {
-		dbc.IP = ips[0]
-	}
-
+	dbc.IP = ip
 	view.Commit(dbc)
 }
