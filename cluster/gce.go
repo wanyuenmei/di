@@ -125,7 +125,7 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 	if count < 0 {
 		return errors.New("count must be >= 0")
 	}
-	log.Info("boot(): booting")
+	log.Debug("boot(): booting")
 	var ops []*compute.Operation
 	var urls []*compute.InstanceReference
 	for i := 0; i < count; i++ {
@@ -304,7 +304,7 @@ func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
 // XXX: ^but should this be the case? maybe we can just have the user call it?
 func gceInit() error {
 	if gAuthClient == nil {
-		log.Info("GCE initializing...")
+		log.Debug("GCE initializing...")
 		keyfile := filepath.Join(
 			os.Getenv("HOME"),
 			".gce",
@@ -330,9 +330,9 @@ func gceInit() error {
 		}
 		gceService = srv
 	} else {
-		log.Info("GCE already initialized! Skipping...")
+		log.Debug("GCE already initialized! Skipping...")
 	}
-	log.Info("GCE initialize success")
+	log.Debug("GCE initialize success")
 	return nil
 }
 
@@ -343,7 +343,7 @@ func newOAuthClient(ctx context.Context, config *oauth2.Config) *http.Client {
 		token = tokenFromWeb(ctx, config)
 		saveToken(cacheFile, token)
 	} else {
-		log.Info("Using cached token %#v from %q", token, cacheFile)
+		log.Debug("Using cached token %#v from %q", token, cacheFile)
 	}
 
 	return config.Client(ctx, token)
@@ -356,7 +356,7 @@ func osUserCacheDir() string {
 	case "linux", "freebsd":
 		return filepath.Join(os.Getenv("HOME"), ".cache")
 	}
-	log.Info("TODO: osUserCacheDir on GOOS %q", runtime.GOOS)
+	log.Debug("TODO: osUserCacheDir on GOOS %q", runtime.GOOS)
 	return "."
 }
 
@@ -398,7 +398,7 @@ func tokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 			return
 		}
 		if req.FormValue("state") != randState {
-			log.Info("State doesn't match: req = %#v", req)
+			log.Debug("State doesn't match: req = %#v", req)
 			http.Error(rw, "", 500)
 			return
 		}
@@ -408,7 +408,7 @@ func tokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 			ch <- code
 			return
 		}
-		log.Info("no code")
+		log.Debug("no code")
 		http.Error(rw, "", 500)
 	}))
 	defer ts.Close()
@@ -416,9 +416,9 @@ func tokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	config.RedirectURL = ts.URL
 	authURL := config.AuthCodeURL(randState)
 	go openURL(authURL)
-	log.Info("Authorize this app at: %s", authURL)
+	log.Debug("Authorize this app at: %s", authURL)
 	code := <-ch
-	log.Info("Got code: %s", code)
+	log.Debug("Got code: %s", code)
 
 	token, err := config.Exchange(ctx, code)
 	if err != nil {
