@@ -56,7 +56,8 @@ func (c Container) tt() TableType {
 }
 
 func (c Container) String() string {
-	var tags []string
+	cmdStr := strings.Join(append([]string{"run", c.Image}, c.Command...), " ")
+	tags := []string{cmdStr}
 
 	if c.SchedID != "" {
 		tags = append(tags, fmt.Sprintf("SchedID: %s", c.SchedID))
