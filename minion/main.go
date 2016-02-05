@@ -5,6 +5,8 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/di/minion/elector"
+	"github.com/NetSys/di/minion/network"
 	"github.com/NetSys/di/minion/scheduler"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/op/go-logging"
@@ -16,8 +18,13 @@ func main() {
 	log.Info("Minion Start")
 
 	conn := db.New()
+	go minionServerRun(conn)
 	go supervisor.Run(conn, docker.New("unix:///var/run/docker.sock"))
 	go scheduler.Run(conn)
-	go consensus.Run(conn)
-	minionServerRun(conn)
+
+	store := consensus.NewStore()
+	go elector.Run(conn, store)
+	go network.Run(conn, store)
+
+	select {}
 }

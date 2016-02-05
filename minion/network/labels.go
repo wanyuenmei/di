@@ -1,4 +1,4 @@
-package consensus
+package network
 
 import (
 	"encoding/binary"
@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"github.com/NetSys/di/db"
-	"github.com/coreos/etcd/client"
+	"github.com/NetSys/di/minion/consensus"
+	"github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("network")
 
 const labelDir = "/minion/labels"
 
@@ -21,11 +24,11 @@ type labelData struct {
 	SchedIDs []string
 }
 
-func readLabels(conn db.Conn, kapi client.KeysAPI) {
-	watch := watchChan(kapi, labelDir, 5*time.Second)
+func readLabels(conn db.Conn, store consensus.Store) {
+	watch := store.Watch(labelDir, 5*time.Second)
 	tick := time.Tick(10 * time.Second)
 	for {
-		readLabelsRun(conn, kapi)
+		readLabelsRun(conn, store)
 		select {
 		case <-watch:
 		case <-tick:
@@ -33,8 +36,8 @@ func readLabels(conn db.Conn, kapi client.KeysAPI) {
 	}
 }
 
-func readLabelsRun(conn db.Conn, kapi client.KeysAPI) {
-	etcdLabels, err := getLabels(kapi)
+func readLabelsRun(conn db.Conn, store consensus.Store) {
+	etcdLabels, err := getLabels(store)
 	if err != nil {
 		return
 	}
@@ -66,9 +69,9 @@ func readLabelsRun(conn db.Conn, kapi client.KeysAPI) {
 	})
 }
 
-func writeLabels(conn db.Conn, kapi client.KeysAPI) {
+func writeLabels(conn db.Conn, store consensus.Store) {
 	trigg := conn.TriggerTick(60, db.MinionTable, db.ContainerTable).C
-	watch := watchChan(kapi, labelDir, 5*time.Second)
+	watch := store.Watch(labelDir, 5*time.Second)
 	for {
 		select {
 		case <-trigg:
@@ -80,12 +83,9 @@ func writeLabels(conn db.Conn, kapi client.KeysAPI) {
 			continue
 		}
 
-		kapi.Set(ctx(), labelDir, "", &client.SetOptions{
-			Dir:       true,
-			PrevExist: client.PrevNoExist,
-		})
+		store.Mkdir(labelDir)
 
-		kvLabels, err := getLabels(kapi)
+		kvLabels, err := getLabels(store)
 		if err != nil {
 			log.Warning(err.Error())
 			continue
@@ -94,7 +94,7 @@ func writeLabels(conn db.Conn, kapi client.KeysAPI) {
 		remove, change := diffLabels(kvLabels, conn.SelectFromContainer(nil))
 
 		for _, r := range remove {
-			if _, err = kapi.Delete(ctx(), labelDir+"/"+r, nil); err != nil {
+			if err = store.Delete(labelDir + "/" + r); err != nil {
 				log.Warning("Failed to remove %s: %s", r, err)
 			}
 		}
@@ -105,7 +105,7 @@ func writeLabels(conn db.Conn, kapi client.KeysAPI) {
 				panic("Not Reached")
 			}
 
-			_, err = kapi.Set(ctx(), labelDir+"/"+l, string(json), nil)
+			err = store.Set(labelDir+"/"+l, string(json))
 			if err != nil {
 				log.Warning("Failed to set label: %s", l)
 			}
@@ -202,12 +202,8 @@ func diffLabels(kvLabels map[string]*labelData,
 	return remove, change
 }
 
-func getLabels(kapi client.KeysAPI) (map[string]*labelData, error) {
-	resp, err := kapi.Get(ctx(), labelDir, &client.GetOptions{
-		Recursive: true,
-		Sort:      false,
-		Quorum:    true,
-	})
+func getLabels(store consensus.Store) (map[string]*labelData, error) {
+	labels, err := store.GetDir(labelDir)
 	if err != nil {
 		return nil, err
 	}
@@ -215,14 +211,14 @@ func getLabels(kapi client.KeysAPI) (map[string]*labelData, error) {
 	kvLabels := make(map[string]*labelData)
 
 	// Initialize 'kvLabels' with the set of labels in etcd.
-	for _, node := range resp.Node.Nodes {
+	for k, v := range labels {
 		ld := &labelData{}
-		err := json.Unmarshal([]byte(node.Value), ld)
+		err := json.Unmarshal([]byte(v), ld)
 		if err != nil {
 			ld = &labelData{}
-			log.Warning("Failed to parse label: %s", node.Key)
+			log.Warning("Failed to parse label: %s", k)
 		}
-		kvLabels[strings.TrimPrefix(node.Key, labelDir+"/")] = ld
+		kvLabels[strings.TrimPrefix(k, labelDir+"/")] = ld
 	}
 
 	return kvLabels, nil

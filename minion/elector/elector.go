@@ -1,28 +1,30 @@
-package consensus
+package elector
 
 import (
 	"time"
 
 	"github.com/NetSys/di/db"
-	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+	"github.com/NetSys/di/minion/consensus"
 	"github.com/coreos/etcd/client"
+	"github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("consensus")
 
 const electionTTL = 30
 const bootDelay = 60
 const leaderKey = "/minion/leader"
 
-func watchLeader(conn db.Conn, kapi client.KeysAPI) {
-	watch := watchChan(kapi, leaderKey, 1*time.Second)
+func Run(conn db.Conn, store consensus.Store) {
+	go watchLeader(conn, store)
+	campaign(conn, store)
+}
+
+func watchLeader(conn db.Conn, store consensus.Store) {
+	watch := store.Watch(leaderKey, 1*time.Second)
 	trigg := conn.TriggerTick(electionTTL, db.MinionTable)
 	for {
-		resp, _ := kapi.Get(ctx(), leaderKey, &client.GetOptions{Quorum: true})
-
-		var leader string
-		if resp != nil {
-			leader = resp.Node.Value
-		}
-
+		leader, _ := store.Get(leaderKey)
 		conn.Transact(func(view db.Database) error {
 			minions := view.SelectFromMinion(nil)
 			if len(minions) == 1 {
@@ -39,8 +41,8 @@ func watchLeader(conn db.Conn, kapi client.KeysAPI) {
 	}
 }
 
-func campaign(conn db.Conn, kapi client.KeysAPI) {
-	watch := watchChan(kapi, leaderKey, 1*time.Second)
+func campaign(conn db.Conn, store consensus.Store) {
+	watch := store.Watch(leaderKey, 1*time.Second)
 	trigg := conn.TriggerTick(electionTTL/2, db.MinionTable)
 	oldMaster := false
 
@@ -75,13 +77,15 @@ func campaign(conn db.Conn, kapi client.KeysAPI) {
 			continue
 		}
 
-		opts := client.SetOptions{PrevExist: client.PrevNoExist,
-			TTL: electionTTL * time.Second}
+		ttl := electionTTL * time.Second
+
+		var err error
 		if minions[0].Leader {
-			opts.PrevExist = client.PrevExist
+			err = store.Update(leaderKey, IP, ttl)
+		} else {
+			err = store.Create(leaderKey, IP, ttl)
 		}
 
-		_, err := kapi.Set(ctx(), leaderKey, IP, &opts)
 		if err == nil {
 			commitLeader(conn, true, IP)
 		} else {
@@ -117,9 +121,4 @@ func commitLeader(conn db.Conn, leader bool, ip ...string) {
 		}
 		return nil
 	})
-}
-
-func ctx() context.Context {
-	ctx, _ := context.WithTimeout(context.Background(), (electionTTL/4)*time.Second)
-	return ctx
 }
