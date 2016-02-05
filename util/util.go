@@ -70,6 +70,7 @@ coreos:
             Requires=docker.service
 
             [Service]
+            TimeoutSec=1000
             ExecStartPre=-/usr/bin/docker kill minion
             ExecStartPre=-/usr/bin/docker rm minion
             ExecStartPre=/usr/bin/docker pull %s
