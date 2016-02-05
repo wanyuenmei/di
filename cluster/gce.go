@@ -57,8 +57,9 @@ type gceCluster struct {
 	machType string // gce machine type
 	baseURL  string // gce project specific url prefix
 
-	ns string // cluster namespace
-	id int    // the id of the cluster, used externally
+	ns         string     // cluster namespace
+	id         int        // the id of the cluster, used externally
+	aclTrigger db.Trigger // for watching the acls
 }
 
 // Create a GCE cluster.
@@ -79,11 +80,12 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	}
 
 	clst := &gceCluster{
-		projId:   "declarative-infrastructure",
-		zone:     "us-central1-a",
-		machType: "f1-micro",
-		id:       clusterId,
-		ns:       namespace,
+		projId:     "declarative-infrastructure",
+		zone:       "us-central1-a",
+		machType:   "f1-micro",
+		id:         clusterId,
+		ns:         namespace,
+		aclTrigger: conn.TriggerTick(60, db.ClusterTable),
 		imgURL: fmt.Sprintf(
 			"%s/%s",
 			COMPUTE_BASE_URL,
@@ -91,6 +93,17 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	}
 	clst.baseURL = fmt.Sprintf("%s/%s", COMPUTE_BASE_URL, clst.projId)
 
+	err = clst.netInit()
+	if err != nil {
+		return nil, err
+	}
+
+	err = clst.fwInit()
+	if err != nil {
+		return nil, err
+	}
+
+	go clst.watchACLs(conn, clusterId)
 	return clst, nil
 }
 
@@ -261,7 +274,9 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 						Name: "External NAT",
 					},
 				},
-				Network: clst.baseURL + "/global/networks/default",
+				Network: fmt.Sprintf("%s/global/networks/%s",
+					clst.baseURL,
+					clst.ns),
 			},
 		},
 		Metadata: &compute.Metadata{
@@ -293,6 +308,130 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
 	op, err := gceService.Instances.Delete(clst.projId, clst.zone, name).Do()
 	return op, err
+}
+
+func (clst *gceCluster) updateSecurityGroups(acls []string) error {
+	log.Debug("updateSecurityGroups(): updating acls")
+	op, err := clst.firewallPatch(clst.ns, acls)
+	if err != nil {
+		return err
+	}
+	err = clst.wait([]*compute.Operation{op}, GLOBAL)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Creates the network for the cluster.
+func (clst *gceCluster) networkNew(name string) (*compute.Operation, error) {
+	network := &compute.Network{
+		Name: name,
+	}
+
+	op, err := gceService.Networks.Insert(clst.projId, network).Do()
+	return op, err
+}
+
+func (clst *gceCluster) networkExists(name string) (bool, error) {
+	list, err := gceService.Networks.List(clst.projId).Do()
+	if err != nil {
+		return false, err
+	}
+	for _, val := range list.Items {
+		if val.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Creates the firewall for the cluster.
+//
+// XXX: Assumes there is only one network
+func (clst *gceCluster) firewallNew(name string) (*compute.Operation, error) {
+	firewall := &compute.Firewall{
+		Name: name,
+		Network: fmt.Sprintf("%s/global/networks/%s",
+			clst.baseURL,
+			clst.ns),
+		Allowed: []*compute.FirewallAllowed{
+			{
+				IPProtocol: "tcp",
+				Ports:      []string{"0-65535"},
+			},
+			{
+				IPProtocol: "udp",
+				Ports:      []string{"0-65535"},
+			},
+			{
+				IPProtocol: "icmp",
+			},
+		},
+		// XXX: This is just a dummy address to allow the rule to be created
+		SourceRanges: []string{"127.0.0.1/32"},
+	}
+
+	op, err := gceService.Firewalls.Insert(clst.projId, firewall).Do()
+	return op, err
+}
+
+func (clst *gceCluster) firewallExists(name string) (bool, error) {
+	list, err := gceService.Firewalls.List(clst.projId).Do()
+	if err != nil {
+		return false, err
+	}
+	for _, val := range list.Items {
+		if val.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Updates the firewall using PATCH semantics.
+//
+// The IP addresses must be in CIDR notation.
+// XXX: Assumes there is only one network
+// XXX: Assumes the firewall only needs to adjust the IP addrs affected
+func (clst *gceCluster) firewallPatch(name string, ips []string) (*compute.Operation, error) {
+	firewall := &compute.Firewall{
+		Name: name,
+		Network: fmt.Sprintf("%s/global/networks/%s",
+			clst.baseURL,
+			clst.ns),
+		SourceRanges: ips,
+	}
+
+	op, err := gceService.Firewalls.Patch(clst.projId, name, firewall).Do()
+	return op, err
+}
+
+func (clst *gceCluster) watchACLs(conn db.Conn, clusterID int) {
+	for range clst.aclTrigger.C {
+		var acls []string
+		err := conn.Transact(func(view db.Database) error {
+			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
+				return c.ID == clusterID
+			})
+
+			if len(clusters) == 0 {
+				return fmt.Errorf("Undefined cluster")
+			} else if len(clusters) > 1 {
+				panic("Duplicate Clusters")
+			}
+
+			acls = clusters[0].AdminACL
+			return nil
+		})
+
+		if err != nil {
+			log.Warning("%s", err)
+			continue
+		}
+
+		clst.updateSecurityGroups(acls)
+	}
 }
 
 // Initialize GCE.
@@ -333,6 +472,57 @@ func gceInit() error {
 		log.Debug("GCE already initialized! Skipping...")
 	}
 	log.Debug("GCE initialize success")
+	return nil
+}
+
+// Initializes the network for the cluster
+//
+// XXX: Currently assumes that each cluster is entirely behind 1 network
+func (clst *gceCluster) netInit() error {
+	exists, err := clst.networkExists(clst.ns)
+	if err != nil {
+		return err
+	}
+	if exists {
+		log.Debug("Network already exists")
+		return nil
+	}
+	log.Debug("Creating network")
+	op, err := clst.networkNew(clst.ns)
+	if err != nil {
+		return err
+	} else {
+		err = clst.wait([]*compute.Operation{op}, GLOBAL)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Initializes the firewall for the cluster
+//
+// XXX: Currently assumes that each cluster is entirely behind 1 network
+// XXX: Currently only manipulates 1 firewall rule
+func (clst *gceCluster) fwInit() error {
+	exists, err := clst.firewallExists(clst.ns)
+	if err != nil {
+		return err
+	}
+	if exists {
+		log.Debug("Firewall already exists")
+		return nil
+	}
+	log.Debug("Creating firewall")
+	op, err := clst.firewallNew(clst.ns)
+	if err != nil {
+		return err
+	} else {
+		err = clst.wait([]*compute.Operation{op}, GLOBAL)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
