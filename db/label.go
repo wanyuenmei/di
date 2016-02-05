@@ -5,9 +5,8 @@ package db
 type Label struct {
 	ID int
 
-	Label    string
-	IP       string
-	SchedIDs []string
+	Label string
+	IP    string
 }
 
 // InsertLabel creates a new container row and inserts it into the database.

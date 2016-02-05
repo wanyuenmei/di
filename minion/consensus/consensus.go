@@ -11,7 +11,6 @@ import (
 )
 
 var log = logging.MustGetLogger("etcd")
-var ErrClusterUnavailable = client.ErrClusterUnavailable
 
 type Store interface {
 	Watch(path string, rateLimit time.Duration) chan struct{}

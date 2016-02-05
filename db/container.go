@@ -13,6 +13,7 @@ type Container struct {
 
 	Pid     int
 	IP      string
+	Mac     string
 	SchedID string
 	Image   string
 	Command []string

@@ -80,13 +80,13 @@ func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container
 	for _, dkc := range dkcs {
 		if dbc, ok := cmap[dkc.ID]; ok {
 			if dbc.Image == dkc.Image {
-				writeContainer(view, dbc, dkc.ID, dkc.IP)
+				writeContainer(view, dbc, dkc.ID)
 			} else {
-				writeContainer(view, dbc, "", "")
+				writeContainer(view, dbc, "")
 				term = append(term, dkc.ID)
 			}
 		} else if len(unassigned) > 0 {
-			writeContainer(view, unassigned[0], dkc.ID, dkc.IP)
+			writeContainer(view, unassigned[0], dkc.ID)
 			unassigned = unassigned[1:]
 		} else {
 			term = append(term, dkc.ID)
@@ -96,8 +96,7 @@ func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container
 	return term, unassigned
 }
 
-func writeContainer(view db.Database, dbc db.Container, id, ip string) {
+func writeContainer(view db.Database, dbc db.Container, id string) {
 	dbc.SchedID = id
-	dbc.IP = ip
 	view.Commit(dbc)
 }
