@@ -80,7 +80,9 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.PrivateIP = msg.PrivateIP
 		view.Commit(minion)
 
-		updatePolicy(view, msg.Spec)
+		if minion.Role == db.Master {
+			updatePolicy(view, msg.Spec)
+		}
 
 		return nil
 	})
