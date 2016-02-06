@@ -180,7 +180,11 @@ func (dk docker) Pull(image string) error {
 }
 
 func (dk docker) List(filters map[string][]string) ([]Container, error) {
-	opts := dkc.ListContainersOptions{All: true, Filters: filters}
+	return dk.list(filters, false)
+}
+
+func (dk docker) list(filters map[string][]string, all bool) ([]Container, error) {
+	opts := dkc.ListContainersOptions{All: all, Filters: filters}
 	apics, err := dk.ListContainers(opts)
 	if err != nil {
 		return nil, err
@@ -250,7 +254,7 @@ func (dk docker) create(name, image string, args []string,
 }
 
 func (dk docker) getID(name string) (string, error) {
-	containers, err := dk.List(nil)
+	containers, err := dk.list(nil, true)
 	if err != nil {
 		return "", err
 	}

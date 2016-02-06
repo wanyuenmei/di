@@ -48,17 +48,100 @@ type supervisor struct {
 
 func Run(conn db.Conn, dk docker.Client) {
 	sv := supervisor{conn: conn, dk: dk}
+	go sv.runSystem()
+	sv.runApp()
+}
 
+// Synchronize locally running "application" containers with the database.
+func (sv *supervisor) runApp() {
+	for range sv.conn.TriggerTick(10, db.MinionTable, db.ContainerTable).C {
+		minions := sv.conn.SelectFromMinion(nil)
+		if len(minions) != 1 || minions[0].Role != db.Worker {
+			continue
+		}
+
+		dkcs, err := sv.dk.List(map[string][]string{"label": {"DI=Scheduler"}})
+		if err != nil {
+			log.Warning("Failed to list local containers: %s", err)
+			continue
+		}
+
+		sv.conn.Transact(func(view db.Database) error {
+			dbcs := view.SelectFromContainer(nil)
+			remove, insert, commit := diffApp(dbcs, dkcs)
+
+			for _, dbc := range remove {
+				view.Remove(dbc)
+			}
+
+			for _, dbc := range commit {
+				view.Commit(dbc)
+			}
+
+			for _, dkc := range insert {
+				dbc := view.InsertContainer()
+				syncDBcDKc(&dbc, dkc)
+				view.Commit(dbc)
+			}
+
+			return nil
+		})
+	}
+}
+
+func diffApp(dbcs []db.Container, dkcs []docker.Container) (
+	remove []db.Container, insert []docker.Container, commit []db.Container) {
+
+	dkcMap := make(map[string]docker.Container)
+	for _, dkc := range dkcs {
+		dkcMap[dkc.ID] = dkc
+	}
+
+	dbcMap := make(map[string]db.Container)
+	for _, dbc := range dbcs {
+		_, dup := dbcMap[dbc.SchedID]
+		_, exists := dkcMap[dbc.SchedID]
+		if dbc.SchedID == "" || dup || !exists {
+			remove = append(remove, dbc)
+			continue
+		}
+
+		dbcMap[dbc.SchedID] = dbc
+	}
+
+	for _, dkc := range dkcMap {
+		dbc, ok := dbcMap[dkc.ID]
+		if !ok {
+			insert = append(insert, dkc)
+			continue
+		}
+
+		syncDBcDKc(&dbc, dkc)
+		commit = append(commit, dbc)
+	}
+
+	return remove, insert, commit
+}
+
+func syncDBcDKc(dbc *db.Container, dkc docker.Container) {
+	dbc.SchedID = dkc.ID
+	dbc.Pid = dkc.Pid
+	dbc.Image = dkc.Image
+	dbc.Command = dkc.Command
+}
+
+// Manage system infrstracture containers that support the application.
+func (sv *supervisor) runSystem() {
 	for _, image := range images {
 		go sv.dk.Pull(image)
 	}
 
-	for range conn.Trigger(db.MinionTable, db.EtcdTable).C {
-		sv.runOnce()
+	for range sv.conn.Trigger(db.MinionTable, db.EtcdTable).C {
+		sv.runSystemOnce()
 	}
 }
 
-func (sv *supervisor) runOnce() {
+func (sv *supervisor) runSystemOnce() {
 	var minion db.Minion
 	var etcdRow db.Etcd
 	minions := sv.conn.SelectFromMinion(nil)

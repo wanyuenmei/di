@@ -11,6 +11,7 @@ import (
 type Container struct {
 	ID int
 
+	Pid     int
 	IP      string
 	SchedID string
 	Image   string

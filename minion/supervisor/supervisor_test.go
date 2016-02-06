@@ -390,6 +390,69 @@ func TestEtcdRemove(t *testing.T) {
 	}
 }
 
+func TestAppDiff(t *testing.T) {
+	var expRemove []db.Container
+	var expInsert []docker.Container
+	var expCommit []db.Container
+	remove, insert, commit := diffApp(nil, nil)
+	if !eq(remove, expRemove) {
+		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
+	}
+	if !eq(insert, expInsert) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
+	}
+	if !eq(commit, expCommit) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
+	}
+
+	dbcs := []db.Container{{ID: 1}, {ID: 2}}
+	expRemove = dbcs
+	expInsert = nil
+	expCommit = nil
+	remove, insert, commit = diffApp(dbcs, nil)
+	if !eq(remove, expRemove) {
+		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
+	}
+	if !eq(insert, expInsert) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
+	}
+	if !eq(commit, expCommit) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
+	}
+
+	dkcs := []docker.Container{{ID: "a"}}
+	dbcs = nil
+	expRemove = nil
+	expInsert = dkcs
+	expCommit = nil
+	remove, insert, commit = diffApp(dbcs, dkcs)
+	if !eq(remove, expRemove) {
+		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
+	}
+	if !eq(insert, expInsert) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
+	}
+	if !eq(commit, expCommit) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
+	}
+
+	dkcs = []docker.Container{{ID: "a"}, {ID: "b"}}
+	dbcs = []db.Container{{ID: 1, SchedID: "a"}, {ID: 2, SchedID: "c"}}
+	expRemove = dbcs[1:]
+	expInsert = dkcs[1:]
+	expCommit = dbcs[:1]
+	remove, insert, commit = diffApp(dbcs, dkcs)
+	if !eq(remove, expRemove) {
+		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
+	}
+	if !eq(insert, expInsert) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
+	}
+	if !eq(commit, expCommit) {
+		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
+	}
+}
+
 type testCtx struct {
 	sv supervisor
 	fd fakeDocker
@@ -415,7 +478,7 @@ func initTest() testCtx {
 		view.Commit(e)
 		return nil
 	})
-	ctx.sv.runOnce()
+	ctx.sv.runSystemOnce()
 
 	return ctx
 }
@@ -424,7 +487,7 @@ func (ctx testCtx) run() {
 	select {
 	case <-ctx.trigg.C:
 	}
-	ctx.sv.runOnce()
+	ctx.sv.runSystemOnce()
 }
 
 type fakeDocker struct {
@@ -537,4 +600,8 @@ func validateImage(image string) {
 	default:
 		panic("Bad Image")
 	}
+}
+
+func eq(a1, a2 interface{}) bool {
+	return reflect.DeepEqual(a1, a2)
 }
