@@ -21,10 +21,11 @@ type scheduler interface {
 
 func Run(conn db.Conn) {
 	var sched scheduler
-	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable).C {
+	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable).C {
 		minions := conn.SelectFromMinion(nil)
-		if len(minions) != 1 || minions[0].Role != db.Master ||
-			minions[0].PrivateIP == "" || !minions[0].Leader {
+		etcdRows := conn.SelectFromEtcd(nil)
+		if len(minions) != 1 || len(etcdRows) != 1 || minions[0].Role != db.Master ||
+			minions[0].PrivateIP == "" || !etcdRows[0].Leader {
 			sched = nil
 			continue
 		}

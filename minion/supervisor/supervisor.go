@@ -53,23 +53,28 @@ func Run(conn db.Conn, dk docker.Client) {
 		go sv.dk.Pull(image)
 	}
 
-	for range conn.Trigger(db.MinionTable).C {
+	for range conn.Trigger(db.MinionTable, db.EtcdTable).C {
 		sv.runOnce()
 	}
 }
 
 func (sv *supervisor) runOnce() {
 	var minion db.Minion
+	var etcdRow db.Etcd
 	minions := sv.conn.SelectFromMinion(nil)
+	etcdRows := sv.conn.SelectFromEtcd(nil)
 	if len(minions) == 1 {
 		minion = minions[0]
 	}
+	if len(etcdRows) == 1 {
+		etcdRow = etcdRows[0]
+	}
 
 	if sv.role == minion.Role &&
-		reflect.DeepEqual(sv.etcdIPs, minion.EtcdIPs) &&
-		sv.leaderIP == minion.LeaderIP &&
+		reflect.DeepEqual(sv.etcdIPs, etcdRow.EtcdIPs) &&
+		sv.leaderIP == etcdRow.LeaderIP &&
 		sv.IP == minion.PrivateIP &&
-		sv.leader == minion.Leader {
+		sv.leader == etcdRow.Leader {
 		return
 	}
 
@@ -79,18 +84,18 @@ func (sv *supervisor) runOnce() {
 
 	switch minion.Role {
 	case db.Master:
-		sv.updateMaster(minion.PrivateIP, minion.EtcdIPs,
-			minion.Leader)
+		sv.updateMaster(minion.PrivateIP, etcdRow.EtcdIPs,
+			etcdRow.Leader)
 	case db.Worker:
-		sv.updateWorker(minion.PrivateIP, minion.LeaderIP,
-			minion.EtcdIPs)
+		sv.updateWorker(minion.PrivateIP, etcdRow.LeaderIP,
+			etcdRow.EtcdIPs)
 	}
 
 	sv.role = minion.Role
-	sv.etcdIPs = minion.EtcdIPs
-	sv.leaderIP = minion.LeaderIP
+	sv.etcdIPs = etcdRow.EtcdIPs
+	sv.leaderIP = etcdRow.LeaderIP
 	sv.IP = minion.PrivateIP
-	sv.leader = minion.Leader
+	sv.leader = etcdRow.Leader
 }
 
 func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string) {

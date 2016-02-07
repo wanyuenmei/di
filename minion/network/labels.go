@@ -79,7 +79,8 @@ func writeLabels(conn db.Conn, store consensus.Store) {
 		}
 
 		minions := conn.SelectFromMinion(nil)
-		if len(minions) != 1 || !minions[0].Leader {
+		etcdRows := conn.SelectFromEtcd(nil)
+		if len(minions) != 1 || len(etcdRows) != 1 || !etcdRows[0].Leader {
 			continue
 		}
 

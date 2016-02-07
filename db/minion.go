@@ -6,18 +6,13 @@ import (
 )
 
 // The Minion table is instantiated on the minions with one row.  That row contains the
-// configuration that minion needs to operate, including its ID, Role, IP address, and
-// the IP's of machines in the etcd cluster
+// configuration that minion needs to operate, including its ID, Role, and IP address
 type Minion struct {
 	ID int
 
 	MinionID  string
 	Role      Role
 	PrivateIP string
-	EtcdIPs   []string
-
-	Leader   bool   // True if this Minion is the leader.
-	LeaderIP string //IP address of the current leader, or ""
 }
 
 // InsertMinion creates a new Minion and inserts it into 'db'.
@@ -61,14 +56,6 @@ func (m Minion) String() string {
 
 	if m.MinionID != "" {
 		tags = append(tags, m.MinionID)
-	}
-
-	if m.Leader {
-		tags = append(tags, "Leader")
-	}
-
-	if m.LeaderIP != "" {
-		tags = append(tags, "LeaderIP="+m.LeaderIP)
 	}
 
 	if m.PrivateIP != "" {

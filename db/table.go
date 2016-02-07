@@ -12,6 +12,7 @@ const (
 	MinionTable
 	ConnectionTable
 	LabelTable
+	EtcdTable
 )
 
 var allTables = map[TableType]string{
@@ -19,6 +20,7 @@ var allTables = map[TableType]string{
 	MachineTable:    "Machine",
 	ContainerTable:  "Container",
 	MinionTable:     "Minion",
+	EtcdTable:       "Etcd",
 	ConnectionTable: "Connection",
 	LabelTable:      "Label",
 }

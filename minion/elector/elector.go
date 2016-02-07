@@ -22,14 +22,14 @@ func Run(conn db.Conn, store consensus.Store) {
 
 func watchLeader(conn db.Conn, store consensus.Store) {
 	watch := store.Watch(leaderKey, 1*time.Second)
-	trigg := conn.TriggerTick(electionTTL, db.MinionTable)
+	trigg := conn.TriggerTick(electionTTL, db.EtcdTable)
 	for {
 		leader, _ := store.Get(leaderKey)
 		conn.Transact(func(view db.Database) error {
-			minions := view.SelectFromMinion(nil)
-			if len(minions) == 1 {
-				minions[0].LeaderIP = leader
-				view.Commit(minions[0])
+			etcdRows := view.SelectFromEtcd(nil)
+			if len(etcdRows) == 1 {
+				etcdRows[0].LeaderIP = leader
+				view.Commit(etcdRows[0])
 			}
 			return nil
 		})
@@ -43,7 +43,7 @@ func watchLeader(conn db.Conn, store consensus.Store) {
 
 func campaign(conn db.Conn, store consensus.Store) {
 	watch := store.Watch(leaderKey, 1*time.Second)
-	trigg := conn.TriggerTick(electionTTL/2, db.MinionTable)
+	trigg := conn.TriggerTick(electionTTL/2, db.EtcdTable)
 	oldMaster := false
 
 	for {
@@ -53,7 +53,8 @@ func campaign(conn db.Conn, store consensus.Store) {
 		}
 
 		minions := conn.SelectFromMinion(nil)
-		master := len(minions) == 1 && minions[0].Role == db.Master
+		etcdRows := conn.SelectFromEtcd(nil)
+		master := len(minions) == 1 && len(etcdRows) == 1 && minions[0].Role == db.Master
 		switch {
 		case oldMaster && !master:
 			commitLeader(conn, false, "")
@@ -80,7 +81,7 @@ func campaign(conn db.Conn, store consensus.Store) {
 		ttl := electionTTL * time.Second
 
 		var err error
-		if minions[0].Leader {
+		if etcdRows[0].Leader {
 			err = store.Update(leaderKey, IP, ttl)
 		} else {
 			err = store.Create(leaderKey, IP, ttl)
@@ -109,15 +110,15 @@ func commitLeader(conn db.Conn, leader bool, ip ...string) {
 	}
 
 	conn.Transact(func(view db.Database) error {
-		minions := view.SelectFromMinion(nil)
-		if len(minions) == 1 {
-			minions[0].Leader = leader
+		etcdRows := view.SelectFromEtcd(nil)
+		if len(etcdRows) == 1 {
+			etcdRows[0].Leader = leader
 
 			if len(ip) == 1 {
-				minions[0].LeaderIP = ip[0]
+				etcdRows[0].LeaderIP = ip[0]
 			}
 
-			view.Commit(minions[0])
+			view.Commit(etcdRows[0])
 		}
 		return nil
 	})

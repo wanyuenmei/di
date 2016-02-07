@@ -91,20 +91,21 @@ func (s server) SetMinionConfig(ctx context.Context,
 func (s server) BootEtcd(ctx context.Context,
 	members *pb.EtcdMembers) (*pb.Reply, error) {
 	go s.Transact(func(view db.Database) error {
-		minionSlice := view.SelectFromMinion(nil)
-		var minion db.Minion
-		switch len(minionSlice) {
+		etcdSlice := view.SelectFromEtcd(nil)
+		var etcdRow db.Etcd
+		switch len(etcdSlice) {
 		case 0:
-			log.Info("Received initial boot etcd request")
-			minion = view.InsertMinion()
+			log.Info("Received boot etcd request")
+			etcdRow = view.InsertEtcd()
 		case 1:
-			minion = minionSlice[0]
+			etcdRow = etcdSlice[0]
 		default:
 			panic("Not Reached")
 		}
 
-		minion.EtcdIPs = members.IPs
-		view.Commit(minion)
+		etcdRow.EtcdIPs = members.IPs
+		sort.Strings(etcdRow.EtcdIPs)
+		view.Commit(etcdRow)
 
 		return nil
 	})

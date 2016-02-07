@@ -23,10 +23,12 @@ func TestNone(t *testing.T) {
 
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.PrivateIP = "1.2.3.4"
-		m.Leader = false
-		m.LeaderIP = "5.6.7.8"
+		e.Leader = false
+		e.LeaderIP = "5.6.7.8"
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -46,10 +48,12 @@ func TestMaster(t *testing.T) {
 	etcdIPs := []string{""}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -73,11 +77,13 @@ func TestMaster(t *testing.T) {
 	etcdIPs = []string{"8.8.8.8"}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
-		m.Leader = true
+		e.EtcdIPs = etcdIPs
+		e.Leader = true
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -98,9 +104,9 @@ func TestMaster(t *testing.T) {
 
 	/* Lose leadership. */
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
-		m.Leader = false
-		view.Commit(m)
+		e := view.SelectFromEtcd(nil)[0]
+		e.Leader = false
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -125,10 +131,12 @@ func TestWorker(t *testing.T) {
 	etcdIPs := []string{ip}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -149,11 +157,13 @@ func TestWorker(t *testing.T) {
 	leaderIP := "5.6.7.8"
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
-		m.LeaderIP = leaderIP
+		e.EtcdIPs = etcdIPs
+		e.LeaderIP = leaderIP
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -192,11 +202,13 @@ func TestChange(t *testing.T) {
 	etcdIPs := []string{ip, leaderIP}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
-		m.LeaderIP = leaderIP
+		e.EtcdIPs = etcdIPs
+		e.LeaderIP = leaderIP
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -284,10 +296,12 @@ func TestEtcdAdd(t *testing.T) {
 	etcdIPs := []string{ip, "5.6.7.8"}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -306,9 +320,11 @@ func TestEtcdAdd(t *testing.T) {
 	etcdIPs = append(etcdIPs, "9.10.11.12")
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -330,10 +346,12 @@ func TestEtcdRemove(t *testing.T) {
 	etcdIPs := []string{ip, "5.6.7.8"}
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -352,9 +370,11 @@ func TestEtcdRemove(t *testing.T) {
 	etcdIPs = etcdIPs[1:]
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
+		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
-		m.EtcdIPs = etcdIPs
+		e.EtcdIPs = etcdIPs
 		view.Commit(m)
+		view.Commit(e)
 		return nil
 	})
 	ctx.run()
@@ -391,6 +411,8 @@ func initTest() testCtx {
 		m := view.InsertMinion()
 		m.MinionID = "Minion1"
 		view.Commit(m)
+		e := view.InsertEtcd()
+		view.Commit(e)
 		return nil
 	})
 	ctx.sv.runOnce()
