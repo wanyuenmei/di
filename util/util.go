@@ -31,7 +31,51 @@ func MyIp() (string, error) {
 	return httpRequest("http://checkip.amazonaws.com/")
 }
 
-func CloudConfig(keys []string) string {
+func CloudConfigUbuntu(keys []string) string {
+	cloudConfig := `#!/bin/bash
+
+USER_DIR=/home/ubuntu
+PRIVATE_IPv4=$(curl http://instance-data/latest/meta-data/local-ipv4)
+
+mkdir -p /etc/systemd/system/docker.service.d
+
+# Setup systemd
+printf "[Service]\n\
+ExecStart=\n\
+ExecStart=/usr/bin/docker daemon \
+--bridge=none \
+-H $PRIVATE_IPv4:2375 \
+-H unix:///var/run/docker.sock" > /etc/systemd/system/docker.service.d/docker.conf
+
+apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+echo "deb https://apt.dockerproject.org/repo ubuntu-wily main" > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install docker-engine -y
+
+/usr/bin/docker run -d --net=host --name=minion --privileged -v /var/run/docker.sock:/var/run/docker.sock %s
+
+# allow the ubuntu user to use docker without sudo
+usermod -aG docker ubuntu
+
+/sbin/modprobe openvswitch
+/sbin/modprobe vport_geneve
+mkdir -p /var/run/netns
+
+install -d -o ubuntu -m 700 $USER_DIR/.ssh
+install -C -o ubuntu -m 600 $USER_DIR/.ssh/authorized_keys
+    `
+	cloudConfig = fmt.Sprintf(cloudConfig, minionImage)
+
+	if len(keys) > 0 {
+		for _, key := range keys {
+			cloudConfig += fmt.Sprintf("echo %s >> $USER_DIR/.ssh/authorized_keys \n", key)
+		}
+	}
+
+	return cloudConfig
+}
+
+func CloudConfigCoreOS(keys []string) string {
 	cloudConfig := `#cloud-config
 
 coreos:

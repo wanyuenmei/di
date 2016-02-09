@@ -76,20 +76,25 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 
 	var cloud provider
 	var err error
+	var cloudConfig string
+
 	switch dbp {
 	case db.AmazonSpot:
 		cloud = newAWS(conn, id, namespace)
+		cloudConfig = util.CloudConfigUbuntu(keys)
 	case db.Google:
 		// XXX: not sure what to do with the error here
 		cloud, err = newGCE(conn, id, namespace)
 		if err != nil {
 			log.Error("%+v", err)
 		}
+		cloudConfig = util.CloudConfigCoreOS(keys)
 	case db.Vagrant:
 		cloud = newVagrant(namespace)
 		if cloud == nil {
 			log.Error("Vagrant cluster didn't boot.")
 		}
+		cloudConfig = util.CloudConfigCoreOS(keys)
 	default:
 		panic("Unimplemented")
 	}
@@ -98,7 +103,7 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		provider:    cloud,
 		id:          id,
 		conn:        conn,
-		cloudConfig: util.CloudConfig(keys),
+		cloudConfig: cloudConfig,
 		trigger:     conn.TriggerTick(30, db.MachineTable),
 		fm:          newForeman(conn, id),
 	}
