@@ -35,6 +35,7 @@ type RunOptions struct {
 	Image  string
 	Args   []string
 	Labels map[string]string
+	Env    map[string]struct{}
 
 	Binds       []string
 	NetworkMode string
@@ -107,7 +108,7 @@ func (dk docker) Run(opts RunOptions) error {
 		}
 	}
 
-	id, err := dk.create(opts.Name, opts.Image, opts.Args, opts.Labels)
+	id, err := dk.create(opts.Name, opts.Image, opts.Args, opts.Labels, opts.Env)
 	if err != nil {
 		return err
 	}
@@ -216,7 +217,7 @@ func (dk docker) Get(id string) (Container, error) {
 }
 
 func (dk docker) create(name, image string, args []string,
-	labels map[string]string) (string, error) {
+	labels map[string]string, env map[string]struct{}) (string, error) {
 	if err := dk.Pull(image); err != nil {
 		return "", err
 	}
@@ -226,9 +227,16 @@ func (dk docker) create(name, image string, args []string,
 		return id, nil
 	}
 
+	envList := make([]string, len(env))
+	i := 0
+	for k := range env {
+		envList[i] = k
+		i++
+	}
+
 	container, err := dk.CreateContainer(dkc.CreateContainerOptions{
 		Name:   name,
-		Config: &dkc.Config{Image: string(image), Cmd: args, Labels: labels},
+		Config: &dkc.Config{Image: string(image), Cmd: args, Labels: labels, Env: envList},
 	})
 	if err != nil {
 		return "", err

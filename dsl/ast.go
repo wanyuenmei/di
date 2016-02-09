@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-/* An abstract syntaxt tree is the parsed representation of our specification language.
+/* An abstract syntax tree is the parsed representation of our specification language.
 * It can be transformed into its evaluated form my calling the eval() method. */
 type ast interface {
 	String() string

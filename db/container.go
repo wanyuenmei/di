@@ -18,6 +18,12 @@ type Container struct {
 	Image   string
 	Command []string
 	Labels  []string
+
+	Placement
+}
+
+type Placement struct {
+	Exclusive map[[2]string]struct{}
 }
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -59,6 +65,10 @@ func (c Container) String() string {
 
 	if len(c.Labels) > 0 {
 		tags = append(tags, fmt.Sprintf("Labels: %s", c.Labels))
+	}
+
+	if len(c.Placement.Exclusive) > 0 {
+		tags = append(tags, fmt.Sprintf("Env: %s", c.Placement.Exclusive))
 	}
 
 	if c.IP != "" {

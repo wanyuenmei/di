@@ -1,6 +1,11 @@
 package dsl
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
+)
 
 type funcImpl struct {
 	do      func(*evalCtx, []ast) (ast, error)
@@ -8,17 +13,18 @@ type funcImpl struct {
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"%":        {arithFun(func(a, b int) int { return a % b }), 2},
-	"*":        {arithFun(func(a, b int) int { return a * b }), 2},
-	"+":        {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":        {arithFun(func(a, b int) int { return a - b }), 2},
-	"/":        {arithFun(func(a, b int) int { return a / b }), 2},
-	"connect":  {connectImpl, 3},
-	"docker":   {dockerImpl, 1},
-	"label":    {labelImpl, 2},
-	"list":     {listImpl, 0},
-	"makeList": {makeListImpl, 2},
-	"sprintf":  {sprintfImpl, 1},
+	"%":         {arithFun(func(a, b int) int { return a % b }), 2},
+	"*":         {arithFun(func(a, b int) int { return a * b }), 2},
+	"+":         {arithFun(func(a, b int) int { return a + b }), 2},
+	"-":         {arithFun(func(a, b int) int { return a - b }), 2},
+	"/":         {arithFun(func(a, b int) int { return a / b }), 2},
+	"connect":   {connectImpl, 3},
+	"docker":    {dockerImpl, 1},
+	"label":     {labelImpl, 2},
+	"list":      {listImpl, 0},
+	"makeList":  {makeListImpl, 2},
+	"sprintf":   {sprintfImpl, 1},
+	"placement": {placementImpl, 3},
 }
 
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
@@ -70,10 +76,61 @@ func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		command = args[1:]
 	}
 
-	container := &Container{args[0], command, nil}
+	container := &Container{
+		args[0], command, nil,
+		Placement{make(map[[2]string]struct{})},
+	}
 	ctx.containers = append(ctx.containers, container)
 
 	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
+}
+
+func placementImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	args, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+
+	str, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("placement type must be a string, found: %s", args[0])
+	}
+	ptype := string(str)
+
+	var labels []string
+	for _, arg := range args[1:] {
+		str, ok = arg.(astString)
+		if !ok {
+			return nil, fmt.Errorf("placement arg must be a string, found: %s", arg)
+		}
+		labels = append(labels, string(str))
+	}
+
+	parsedLabels := make(map[[2]string]struct{})
+	for i := 0; i < len(labels)-1; i++ {
+		for j := i + 1; j < len(labels); j++ {
+			if labels[i] < labels[j] {
+				parsedLabels[[2]string{labels[i], labels[j]}] = struct{}{}
+			} else {
+				parsedLabels[[2]string{labels[j], labels[i]}] = struct{}{}
+			}
+		}
+	}
+
+	switch ptype {
+	case "exclusive":
+		for _, label := range labels {
+			for _, c := range ctx.labels[label] {
+				for k, v := range parsedLabels {
+					c.Placement.Exclusive[k] = v
+				}
+			}
+		}
+	default:
+		return nil, fmt.Errorf("Not a valid placement type: %s", ptype)
+	}
+
+	return astFunc{astIdent("placement"), placementImpl, args}, nil
 }
 
 func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {
@@ -157,6 +214,9 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		return nil, fmt.Errorf("label must be a string, found: %s", args[0])
 	}
 	label := string(str)
+	if label != strings.ToLower(label) {
+		log.Error("Labels must be lowercase, sorry! https://github.com/docker/swarm/issues/1795")
+	}
 
 	if _, ok := ctx.labels[label]; ok {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)

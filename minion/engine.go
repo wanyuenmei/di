@@ -70,12 +70,14 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		dbc.Image = best.Image
 		dbc.Command = best.Command
 		dbc.Labels = best.Labels
+		dbc.Placement.Exclusive = best.Placement.Exclusive
 		view.Commit(dbc)
 	}
 
 	for _, dslc := range dslSlice {
 		dbc := view.InsertContainer()
 		dbc.Labels = dslc.Labels
+		dbc.Placement.Exclusive = dslc.Placement.Exclusive
 		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
 		view.Commit(dbc)

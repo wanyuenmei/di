@@ -118,3 +118,25 @@ load balance new connections across all available atoms.
 By default, atoms in DI cannot communicate with each other due to an implicit
 "deny all" firewall.  Communication between atoms must be explicitly permitted
 by the **connect** keyword.
+
+## Placement
+```
+(placement <PLACEMENT_TYPE> <label1> <label2> ... <labelN>)
+```
+
+Placement Types:
+- `exclusive`: Any instance labeled `label1` will never be placed on the
+same host as an instance labeled `label2` and vice-versa. If constraints
+can't be satisfied then they won't be scheduled.
+
+```
+// A 'webServer' and 'database' will never share a host
+(label webServer (docker apache))
+(label database (docker mysql))
+(placement "exclusive" "webServer" "database")
+
+// A 'dataPipeline' will never share a host with another 'dataPipeline'
+(label dataPipeline (docker spark))
+(placement "exclusive" "dataPipeline" "dataPipeline")
+```
+

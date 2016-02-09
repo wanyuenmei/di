@@ -15,6 +15,12 @@ type Container struct {
 	Image   string
 	Command []string
 	Labels  []string
+
+	Placement
+}
+
+type Placement struct {
+	Exclusive map[[2]string]struct{}
 }
 
 type Connection struct {

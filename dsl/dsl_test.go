@@ -107,28 +107,28 @@ func TestDocker(t *testing.T) {
 	}
 
 	code := `(docker "a")`
-	checkContainers(code, code, &Container{"a", nil, nil})
+	checkContainers(code, code, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}})
 
 	code = "(docker \"a\")\n(docker \"a\")"
-	checkContainers(code, code, &Container{"a", nil, nil}, &Container{"a", nil, nil})
+	checkContainers(code, code, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}}, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}})
 
 	code = `(makeList 2 (list (docker "a") (docker "b")))`
 	exp := `(list (list (docker "a") (docker "b"))` +
 		` (list (docker "a") (docker "b")))`
 	checkContainers(code, exp,
-		&Container{"a", nil, nil},
-		&Container{"b", nil, nil},
-		&Container{"a", nil, nil},
-		&Container{"b", nil, nil})
+		&Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}},
+		&Container{"b", nil, nil, Placement{make(map[[2]string]struct{})}},
+		&Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}},
+		&Container{"b", nil, nil, Placement{make(map[[2]string]struct{})}})
 	code = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
 	checkContainers(code, code,
-		&Container{"a", []string{"c"}, nil},
-		&Container{"b", []string{"d", "e", "f"}, nil})
+		&Container{"a", []string{"c"}, nil, Placement{make(map[[2]string]struct{})}},
+		&Container{"b", []string{"d", "e", "f"}, nil, Placement{make(map[[2]string]struct{})}})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
-	checkContainers(code, exp, &Container{"foo", nil, nil},
-		&Container{"bar", nil, nil})
+	checkContainers(code, exp, &Container{"foo", nil, nil, Placement{make(map[[2]string]struct{})}},
+		&Container{"bar", nil, nil, Placement{make(map[[2]string]struct{})}})
 
 	runtimeErr(t, `(docker bar)`, `unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
@@ -143,9 +143,9 @@ func TestLabel(t *testing.T) {
 	ctx := parseTest(t, code, code)
 
 	expected := []*Container{
-		{"a", nil, []string{"foo", "bar", "baz", "baz2"}},
-		{"b", nil, []string{"bar", "baz", "baz2"}},
-		{"c", nil, []string{"qux"}}}
+		{"a", nil, []string{"foo", "bar", "baz", "baz2"}, Placement{make(map[[2]string]struct{})}},
+		{"b", nil, []string{"bar", "baz", "baz2"}, Placement{make(map[[2]string]struct{})}},
+		{"c", nil, []string{"qux"}, Placement{make(map[[2]string]struct{})}}}
 	if !reflect.DeepEqual(ctx.containers, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, ctx.containers, expected))
@@ -157,8 +157,8 @@ func TestLabel(t *testing.T) {
 		"\n(label \"bar\" \"foo\")"
 	ctx = parseTest(t, code, exp)
 	expected = []*Container{
-		{"a", nil, []string{"foo", "bar"}},
-		{"a", nil, []string{"foo", "bar"}}}
+		{"a", nil, []string{"foo", "bar"}, Placement{make(map[[2]string]struct{})}},
+		{"a", nil, []string{"foo", "bar"}, Placement{make(map[[2]string]struct{})}}}
 	if !reflect.DeepEqual(ctx.containers, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, ctx.containers, expected))
@@ -170,6 +170,101 @@ func TestLabel(t *testing.T) {
 		"label must apply to atoms or other labels, found: 1")
 	runtimeErr(t, `(label "foo" (docker "a")) (label "foo" "foo")`,
 		"attempt to redefine label: foo")
+}
+
+func TestPlacement(t *testing.T) {
+	// Normal
+	code := `(label "red" (docker "a"))
+(label "blue" (docker "b"))
+(label "yellow" (docker "c"))
+(placement "exclusive" "red" "blue" "yellow")`
+	ctx := parseTest(t, code, code)
+	expected := []*Container{
+		{
+			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
+				[2]string{"blue", "red"}:    {},
+				[2]string{"blue", "yellow"}: {},
+				[2]string{"red", "yellow"}:  {},
+			}},
+		},
+		{
+			"b", nil, []string{"blue"}, Placement{map[[2]string]struct{}{
+				[2]string{"blue", "red"}:    {},
+				[2]string{"blue", "yellow"}: {},
+				[2]string{"red", "yellow"}:  {},
+			}},
+		},
+		{
+			"c", nil, []string{"yellow"}, Placement{map[[2]string]struct{}{
+				[2]string{"blue", "red"}:    {},
+				[2]string{"blue", "yellow"}: {},
+				[2]string{"red", "yellow"}:  {},
+			}},
+		},
+	}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
+
+	// All on one
+	code = `(label "red" (docker "a"))
+(label "blue" "red")
+(label "yellow" "red")
+(placement "exclusive" "red" "blue" "yellow")`
+	ctx = parseTest(t, code, code)
+	expected = []*Container{
+		{
+			"a", nil, []string{"red", "blue", "yellow"}, Placement{map[[2]string]struct{}{
+				[2]string{"blue", "red"}:    {},
+				[2]string{"blue", "yellow"}: {},
+				[2]string{"red", "yellow"}:  {},
+			}},
+		},
+	}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
+
+	// Duplicates
+	code = `(label "red" (docker "a"))
+(placement "exclusive" "red" "red" "red")`
+	ctx = parseTest(t, code, code)
+	expected = []*Container{
+		{
+			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
+				[2]string{"red", "red"}: {},
+			}},
+		},
+	}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
+
+	// Unrelated definitions
+	code = `(label "red" (docker "a"))
+(placement "exclusive" "red" "red")
+(label "blue" (docker "b"))
+(placement "exclusive" "blue" "blue")`
+	ctx = parseTest(t, code, code)
+	expected = []*Container{
+		{
+			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
+				[2]string{"red", "red"}: {},
+			}},
+		},
+		{
+			"b", nil, []string{"blue"}, Placement{map[[2]string]struct{}{
+				[2]string{"blue", "blue"}: {},
+			}},
+		},
+	}
+	if !reflect.DeepEqual(ctx.containers, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, ctx.containers, expected))
+	}
 }
 
 func TestConnect(t *testing.T) {
