@@ -1,9 +1,7 @@
 package db
 
 import (
-	"fmt"
 	"sort"
-	"strings"
 )
 
 // Machine represents a physical or virtual machine operated by a cloud provider on which
@@ -28,15 +26,6 @@ func (db Database) InsertMachine() Machine {
 	return result
 }
 
-func (m Machine) id() int {
-	return m.ID
-}
-
-// Remove 'm' from its database.
-func (m Machine) tt() TableType {
-	return MachineTable
-}
-
 // SelectFromMachine gets all machines in the database thatsatisfy the 'check'.
 func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 	result := []Machine{}
@@ -49,23 +38,7 @@ func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 }
 
 func (m Machine) String() string {
-	tags := []string{fmt.Sprintf("Cluster-%d", m.ClusterID)}
-
-	if m.CloudID != "" {
-		tags = append(tags, m.CloudID)
-	}
-
-	tags = append(tags, m.Role.String())
-
-	if m.PublicIP != "" {
-		tags = append(tags, m.PublicIP)
-	}
-
-	if m.PrivateIP != "" {
-		tags = append(tags, m.PrivateIP)
-	}
-
-	return fmt.Sprintf("Machine-%d{%s}", m.ID, strings.Join(tags, ", "))
+	return DefaultString(m)
 }
 
 func (m Machine) less(arg row) bool {

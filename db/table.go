@@ -1,29 +1,24 @@
 package db
 
-type TableType int
-
-const (
-	/* Used by the global controller. */
-	ClusterTable TableType = iota
-	MachineTable
-
-	/* Used by the minions. */
-	ContainerTable
-	MinionTable
-	ConnectionTable
-	LabelTable
-	EtcdTable
+import (
+	"reflect"
 )
 
-var allTables = map[TableType]string{
-	ClusterTable:    "Cluster",
-	MachineTable:    "Machine",
-	ContainerTable:  "Container",
-	MinionTable:     "Minion",
-	EtcdTable:       "Etcd",
-	ConnectionTable: "Connection",
-	LabelTable:      "Label",
-}
+type TableType string
+
+/* Used by the global controller. */
+var ClusterTable TableType = TableType(reflect.TypeOf(Cluster{}).String())
+var MachineTable TableType = TableType(reflect.TypeOf(Machine{}).String())
+
+/* Used by the minions. */
+var ContainerTable TableType = TableType(reflect.TypeOf(Container{}).String())
+var MinionTable TableType = TableType(reflect.TypeOf(Minion{}).String())
+var ConnectionTable TableType = TableType(reflect.TypeOf(Connection{}).String())
+var LabelTable TableType = TableType(reflect.TypeOf(Label{}).String())
+var EtcdTable TableType = TableType(reflect.TypeOf(Etcd{}).String())
+
+var allTables []TableType = []TableType{ClusterTable, MachineTable, ContainerTable,
+	MinionTable, ConnectionTable, LabelTable, EtcdTable}
 
 type table struct {
 	rows map[int]row
@@ -58,8 +53,4 @@ func (t *table) alert() {
 		default:
 		}
 	}
-}
-
-func (t TableType) String() string {
-	return allTables[t]
 }

@@ -1,10 +1,5 @@
 package db
 
-import (
-	"fmt"
-	"strings"
-)
-
 // The Minion table is instantiated on the minions with one row.  That row contains the
 // configuration that minion needs to operate, including its ID, Role, and IP address
 type Minion struct {
@@ -43,26 +38,8 @@ func (conn Conn) SelectFromMinion(check func(Minion) bool) []Minion {
 	return minions
 }
 
-func (m Minion) id() int {
-	return m.ID
-}
-
-func (m Minion) tt() TableType {
-	return MinionTable
-}
-
 func (m Minion) String() string {
-	tags := []string{m.Role.String()}
-
-	if m.MinionID != "" {
-		tags = append(tags, m.MinionID)
-	}
-
-	if m.PrivateIP != "" {
-		tags = append(tags, m.PrivateIP)
-	}
-
-	return fmt.Sprintf("Minion-%d{%s}", m.ID, strings.Join(tags, ", "))
+	return DefaultString(m)
 }
 
 func (m Minion) less(r row) bool {

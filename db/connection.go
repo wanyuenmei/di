@@ -30,14 +30,6 @@ func (db Database) SelectFromConnection(check func(Connection) bool) []Connectio
 	return result
 }
 
-func (c Connection) id() int {
-	return c.ID
-}
-
-func (c Connection) tt() TableType {
-	return ConnectionTable
-}
-
 func (c Connection) String() string {
 	port := fmt.Sprintf("%d", c.MinPort)
 	if c.MaxPort == c.MinPort {

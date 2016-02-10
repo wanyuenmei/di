@@ -7,7 +7,7 @@ import (
 )
 
 func (conn Conn) runLogger() {
-	for t := range allTables {
+	for _, t := range allTables {
 		t := t
 		go func() {
 			for range conn.Trigger(t).C {

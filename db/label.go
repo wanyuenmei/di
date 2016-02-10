@@ -1,10 +1,5 @@
 package db
 
-import (
-	"fmt"
-	"strings"
-)
-
 // A Label row is created for each container specified by the policy.  Each row will
 // eventually be instantiated within its corresponding cluster. */
 type Label struct {
@@ -43,23 +38,8 @@ func (conn Conn) SelectFromLabel(check func(Label) bool) []Label {
 	return result
 }
 
-func (r Label) id() int {
-	return r.ID
-}
-
-func (r Label) tt() TableType {
-	return LabelTable
-}
-
 func (r Label) String() string {
-	tags := []string{r.Label}
-	if r.IP != "" {
-		tags = append(tags, r.IP)
-	}
-
-	tags = append(tags, fmt.Sprintf("%s", r.SchedIDs))
-
-	return fmt.Sprintf("Label-%d{%s}", r.ID, strings.Join(tags, ", "))
+	return DefaultString(r)
 }
 
 func (r Label) less(row row) bool {

@@ -1,7 +1,9 @@
 package db
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/op/go-logging"
@@ -22,8 +24,6 @@ type Trigger struct {
 }
 
 type row interface {
-	id() int
-	tt() TableType
 	less(row) bool
 	String() string
 }
@@ -41,7 +41,7 @@ var log = logging.MustGetLogger("database")
 // New creates a connection to a brand new database.
 func New() Conn {
 	db := Database{make(map[TableType]*table), new(int)}
-	for t := range allTables {
+	for _, t := range allTables {
 		db.tables[t] = newTable()
 	}
 
@@ -117,14 +117,14 @@ func (t Trigger) Stop() {
 }
 
 func (db Database) insert(r row) {
-	table := db.tables[r.tt()]
+	table := db.tables[getTableType(r)]
 	table.seq++
-	table.rows[r.id()] = r
+	table.rows[getID(r)] = r
 }
 
 func (db Database) Commit(r row) {
-	rid := r.id()
-	table := db.tables[r.tt()]
+	rid := getID(r)
+	table := db.tables[getTableType(r)]
 	old := table.rows[rid]
 
 	if reflect.TypeOf(old) != reflect.TypeOf(r) {
@@ -138,8 +138,8 @@ func (db Database) Commit(r row) {
 }
 
 func (db Database) Remove(r row) {
-	table := db.tables[r.tt()]
-	delete(table.rows, r.id())
+	table := db.tables[getTableType(r)]
+	delete(table.rows, getID(r))
 	table.seq++
 }
 
@@ -160,4 +160,36 @@ func (rows rowSlice) Swap(i, j int) {
 
 func (rows rowSlice) Less(i, j int) bool {
 	return rows[i].less(rows[j])
+}
+
+func DefaultString(r row) string {
+	trow := reflect.TypeOf(r)
+	vrow := reflect.ValueOf(r)
+
+	var tags []string
+	for i := 0; i < trow.NumField(); i += 1 {
+		formatString := trow.Field(i).Tag.Get("rowStringer")
+		if trow.Field(i).Name == "ID" || formatString == "omit" {
+			continue
+		}
+		if formatString == "" {
+			formatString = fmt.Sprintf("%s=%%s", trow.Field(i).Name)
+		}
+		fieldString := fmt.Sprint(vrow.Field(i).Interface())
+		if fieldString == "" {
+			continue
+		}
+		tags = append(tags, fmt.Sprintf(formatString, fieldString))
+	}
+
+	id := vrow.FieldByName("ID").Int()
+	return fmt.Sprintf("%s-%d{%s}", trow.Name(), id, strings.Join(tags, ", "))
+}
+
+func getID(r row) int {
+	return int(reflect.ValueOf(r).FieldByName("ID").Int())
+}
+
+func getTableType(r row) TableType {
+	return TableType(reflect.TypeOf(r).String())
 }

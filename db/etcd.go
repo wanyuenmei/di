@@ -1,10 +1,5 @@
 package db
 
-import (
-	"fmt"
-	"strings"
-)
-
 type Etcd struct {
 	ID int
 
@@ -14,26 +9,8 @@ type Etcd struct {
 	LeaderIP string //IP address of the current leader, or ""
 }
 
-func (e Etcd) tt() TableType {
-	return EtcdTable
-}
-
 func (e Etcd) String() string {
-	tags := []string{}
-
-	if e.Leader {
-		tags = append(tags, "Leader")
-	}
-
-	if e.LeaderIP != "" {
-		tags = append(tags, "LeaderIP="+e.LeaderIP)
-	}
-
-	if len(e.EtcdIPs) != 0 {
-		tags = append(tags, "EtcdIPs="+strings.Join(e.EtcdIPs, ", "))
-	}
-
-	return fmt.Sprintf("Etcd-%d{%s}", e.ID, strings.Join(tags, ", "))
+	return DefaultString(e)
 }
 
 func (db Database) InsertEtcd() Etcd {
@@ -59,10 +36,6 @@ func (conn Conn) SelectFromEtcd(check func(Etcd) bool) []Etcd {
 		return nil
 	})
 	return etcdRows
-}
-
-func (e Etcd) id() int {
-	return e.ID
 }
 
 func (e Etcd) less(r row) bool {
