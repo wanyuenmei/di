@@ -13,23 +13,23 @@ import (
 var log = logging.MustGetLogger("supervisor")
 
 const (
-	etcd          = "etcd"
-	swarm         = "swarm"
-	ovnnorthd     = "ovn-northd"
-	ovncontroller = "ovn-controller"
-	ovnoverlay    = "ovn-overlay"
-	ovsvswitchd   = "ovs-vswitchd"
-	ovsdb         = "ovsdb-server"
+	Etcd          = "etcd"
+	Ovncontroller = "ovn-controller"
+	Ovnnorthd     = "ovn-northd"
+	Ovnoverlay    = "ovn-overlay"
+	Ovsdb         = "ovsdb-server"
+	Ovsvswitchd   = "ovs-vswitchd"
+	Swarm         = "swarm"
 )
 
 var images = map[string]string{
-	etcd:          "quay.io/coreos/etcd:v2.2.4",
-	ovncontroller: "quay.io/netsys/ovn-controller",
-	ovnnorthd:     "quay.io/netsys/ovn-northd",
-	ovnoverlay:    "quay.io/netsys/ovn-overlay",
-	ovsdb:         "quay.io/netsys/ovsdb-server",
-	ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
-	swarm:         "swarm:1.0.1",
+	Etcd:          "quay.io/coreos/etcd:v2.2.4",
+	Ovncontroller: "quay.io/netsys/ovn-controller",
+	Ovnnorthd:     "quay.io/netsys/ovn-northd",
+	Ovnoverlay:    "quay.io/netsys/ovn-overlay",
+	Ovsdb:         "quay.io/netsys/ovsdb-server",
+	Ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
+	Swarm:         "swarm:1.0.1",
 }
 
 const etcdHeartbeatInterval = "500"
@@ -100,64 +100,64 @@ func (sv *supervisor) runOnce() {
 
 func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string) {
 	if !reflect.DeepEqual(sv.etcdIPs, etcdIPs) {
-		sv.Remove(etcd)
+		sv.Remove(Etcd)
 	}
 
 	if sv.leaderIP != leaderIP || sv.IP != IP {
-		sv.Remove(swarm)
+		sv.Remove(Swarm)
 	}
 
-	sv.run(etcd, fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
+	sv.run(Etcd, fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		"--heartbeat-interval="+etcdHeartbeatInterval,
 		"--election-timeout="+etcdElectionTimeout,
 		"--proxy=on")
 
-	sv.run(ovsdb)
-	sv.run(ovsvswitchd)
+	sv.run(Ovsdb)
+	sv.run(Ovsvswitchd)
 
 	if leaderIP == "" || IP == "" {
 		return
 	}
 
-	sv.run(swarm, "join", fmt.Sprintf("--addr=%s:2375", IP), "etcd://127.0.0.1:2379")
+	sv.run(Swarm, "join", fmt.Sprintf("--addr=%s:2375", IP), "etcd://127.0.0.1:2379")
 
 	minions := sv.conn.SelectFromMinion(nil)
 	if len(minions) != 1 {
 		return
 	}
 
-	err := sv.dk.Exec(ovsvswitchd, "ovs-vsctl", "set", "Open_vSwitch", ".",
+	err := sv.dk.Exec(Ovsvswitchd, "ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leaderIP),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
 		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minions[0].MinionID))
 	if err != nil {
-		log.Warning("Failed to exec in %s: %s", ovsvswitchd, err)
+		log.Warning("Failed to exec in %s: %s", Ovsvswitchd, err)
 	}
 
 	/* The ovn controller doesn't support reconfiguring ovn-remote mid-run.
 	 * So, we need to restart the container when the leader changes. */
-	sv.Remove(ovncontroller)
-	sv.run(ovncontroller)
+	sv.Remove(Ovncontroller)
+	sv.run(Ovncontroller)
 
-	sv.run(ovnoverlay)
+	sv.run(Ovnoverlay)
 }
 
 func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
 	if sv.IP != IP || !reflect.DeepEqual(sv.etcdIPs, etcdIPs) {
-		sv.Remove(etcd)
+		sv.Remove(Etcd)
 	}
 
 	if sv.IP != IP {
-		sv.Remove(swarm)
+		sv.Remove(Swarm)
 	}
 
 	if IP == "" || len(etcdIPs) == 0 {
 		return
 	}
 
-	sv.run(etcd, fmt.Sprintf("--name=master-%s", IP),
+	sv.run(Etcd, fmt.Sprintf("--name=master-%s", IP),
 		fmt.Sprintf("--initial-cluster=%s", initialClusterString(etcdIPs)),
 		fmt.Sprintf("--advertise-client-urls=http://%s:2379", IP),
 		fmt.Sprintf("--listen-peer-urls=http://%s:2380", IP),
@@ -166,19 +166,19 @@ func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
 		"--heartbeat-interval="+etcdHeartbeatInterval,
 		"--initial-cluster-state=new",
 		"--election-timeout="+etcdElectionTimeout)
-	sv.run(ovsdb)
+	sv.run(Ovsdb)
 
 	swarmAddr := IP + ":2377"
-	sv.run(swarm, "manage", "--replication", "--addr="+swarmAddr,
+	sv.run(Swarm, "manage", "--replication", "--addr="+swarmAddr,
 		"--host="+swarmAddr, "etcd://127.0.0.1:2379")
 
 	if leader {
 		/* XXX: If we fail to boot ovn-northd, we should give up
 		* our leadership somehow.  This ties into the general
 		* problem of monitoring health. */
-		sv.run(ovnnorthd)
+		sv.run(Ovnnorthd)
 	} else {
-		sv.Remove(ovnnorthd)
+		sv.Remove(Ovnnorthd)
 	}
 }
 
@@ -191,19 +191,19 @@ func (sv *supervisor) run(name string, args ...string) {
 	}
 
 	switch name {
-	case ovnoverlay:
+	case Ovnoverlay:
 		ro.Binds = []string{"/etc/docker:/etc/docker:rw"}
 		fallthrough
-	case ovsvswitchd:
+	case Ovsvswitchd:
 		ro.Privileged = true
 		fallthrough
-	case ovnnorthd:
+	case Ovnnorthd:
 		fallthrough
-	case ovncontroller:
-		ro.VolumesFrom = []string{ovsdb}
-	case etcd:
+	case Ovncontroller:
+		ro.VolumesFrom = []string{Ovsdb}
+	case Etcd:
 		fallthrough
-	case ovsdb:
+	case Ovsdb:
 		ro.Binds = []string{"/usr/share/ca-certificates:/etc/ssl/certs"}
 	}
 

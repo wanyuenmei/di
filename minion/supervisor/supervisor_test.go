@@ -59,9 +59,9 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -89,10 +89,10 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:      etcdArgsMaster(ip, etcdIPs),
-		ovsdb:     nil,
-		swarm:     swarmArgsMaster(ip),
-		ovnnorthd: nil,
+		Etcd:      etcdArgsMaster(ip, etcdIPs),
+		Ovsdb:     nil,
+		Swarm:     swarmArgsMaster(ip),
+		Ovnnorthd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -112,9 +112,9 @@ func TestMaster(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -142,9 +142,9 @@ func TestWorker(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:        etcdArgsWorker(etcdIPs),
-		ovsdb:       nil,
-		ovsvswitchd: nil,
+		Etcd:        etcdArgsWorker(etcdIPs),
+		Ovsdb:       nil,
+		Ovsvswitchd: nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -169,12 +169,12 @@ func TestWorker(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:          etcdArgsWorker(etcdIPs),
-		ovsdb:         nil,
-		ovncontroller: nil,
-		ovsvswitchd:   nil,
-		ovnoverlay:    nil,
-		swarm:         swarmArgsWorker(ip),
+		Etcd:          etcdArgsWorker(etcdIPs),
+		Ovsdb:         nil,
+		Ovncontroller: nil,
+		Ovsvswitchd:   nil,
+		Ovnoverlay:    nil,
+		Swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -188,7 +188,7 @@ func TestWorker(t *testing.T) {
 		return nil
 	})
 	exp = map[string][]string{
-		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -214,12 +214,12 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:          etcdArgsWorker(etcdIPs),
-		ovsdb:         nil,
-		ovncontroller: nil,
-		ovsvswitchd:   nil,
-		ovnoverlay:    nil,
-		swarm:         swarmArgsWorker(ip),
+		Etcd:          etcdArgsWorker(etcdIPs),
+		Ovsdb:         nil,
+		Ovncontroller: nil,
+		Ovsvswitchd:   nil,
+		Ovnoverlay:    nil,
+		Swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -233,13 +233,13 @@ func TestChange(t *testing.T) {
 		return nil
 	})
 	exp = map[string][]string{
-		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
 	}
 
-	delete(ctx.fd.exec, ovsvswitchd)
+	delete(ctx.fd.exec, Ovsvswitchd)
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.SelectFromMinion(nil)[0]
 		m.Role = db.Master
@@ -249,9 +249,9 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -270,12 +270,12 @@ func TestChange(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:          etcdArgsWorker(etcdIPs),
-		ovsdb:         nil,
-		ovncontroller: nil,
-		ovnoverlay:    nil,
-		ovsvswitchd:   nil,
-		swarm:         swarmArgsWorker(ip),
+		Etcd:          etcdArgsWorker(etcdIPs),
+		Ovsdb:         nil,
+		Ovncontroller: nil,
+		Ovnoverlay:    nil,
+		Ovsvswitchd:   nil,
+		Swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -283,7 +283,7 @@ func TestChange(t *testing.T) {
 	}
 
 	exp = map[string][]string{
-		ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -307,9 +307,9 @@ func TestEtcdAdd(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -330,9 +330,9 @@ func TestEtcdAdd(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -357,9 +357,9 @@ func TestEtcdRemove(t *testing.T) {
 	ctx.run()
 
 	exp := map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -380,9 +380,9 @@ func TestEtcdRemove(t *testing.T) {
 	ctx.run()
 
 	exp = map[string][]string{
-		etcd:  etcdArgsMaster(ip, etcdIPs),
-		ovsdb: nil,
-		swarm: swarmArgsMaster(ip),
+		Etcd:  etcdArgsMaster(ip, etcdIPs),
+		Ovsdb: nil,
+		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -527,13 +527,13 @@ func ovsExecArgs(id, ip, leader string) []string {
 
 func validateImage(image string) {
 	switch image {
-	case etcd:
-	case swarm:
-	case ovnnorthd:
-	case ovnoverlay:
-	case ovncontroller:
-	case ovsvswitchd:
-	case ovsdb:
+	case Etcd:
+	case Swarm:
+	case Ovnnorthd:
+	case Ovnoverlay:
+	case Ovncontroller:
+	case Ovsvswitchd:
+	case Ovsdb:
 	default:
 		panic("Bad Image")
 	}
