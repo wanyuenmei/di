@@ -403,7 +403,7 @@ func initTest() testCtx {
 	ctx := testCtx{supervisor{},
 		fakeDocker{make(map[string][]string), make(map[string][]string),
 			make(map[string]bool)},
-		conn, conn.Trigger(db.MinionTable)}
+		conn, conn.Trigger(db.MinionTable, db.EtcdTable)}
 	ctx.sv.conn = ctx.conn
 	ctx.sv.dk = ctx.fd
 
