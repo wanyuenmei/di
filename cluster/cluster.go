@@ -94,7 +94,7 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		if cloud == nil {
 			log.Error("Vagrant cluster didn't boot.")
 		}
-		cloudConfig = util.CloudConfigCoreOS(keys)
+		cloudConfig = util.CloudConfigCoreOS(append(keys, VagrantPublicKey))
 	default:
 		panic("Unimplemented")
 	}
