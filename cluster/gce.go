@@ -260,7 +260,8 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 			clst.machType),
 		Disks: []*compute.AttachedDisk{
 			{
-				Boot: true,
+				Boot:       true,
+				AutoDelete: true,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					SourceImage: clst.imgURL,
 				},
