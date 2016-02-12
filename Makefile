@@ -22,7 +22,7 @@ check:
 vet:
 	cd -P . && go vet ./...
 
-coverage: db.cov dsl.cov engine.cov cluster.cov minion/supervisor.cov minion/consensus.cov minion.cov
+coverage: db.cov dsl.cov engine.cov cluster.cov minion/supervisor.cov minion/network.cov minion.cov
 
 %.cov:
 	go test -coverprofile=$@.out ./$*
