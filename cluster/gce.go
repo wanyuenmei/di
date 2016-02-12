@@ -1,43 +1,38 @@
 package cluster
 
-////// ADDING YOUR SSH KEY:
+////// ADD YOUR SSH KEY:
 //
-// In the Google Developer Console navigate to:
-// Metadata > SSH Keys
+// 1) In the Google Developer Console navigate to:
+//    Metadata > SSH Keys
 //
-////// SETTING UP API ACCESS:
+////// SET UP API ACCESS:
 //
-// First, in the Google Developer Console navigate to:
-// API Manager > Credentials
+// 1) In the Google Developer Console navigate to:
+//    Permissions > Service accounts
 //
-// To create a new key:
-// New credentials > OAuth client ID > Other > Create
+// 2) Create or use an existing Service Account
 //
-// To retrieve key:
-// Download OAuth 2.0 client ID, save it as "~/.gce/client_secret.json"
+// 3) For your Service Account, create and save a key as "~/.gce/di.json"
+//
+// 4) In the Google Developer Console navigate to:
+//    Permissions > Permissions
+//
+// 5) If the Service Account is not already, assign it the "Editor" role.
+//    You select the account by email.
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
-	"hash/fnv"
-	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 )
 
 const COMPUTE_BASE_URL string = "https://www.googleapis.com/compute/v1/projects"
@@ -138,7 +133,6 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 	if count < 0 {
 		return errors.New("count must be >= 0")
 	}
-	log.Debug("boot(): booting")
 	var ops []*compute.Operation
 	var urls []*compute.InstanceReference
 	for i := 0; i < count; i++ {
@@ -312,7 +306,6 @@ func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
 }
 
 func (clst *gceCluster) updateSecurityGroups(acls []string) error {
-	log.Debug("updateSecurityGroups(): updating acls")
 	op, err := clst.firewallPatch(clst.ns, acls)
 	if err != nil {
 		return err
@@ -448,22 +441,13 @@ func gceInit() error {
 		keyfile := filepath.Join(
 			os.Getenv("HOME"),
 			".gce",
-			"client_secret.json")
-		b, err := ioutil.ReadFile(keyfile)
+			"di.json")
+		err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", keyfile)
 		if err != nil {
-			return fmt.Errorf(
-				"Unable to read client secret file: %v",
-				err)
+			log.Error("Unable to set environment variable %v", err)
+			return err
 		}
-		oconf, err := google.ConfigFromJSON(b, compute.ComputeScope)
-		if err != nil {
-			return fmt.Errorf(
-				"Unable to parse client secret file to config: %v",
-				err)
-		}
-		gAuthClient = newOAuthClient(context.Background(), oconf)
-
-		srv, err := compute.New(gAuthClient)
+		srv, err := newComputeService(context.Background())
 		if err != nil {
 			log.Error("Unable to create Compute service %v", err)
 			return err
@@ -474,6 +458,18 @@ func gceInit() error {
 	}
 	log.Debug("GCE initialize success")
 	return nil
+}
+
+func newComputeService(ctx context.Context) (*compute.Service, error) {
+	client, err := google.DefaultClient(ctx, compute.ComputeScope)
+	if err != nil {
+		return nil, err
+	}
+	computeService, err := compute.New(client)
+	if err != nil {
+		return nil, err
+	}
+	return computeService, nil
 }
 
 // Initializes the network for the cluster
@@ -525,106 +521,4 @@ func (clst *gceCluster) fwInit() error {
 		}
 	}
 	return nil
-}
-
-func newOAuthClient(ctx context.Context, config *oauth2.Config) *http.Client {
-	cacheFile := tokenCacheFile(config)
-	token, err := tokenFromFile(cacheFile)
-	if err != nil {
-		token = tokenFromWeb(ctx, config)
-		saveToken(cacheFile, token)
-	} else {
-		log.Debug("Using cached token %#v from %q", token, cacheFile)
-	}
-
-	return config.Client(ctx, token)
-}
-
-func osUserCacheDir() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return filepath.Join(os.Getenv("HOME"), "Library", "Caches")
-	case "linux", "freebsd":
-		return filepath.Join(os.Getenv("HOME"), ".cache")
-	}
-	log.Debug("TODO: osUserCacheDir on GOOS %q", runtime.GOOS)
-	return "."
-}
-
-func saveToken(file string, token *oauth2.Token) {
-	f, err := os.Create(file)
-	if err != nil {
-		log.Warning("Warning: failed to cache oauth token: %v", err)
-		return
-	}
-	defer f.Close()
-	gob.NewEncoder(f).Encode(token)
-}
-
-func tokenCacheFile(config *oauth2.Config) string {
-	hash := fnv.New32a()
-	hash.Write([]byte(config.ClientID))
-	hash.Write([]byte(config.ClientSecret))
-	hash.Write([]byte(strings.Join(config.Scopes, " ")))
-	fn := fmt.Sprintf("go-api-demo-tok%v", hash.Sum32())
-	return filepath.Join(osUserCacheDir(), url.QueryEscape(fn))
-}
-
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	t := new(oauth2.Token)
-	err = gob.NewDecoder(f).Decode(t)
-	return t, err
-}
-
-func tokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
-	ch := make(chan string)
-	randState := fmt.Sprintf("st%d", time.Now().UnixNano())
-	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/favicon.ico" {
-			http.Error(rw, "", 404)
-			return
-		}
-		if req.FormValue("state") != randState {
-			log.Debug("State doesn't match: req = %#v", req)
-			http.Error(rw, "", 500)
-			return
-		}
-		if code := req.FormValue("code"); code != "" {
-			fmt.Fprintf(rw, "<h1>Success</h1>Authorized.")
-			rw.(http.Flusher).Flush()
-			ch <- code
-			return
-		}
-		log.Debug("no code")
-		http.Error(rw, "", 500)
-	}))
-	defer ts.Close()
-
-	config.RedirectURL = ts.URL
-	authURL := config.AuthCodeURL(randState)
-	go openURL(authURL)
-	log.Debug("Authorize this app at: %s", authURL)
-	code := <-ch
-	log.Debug("Got code: %s", code)
-
-	token, err := config.Exchange(ctx, code)
-	if err != nil {
-		log.Warning("Token exchange error: %v", err)
-	}
-	return token
-}
-
-func openURL(url string) {
-	try := []string{"xdg-open", "google-chrome", "open"}
-	for _, bin := range try {
-		err := exec.Command(bin, url).Run()
-		if err == nil {
-			return
-		}
-	}
-	log.Warning("Error opening URL in browser.")
 }
