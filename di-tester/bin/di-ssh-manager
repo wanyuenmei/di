@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+
+import os, sys, re, json
+
+DICTL_TMP='/tmp/dictl'
+machine_regex = re.compile(r'Machine-(\d+){ClusterID=(.*), Role=(.*), CloudID=(.*), PublicIP=(.*), PrivateIP=(.*)}')
+machines = {}
+while True:
+    line = sys.stdin.readline()
+    m = machine_regex.match(line.strip())
+    if m:
+        machine_num = m.group(1)
+        cluster_id = m.group(2)
+        machine_role = m.group(3)
+        cloud_id = m.group(4)
+        public_ip = m.group(5)
+        private_ip = m.group(6)
+        machine = { 'num': machine_num,
+                    'cluster_id': cluster_id,
+                    'role': machine_role,
+                    'cloud_id': cloud_id,
+                    'public_ip': public_ip,
+                    'private_ip': private_ip }
+
+        machines[machine_num] = machine
+        try:
+            os.remove(DICTL_TMP)
+        except OSError:
+            pass
+        with open(DICTL_TMP, 'w') as fp:
+            json.dump(machines, fp)

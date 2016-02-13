@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# This checks whether there's any containers that were started, but then exited
+
+docker ps -a
+if docker ps -a | grep Exited > /dev/null ; then
+  exit 1
+fi
+exit 0

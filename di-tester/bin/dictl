@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+import json, sys, subprocess
+
+try:
+    with open('/tmp/dictl', 'r') as fp:
+        machines = json.load(fp)
+except:
+    pass
+
+def print_machine(num):
+    machine = machines[num]
+    print("{0} | {1} | {2}".format(num, machine['role'], machine['public_ip']))
+
+def print_machines(f):
+    sorted_keys = sorted(machines.keys())
+    for m in sorted_keys:
+        if f(machines[m]):
+            print_machine(m)
+
+def ssh(num):
+    subprocess.call("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@{0}".format(machines[num]['public_ip']), shell=True)
+
+if len(sys.argv) == 1:
+    print_machines(lambda x: True)
+elif sys.argv[1] == 'ls':
+    if len(sys.argv) == 2 or sys.argv[2] == 'all':
+        print_machines(lambda x: True)
+    else:
+        print_machines(lambda x: x['role'].lower() == sys.argv[2].lower())
+
+elif sys.argv[1] == 'ssh':
+    if len(sys.argv) == 2 or sys.argv[2] == 'all':
+        sorted_keys = sorted(machines.keys())
+        for m in sorted_keys:
+            ssh(m)
+    elif sys.argv[2] in machines:
+        ssh(sys.argv[2])
+    else:
+        print("That machine doesn't exist.")
+else:
+    print("Don't recognize the command")

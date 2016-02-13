@@ -1,0 +1,229 @@
+#!/bin/bash
+
+# Read in settings
+if [ -f ~/.di-tester.conf ] ; then
+    source ~/.di-tester.conf
+fi
+
+# Try to guess the location of all the files if it's not explicitely set in the conf file
+if [ -z $TESTER_ROOT ] ; then
+    TESTER_ROOT="$(dirname $(readlink -f $0))/.."
+fi
+
+# Ensure our PATH is set correctly because cron might be the caller
+export PATH="$PATH:$TESTER_ROOT/bin"
+
+TEST_DIR="$TESTER_ROOT/tests" # Where the tests live
+if [ -z $WEB_ROOT ] ; then
+    WEB_ROOT="/var/www/di-tester"
+fi
+if [ -z $BOOT_SLEEP ] ; then
+    BOOT_SLEEP="240" # XXX: tuning is necessary for this: it definitely needs to be higher
+fi
+
+# Setup output directory
+folder=$(date '+%d-%m-%Y_%Hh%Mm%Ss')
+WEB_OUT="$WEB_ROOT/$folder"
+mkdir -p "$WEB_OUT"
+mkdir "$WEB_OUT/failed"
+mkdir "$WEB_OUT/passed"
+mkdir "$WEB_OUT/log"
+rm -f $WEB_ROOT/latest
+ln -s $WEB_OUT $WEB_ROOT/latest
+
+# Log files
+LOG_DIR="$WEB_OUT/log"
+LOG_FILE="$LOG_DIR/di-tester.log"
+RUN_OUT="$LOG_DIR/run_out.log"
+GIT_LOG="$LOG_DIR/git.log"
+
+function di_namespace() {
+  sed -i 's/(define Namespace .*/(define Namespace "'"$2"'")/' $1
+}
+
+function generate_namespace() {
+    echo "tester-$$-$(echo $MY_IP | tr '.' '_')"
+}
+
+function di_set() {
+  sed -i 's/(define MasterCount .*/(define MasterCount '"$2"')/' $1
+  sed -i 's/(define WorkerCount .*/(define WorkerCount '"$3"')/' $1
+}
+
+function di_ssh() {
+    host="$1"
+    cmd="$2"
+    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@$host "$cmd" 2> /dev/null
+}
+
+function di_scp() {
+    host="$1"
+    src="$2"
+    tgt="$3"
+    scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "$src" "ubuntu@$host:$tgt" &> /dev/null
+}
+
+function run_test() {
+    server=$1
+    test_path="$2"
+    test_file="$(basename $test_path)"
+    chmod +x "$test_path"
+    di_scp $server "$test_path" "$test_file"
+    test_out=$(di_ssh $server "./$test_file")
+    passed=$?
+    cat <<EOF
+Exit code: $passed
+
+---Begin test output---
+
+$test_out
+
+---End test output---
+
+---Begin test source---
+
+$(cat "$test_path")
+
+---End test source---
+EOF
+
+    return $passed
+}
+
+function slack() {
+    num_failed=$1
+    num_passed=$2
+    url=$3
+    color='#009900' # green
+    pretext="All tests <$url|passed>!"
+    icon=":confetti_ball:"
+    if [ $num_failed -ne 0 ] ; then
+	    icon=":oncoming_police_car:"
+        pretext="Some tests <$url|failed> :("
+        color='#D00000' # red
+    fi
+    value="Passed: $num_passed\nFailed: $num_failed"
+    field='{"title":"Continuous Integration", "short":"false", "value":"'"$value"'"}'
+    payload='payload={"username":"di-bot", "channel": "'"$SLACK_CHANNEL"'", "icon_emoji":"'$icon'", "color":"'$color'", "pretext":"'"$pretext"'", "fields":['"$field"']}'
+    curl -X POST --data-urlencode "$payload" https://hooks.slack.com/services/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 &> /dev/null
+}
+
+function di_verbose() {
+    echo "$1" >> $LOG_FILE
+}
+
+function di_info() {
+    echo "$1"
+    echo "" >> $LOG_FILE
+    echo "=== $1 ===" >> $LOG_FILE
+    echo "" >> $LOG_FILE
+}
+
+function kill_aws() {
+    instances=$(aws ec2 describe-instances --filters "Name=network-interface.group-name,Values=$(generate_namespace)" --query 'Reservations[].Instances[].[InstanceId]' --output text | tr "\n" " ")
+    if [ -n "$instances" ] ; then
+        di_verbose "Forcefully terminating instances:  $instances"
+        di_verbose "$(aws ec2 terminate-instances --instance-ids $instances)"
+    fi
+}
+
+function cleanup() {
+    pkill -P $$
+    rm -rf $GOPATH
+    kill_aws
+}
+
+export GOPATH="$(mktemp -d -t di-tester.XXXXXXXXXX)"
+trap "cleanup" INT
+
+BRANCH="master"
+if [ -n "$1" ] ; then
+    BRANCH="$1"
+fi
+
+
+di_info "Cloning the di repo.."
+di_info "Going to test $REPO on branch $BRANCH"
+di_verbose "$(git clone $REPO $GOPATH/src/github.com/NetSys/di 2>&1)"
+pushd $GOPATH/src/github.com/NetSys/di > /dev/null
+di_verbose "$(git checkout -b $BRANCH 2>&1)"
+
+# Log exactly what we're testing
+cat <<EOF > $GIT_LOG
+---git remote show origin---
+
+$(git remote show origin)
+
+---git log---
+
+$(git log --pretty=format:"%h - %an, %ar : %s" | head -n 10)
+EOF
+
+popd > /dev/null
+
+di_info "Building the code.."
+# Install dependencies
+di_verbose "$(go get -v github.com/NetSys/di/... 2>&1)"
+# Build the di controller
+di_verbose "$(go install -v github.com/NetSys/di 2>&1)"
+
+di_info "Booting di.."
+SPEC="$GOPATH/config.spec"
+cp "$TESTER_ROOT/config/config.spec" "$SPEC" > /dev/null
+
+di_namespace "$SPEC" "tester-$$-$(echo $MY_IP | tr '.' '_')"
+di_set "$SPEC" 1 1
+di_verbose "---Start boot spec---"
+di_verbose ""
+di_verbose "$(cat "$SPEC")"
+di_verbose ""
+di_verbose "---End boot spec---"
+$GOPATH/bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
+
+# Wait until the minion connects before we start running our tests
+# XXX: We should give up after a certain timeout and assume that the minion is is so broken that it never connects
+while ! grep -q 'New Connection' "$RUN_OUT" &> /dev/null; do
+   sleep 5
+done
+
+# Wait for containers to get downloaded and initialized, etc
+sleep $BOOT_SLEEP
+
+di_info "Starting tests.."
+
+di_info "Getting the most updated tests.."
+pushd $TESTER_ROOT > /dev/null
+di_verbose "$(git pull -f origin master)"
+popd > /dev/null
+
+num_failed=0
+num_passed=0
+for s in $(dictl ls | cut -d '|' -f3) ; do
+    for test in "$TEST_DIR"/* ; do
+        test_name="$(basename $test)"
+        di_info ".. Running $test_name on $s"
+        test_res="$(run_test $s $test)"
+        if [ $? -ne 0 ] ; then
+            echo "$test_res" > "$WEB_OUT/failed/$test_name-$s.txt"
+            let num_failed+=1
+        else
+            echo "$test_res" > "$WEB_OUT/passed/$test_name-$s.txt"
+            let num_passed+=1
+        fi
+    done
+done
+
+URL="http://$MY_IP/$(basename $WEB_OUT)"
+if [ -n $SLACK_CHANNEL ] ; then
+    di_info "Posting to slack.."
+    slack $num_failed $num_passed $URL
+fi
+
+di_info "Cleaning up.."
+di_set "$SPEC" 0 0
+
+sleep 120
+
+cleanup
+
+di_info "Done."

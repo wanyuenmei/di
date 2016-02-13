@@ -1,0 +1,24 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "ubuntu/vivid64"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", type: "dhcp"
+
+  config.vm.provider :virtualbox do |v|
+    v.memory = 1024
+
+    config.vm.provision "file", source: "setup", destination: "setup"
+    config.vm.provision "file", source: "~/.aws", destination: "~/.aws"
+    # Set the timesync threshold to 10 seconds, instead of the default 20 minutes.
+    v.customize ["guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000]
+  end
+
+  # Set the Timezone
+  config.vm.provision :shell, :inline => "echo \"America/Los_Angeles\" | tee /etc/timezone && dpkg-reconfigure --frontend noninteractive tzdata"
+end

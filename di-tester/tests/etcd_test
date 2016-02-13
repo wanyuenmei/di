@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# This script sets up etcdctl, and then queries the health of the cluster
+
+# setup etcd
+curl -L  https://github.com/coreos/etcd/releases/download/v2.2.5/etcd-v2.2.5-linux-amd64.tar.gz -o etcd-v2.2.5-linux-amd64.tar.gz &> /dev/null
+tar xzf etcd-v2.2.5-linux-amd64.tar.gz > /dev/null
+cd etcd-v2.2.5-linux-amd64
+
+./etcdctl cluster-health
+if ./etcdctl cluster-health |& grep unhealth > /dev/null ; then
+    exit 1
+fi
+
+exit 0

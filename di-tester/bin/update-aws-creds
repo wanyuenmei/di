@@ -1,0 +1,18 @@
+#!/bin/bash
+
+function get_credentials() {
+    keys=$(cat <<EOF
+aws_access_key
+aws_secret_access_key
+aws_session_token
+EOF
+)
+
+    values="$(curl http://169.254.169.254/latest/meta-data/iam/security-credentials/Integration 2>/dev/null | grep -E "(AccessKeyId)|(SecretAccessKey)|(Token)" | sort | cut -d'"' -f4)"
+
+    echo "[default]"
+    paste -d"=" <(echo "$keys") <(echo "$values")
+}
+
+mkdir -p ~/.aws
+get_credentials > ~/.aws/credentials

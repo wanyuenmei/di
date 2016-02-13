@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# This script sets up a machine to act as a di continuous integration host. It's only been
+# tested with Ubuntu 15.04
+# Specifically, it downloads the di-tester code, configures apache, and sets up the hourly
+# cron job
+
+TEST_USER="di-tester"
+TESTER_HOME="/home/$TEST_USER"
+DI_TEST_PATH="$TESTER_HOME/di/di-tester"
+
+function setup_conf() {
+    SLACK_GUESS="#di-testing"
+    REPO_GUESS="NetSys/di"
+
+    # Assume we're on aws, and fallback to vagrant if query times out
+    IP_GUESS="$(curl --connect-timeout 10 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)"
+    if [ $? -ne 0 ] ; then
+        IP_GUESS=$(ip address show eth1 | grep 'inet ' | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
+    fi
+
+    echo -n "Enter this machine's IP address: [$IP_GUESS] "
+    read ip
+
+    echo -n "Enter the slack channel to post to: [$SLACK_GUESS] "
+    read slack_channel
+
+    echo -n "Enter the di repo to test: [$REPO_GUESS] "
+    read repo
+
+    if [ -z $ip ] ; then
+        ip=$IP_GUESS
+    fi
+
+    if [ -z $slack_channel ] ; then
+        slack_channel=$SLACK_GUESS
+    fi
+
+    if [ -z $repo ] ; then
+        repo=$REPO_GUESS
+    fi
+
+    sudo cat <<EOF > "$TESTER_HOME/.di-tester.conf"
+MY_IP="$ip"
+SLACK_CHANNEL="$slack_channel"
+REPO="git@github.com:$repo"
+EOF
+
+    #XXX: Allow the user to review settings, and reconfigure if they want to
+}
+
+if [[ $EUID -ne 0 ]]; then
+   echo "Please run as root. Exiting." 1>&2
+   exit 1
+fi
+
+echo "Beginning setup. Please wait a minute or so, and then we will ask you some questions."
+
+echo "Creating new user: $TEST_USER.."
+sudo groupadd $TEST_USER
+sudo useradd $TEST_USER -g $TEST_USER
+sudo usermod -aG www-data $TEST_USER
+sudo install -d $TESTER_HOME -g $TEST_USER -o $TEST_USER -m 755
+
+echo "Installing git.."
+sudo apt-get update > /dev/null && sudo apt-get install -y git > /dev/null
+
+echo
+echo "=== Begin user input section ==="
+setup_conf && sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/.di-tester.conf
+
+echo "Setting up cron jobs.."
+my_crontab="0 * * * *	$DI_TEST_PATH/bin/di-tester"
+
+read -p "Do you want to install the aws credentials cron? [y/N] " yn
+case $yn in
+    # XXX: fix me
+    [Yy]* ) my_crontab="$my_crontab\n0 1 * * *	  $DI_TEST_PATH/bin/update-aws-creds"
+esac
+echo "$my_crontab" | sudo -u $TEST_USER crontab
+
+echo "Cloning the di-tester framework.."
+sudo git clone https://github.com/NetSys/di $TESTER_HOME/di &> /dev/null && sudo chown -R $TEST_USER:www-data $TESTER_HOME/di
+pushd $TESTER_HOME/di > /dev/null
+sudo -u $TEST_USER git remote rm origin
+sudo -u $TEST_USER git remote add origin git@github.com:NetSys/di
+popd > /dev/null
+
+echo "=== End user input section. You can leave now :) ==="
+echo
+
+echo "Installing dependencies.. (This takes a couple minutes)"
+sudo apt-get install -y apache2 awscli > /dev/null
+
+# We have to install go1.5 this way on older versions of Ubuntu
+wget https://storage.googleapis.com/golang/go1.5.linux-amd64.tar.gz &> /dev/null
+sudo tar -C /usr/local -xzf go1.5.linux-amd64.tar.gz
+mv /usr/local/go/bin/* /usr/bin
+
+
+echo "Installing ssh keys.."
+sudo install -d $TESTER_HOME/.ssh -g $TEST_USER -o $TEST_USER -m 700
+sudo install $DI_TEST_PATH/config/id_rsa $TESTER_HOME/.ssh/id_rsa -g $TEST_USER -o $TEST_USER -m 600
+sudo ssh-keyscan -H github.com 2>/dev/null >> $TESTER_HOME/.ssh/known_hosts && sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/.ssh/known_hosts
+
+
+echo "Configuring apache.."
+sudo install -d /var/www/di-tester -g www-data -o $TEST_USER -m 775
+
+# Setup web hooks
+sudo cat << EOF > /usr/lib/cgi-bin/update_tests
+#!/bin/bash
+
+echo "Content-type: text/plain"
+echo ""
+cd $DI_TEST_PATH && git fetch --all &> /dev/null && git reset --hard origin/master &> /dev/null
+echo ""
+echo "Updated tests."
+EOF
+
+sudo cat << EOF > /usr/lib/cgi-bin/trigger_run
+#!/bin/bash
+
+echo "Content-type: text/plain"
+echo ""
+
+IFS='&'
+set -- \$QUERY_STRING
+
+array=(\$@)
+
+declare -A hash
+for i in "\${array[@]}"; do IFS="=" ; set -- \$i; hash[\$1]=\$2; done
+
+branch="\${hash["branch"]}"
+
+source $TESTER_HOME/.di-tester.conf
+HOME="/home/di-tester" nohup $DI_TEST_PATH/bin/di-tester \$branch &> /dev/null &
+echo "Started new test run for \$REPO on branch \$branch."
+echo "Logs at: http://\$MY_IP/latest/log"
+exit 0
+EOF
+
+chmod +x /usr/lib/cgi-bin/*
+sudo a2enmod cgi &> /dev/null
+
+sudo cp $DI_TEST_PATH/config/apache/000-default.conf /etc/apache2/sites-enabled
+# Run apache as the di-tester user
+sudo cp $DI_TEST_PATH/config/apache/envvars /etc/apache2/envvars
+sudo service apache2 restart &> /dev/null
+
+
+# Symlink the tester to the homedir for convenience
+sudo ln -s $DI_TEST_PATH/bin/di-tester $TESTER_HOME &> /dev/null
+sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/di-tester
+
+# Try to setup aws keys
+echo "Trying to copy your aws credentials.."
+sudo cp -r ~/.aws $TESTER_HOME/.aws && sudo chown -R $TEST_USER:$TEST_USER $TESTER_HOME/.aws
+
+if [ $? -ne 0 ] ; then
+    echo -e "\e[31mRemember to put the aws credentials in $TESTER_HOME/.aws\e[0m"
+else
+    echo -e "\e[32mSuccessfully copied aws credentials.\e[0m"
+fi
+
+
+echo "Done."
