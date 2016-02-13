@@ -204,7 +204,7 @@ func diffLabels(kvLabels map[string]*labelData,
 }
 
 func getLabels(store consensus.Store) (map[string]*labelData, error) {
-	labels, err := store.GetDir(labelDir)
+	labels, err := store.GetTree(labelDir)
 	if err != nil {
 		return nil, err
 	}
@@ -212,14 +212,14 @@ func getLabels(store consensus.Store) (map[string]*labelData, error) {
 	kvLabels := make(map[string]*labelData)
 
 	// Initialize 'kvLabels' with the set of labels in etcd.
-	for k, v := range labels {
+	for _, t := range labels.Children {
 		ld := &labelData{}
-		err := json.Unmarshal([]byte(v), ld)
+		err := json.Unmarshal([]byte(t.Value), ld)
 		if err != nil {
 			ld = &labelData{}
-			log.Warning("Failed to parse label: %s", k)
+			log.Warning("Failed to parse label: %s", t.Key)
 		}
-		kvLabels[strings.TrimPrefix(k, labelDir+"/")] = ld
+		kvLabels[strings.TrimPrefix(t.Key, labelDir+"/")] = ld
 	}
 
 	return kvLabels, nil

@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"strings"
 	"time"
 
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
@@ -13,6 +14,12 @@ var log = logging.MustGetLogger("etcd")
 
 type Store struct {
 	kapi client.KeysAPI
+}
+
+type Tree struct {
+	Key      string
+	Value    string
+	Children map[string]Tree
 }
 
 func NewStore() Store {
@@ -57,21 +64,34 @@ func (s Store) Mkdir(dir string) error {
 	return err
 }
 
-func (s Store) GetDir(dir string) (map[string]string, error) {
+func (s Store) GetTree(dir string) (Tree, error) {
 	resp, err := s.kapi.Get(ctx(), dir, &client.GetOptions{
 		Recursive: true,
 		Sort:      false,
 		Quorum:    true,
 	})
 	if err != nil {
-		return nil, err
+		return Tree{}, err
 	}
 
-	result := make(map[string]string)
-	for _, node := range resp.Node.Nodes {
-		result[node.Key] = node.Value
+	var rec func(*client.Node) Tree
+	rec = func(node *client.Node) Tree {
+		keySlice := strings.Split(node.Key, "/")
+		tree := Tree{
+			Key:      keySlice[len(keySlice)-1],
+			Value:    node.Value,
+			Children: map[string]Tree{},
+		}
+
+		for _, child := range node.Nodes {
+			ct := rec(child)
+			tree.Children[ct.Key] = ct
+		}
+
+		return tree
 	}
-	return result, nil
+
+	return rec(resp.Node), nil
 }
 
 func (s Store) Get(path string) (string, error) {
