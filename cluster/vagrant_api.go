@@ -76,7 +76,7 @@ func (api *VagrantAPI) Destroy(id string) error {
 }
 
 func (api *VagrantAPI) PublicIP(id string) (string, error) {
-	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth0 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'")`)
+	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'")`)
 	if err != nil {
 		return "", err
 	}
@@ -282,8 +282,7 @@ Vagrant.configure("2") do |config|
         vb.cpus = vm_cpus
       end
 
-      ip = "172.17.8.#{i+100}"
-      config.vm.network :private_network, ip: ip
+      config.vm.network :private_network, type: "dhcp"
 
       config.vm.network "public_network", bridge: "en0: Wi-Fi (AirPort)"
 
