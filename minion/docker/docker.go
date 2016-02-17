@@ -2,7 +2,6 @@ package docker
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	dkc "github.com/fsouza/go-dockerclient"
@@ -138,7 +137,6 @@ func (dk docker) Exec(name string, cmd ...string) error {
 		return err
 	}
 
-	log.Info("Exec in %s: %s", name, strings.Join(cmd, " "))
 	exec, err := dk.CreateExec(dkc.CreateExecOptions{Container: id, Cmd: cmd})
 	if err != nil {
 		return err
