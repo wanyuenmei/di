@@ -198,6 +198,69 @@ func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 	return lports, nil
 }
 
+func (ovsdb Ovsdb) CreatePort(lswitch, name, mac, ip string) error {
+	/* OVN Uses name an index into the Logical_Port table so, we need to check
+	 * no port called name already exists. This isn't strictly necessary, but it
+	 * makes our lives easier. */
+	rows := ovsdb.selectRows("OVN_Northbound", "Logical_Port", "name",
+		[]string{name}, "==")
+	if len(rows) > 0 {
+		return errors.New(fmt.Sprintf("Port %s already exists", name))
+	}
+
+	port := make(map[string]interface{})
+	port["name"] = name
+	addrs, err := libovsdb.NewOvsSet([]string{fmt.Sprintf("%s %s", mac, ip)})
+	if err != nil {
+		return err
+	}
+	port["addresses"] = addrs
+
+	insertOp := libovsdb.Operation{
+		Op:       "insert",
+		Table:    "Logical_Port",
+		Row:      port,
+		UUIDName: "dilportadd",
+	}
+
+	mutateOp := rwMutateOp("Logical_Switch", "ports", "insert", "name", "==",
+		lswitch, "dilportadd")
+
+	ops := []libovsdb.Operation{insertOp, mutateOp}
+	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	if err != nil {
+		return errors.New("OVSDB Transaction error.")
+	}
+	return errorCheck(results, 2, 1)
+}
+
+func (ovsdb Ovsdb) DeletePort(lswitch, name string) error {
+	rows := ovsdb.selectRows("OVN_Northbound", "Logical_Port", "name",
+		[]string{name}, "==")
+	if len(rows) == 0 {
+		return nil
+	}
+	uuid := libovsdb.UUID{rows[0]["_uuid"].([]interface{})[1].(string)}
+
+	deleteOp := libovsdb.Operation{
+		Op:    "delete",
+		Table: "Logical_Port",
+		Where: []interface{}{
+			libovsdb.NewCondition("_uuid", "==", uuid),
+		},
+	}
+
+	mutateOp := rwMutateOp("Logical_Switch", "ports", "delete", "name", "==",
+		lswitch, uuid.GoUuid)
+
+	ops := []libovsdb.Operation{deleteOp, mutateOp}
+	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	if err != nil {
+		return errors.New("OVSDB Transaction error.")
+	}
+	return errorCheck(results, 2, 2)
+}
+
 /* ACL Queries */
 func (ovsdb Ovsdb) ListACLs(lswitch string) ([]Acl, error) {
 	var acls []Acl
@@ -316,4 +379,14 @@ func (ovsdb Ovsdb) DeleteACL(lswitch string, dir string, priority int, match str
 		}
 	}
 	return nil
+}
+
+/* OVS utilities */
+func (ovsdb Ovsdb) GetOFPort(name string) (int, error) {
+	results := ovsdb.selectRows("Open_vSwitch", "Interface", "name", []string{name},
+		"==")
+	if len(results) == 0 {
+		return 0, errors.New(fmt.Sprintf("No interfaces with name %s", name))
+	}
+	return int(results[0]["ofport"].(float64)), nil
 }

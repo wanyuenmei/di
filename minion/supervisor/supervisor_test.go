@@ -8,6 +8,7 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/davecgh/go-spew/spew"
+	dkc "github.com/fsouza/go-dockerclient"
 )
 
 func TestNone(t *testing.T) {
@@ -521,6 +522,10 @@ func (f fakeDocker) RemoveAll() {
 	}
 }
 
+func (f fakeDocker) Inspect(id string) (*dkc.Container, error) {
+	return &dkc.Container{}, nil
+}
+
 func (f fakeDocker) Pull(image string) error {
 	return nil
 }
@@ -578,6 +583,8 @@ func ovsExecArgs(id, ip, leader string) []string {
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leader),
 		fmt.Sprintf("external_ids:system-id=\"di-%s\"", id),
+		"--", "add-br", "di-int",
+		"--", "set", "bridge", "di-int", "fail_mode=secure",
 	}
 }
 

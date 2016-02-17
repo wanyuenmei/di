@@ -1,7 +1,9 @@
 package supervisor
 
 import (
+	"bufio"
 	"fmt"
+	"os/exec"
 	"reflect"
 	"strings"
 
@@ -69,6 +71,10 @@ func (sv *supervisor) runApp() {
 			remove, insert, commit := diffApp(dbcs, dkcs)
 
 			for _, dbc := range remove {
+				// XXX: This is really not the place to call
+				// TeardownContainer(), It's a fairly extreme violation
+				// of modularity.
+				TeardownContainer(sv.dk, dbc)
 				view.Remove(dbc)
 			}
 
@@ -212,7 +218,9 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
-		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minions[0].MinionID))
+		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minions[0].MinionID),
+		"--", "add-br", "di-int",
+		"--", "set", "bridge", "di-int", "fail_mode=secure")
 	if err != nil {
 		log.Warning("Failed to exec in %s: %s", Ovsvswitchd, err)
 	}
@@ -310,4 +318,28 @@ func initialClusterString(etcdIPs []string) string {
 
 func nodeName(IP string) string {
 	return fmt.Sprintf("master-%s", IP)
+}
+
+// XXX: This is soooo ugly that outsiders call it.  Very important that we fix this.
+func TeardownContainer(dk docker.Client, dbc db.Container) {
+	if dbc.SchedID == "" {
+		return
+	}
+	veth_outside := dbc.SchedID[0:15]
+	peer_ovn := fmt.Sprintf("%s_o", dbc.SchedID[0:13])
+	peer_di := fmt.Sprintf("%s_d", dbc.SchedID[0:13])
+
+	// delete veth_outside
+	c := exec.Command("/sbin/ip", "link", "delete", veth_outside)
+	stderr, _ := c.StderrPipe()
+	c.Start()
+	sc := bufio.NewScanner(stderr)
+	for sc.Scan() {
+		log.Error(sc.Text())
+	}
+	c.Wait()
+
+	// delete patch ports
+	dk.Exec(Ovsvswitchd, "ovs-vsctl", "del-port", veth_outside, "--",
+		"del-port", peer_ovn, "--", "del-port", peer_di)
 }

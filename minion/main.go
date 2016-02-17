@@ -18,13 +18,14 @@ func main() {
 	log.Info("Minion Start")
 
 	conn := db.New()
+	dk := docker.New("unix:///var/run/docker.sock")
 	go minionServerRun(conn)
-	go supervisor.Run(conn, docker.New("unix:///var/run/docker.sock"))
+	go supervisor.Run(conn, dk)
 	go scheduler.Run(conn)
 
 	store := consensus.NewStore()
 	go elector.Run(conn, store)
-	go network.Run(conn, store)
+	go network.Run(conn, store, dk)
 
 	select {}
 }

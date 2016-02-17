@@ -52,9 +52,6 @@ initialize_docker() {
 	PRIVATE_IPv4="$(curl http://instance-data/latest/meta-data/local-ipv4)"
 	mkdir -p /etc/systemd/system/docker.service.d
 
-	# For networking in docker
-	mkdir -p /var/run/netns
-
 	cat <<- EOF > /etc/systemd/system/docker.service.d/override.conf
 	[Unit]
 	Description=docker
@@ -78,11 +75,13 @@ initialize_minion() {
 
 	[Service]
 	TimeoutSec=1000
+	ExecStartPre=-/usr/bin/mkdir -p /var/run/netns
 	ExecStartPre=-/usr/bin/docker kill minion
 	ExecStartPre=-/usr/bin/docker rm minion
 	ExecStartPre=/usr/bin/docker pull %s
 	ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
-	-v /var/run/docker.sock:/var/run/docker.sock %s
+	-v /var/run/docker.sock:/var/run/docker.sock \
+	-v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw %s
 
 	[Install]
 	WantedBy=multi-user.target
@@ -164,7 +163,6 @@ coreos:
             ExecStart=/usr/bin/docker daemon --bridge=none \
             -H $private_ipv4:2375 -H unix:///var/run/docker.sock \
             --cluster-store=etcd://127.0.0.1:2379 --cluster-advertise=$private_ipv4:0
-            ExecStartPost=-/usr/bin/mkdir -p /var/run/netns
 
         - name: minion.service
           command: start
@@ -176,11 +174,13 @@ coreos:
 
             [Service]
             TimeoutSec=1000
+            ExecStartPre=-/usr/bin/mkdir -p /var/run/netns
             ExecStartPre=-/usr/bin/docker kill minion
             ExecStartPre=-/usr/bin/docker rm minion
             ExecStartPre=/usr/bin/docker pull %s
             ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
-            -v /var/run/docker.sock:/var/run/docker.sock %s
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw
 
 `
 	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, minionImage)
