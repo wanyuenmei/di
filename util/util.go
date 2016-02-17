@@ -34,37 +34,103 @@ func MyIp() (string, error) {
 func CloudConfigUbuntu(keys []string) string {
 	cloudConfig := `#!/bin/bash
 
+initialize_ovs() {
+	cat <<- EOF > /etc/systemd/system/ovs.service
+	[Unit]
+	Description=OVS
+
+	[Service]
+	ExecStart=/sbin/modprobe openvswitch
+	ExecStartPost=/sbin/modprobe vport_geneve
+
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+}
+
+initialize_docker() {
+	PRIVATE_IPv4="$(curl http://instance-data/latest/meta-data/local-ipv4)"
+	mkdir -p /etc/systemd/system/docker.service.d
+
+	# For networking in docker
+	mkdir -p /var/run/netns
+
+	cat <<- EOF > /etc/systemd/system/docker.service.d/override.conf
+	[Unit]
+	Description=docker
+
+	[Service]
+	ExecStart=
+	ExecStart=/usr/bin/docker daemon --bridge=none \
+	-H "${PRIVATE_IPv4}:2375" -H unix:///var/run/docker.sock \
+
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+}
+
+initialize_minion() {
+	cat <<- EOF > /etc/systemd/system/minion.service
+	[Unit]
+	Description=DI Minion
+	After=docker.service
+	Requires=docker.service
+
+	[Service]
+	TimeoutSec=1000
+	ExecStartPre=-/usr/bin/docker kill minion
+	ExecStartPre=-/usr/bin/docker rm minion
+	ExecStartPre=/usr/bin/docker pull %s
+	ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
+	-v /var/run/docker.sock:/var/run/docker.sock %s
+
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+}
+
+install_docker() {
+	# Disable default sources list since we don't use them anyways
+	mv /etc/apt/sources.list /etc/apt/sources.list.bak
+
+	apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+	echo "deb https://apt.dockerproject.org/repo ubuntu-wily main" > /etc/apt/sources.list.d/docker.list
+	apt-get update
+	apt-get install docker-engine=1.9.1-0~wily -y
+	systemctl stop docker.service
+}
+
+echo -n "Start Boot Script: " >> /var/log/bootscript.log
+date >> /var/log/bootscript.log
+
 USER_DIR=/home/ubuntu
-PRIVATE_IPv4=$(curl http://instance-data/latest/meta-data/local-ipv4)
+export DEBIAN_FRONTEND=noninteractive
 
-mkdir -p /etc/systemd/system/docker.service.d
+install_docker
+initialize_ovs
+initialize_docker
+initialize_minion
 
-# Setup systemd
-printf "[Service]\n\
-ExecStart=\n\
-ExecStart=/usr/bin/docker daemon \
---bridge=none \
--H $PRIVATE_IPv4:2375 \
--H unix:///var/run/docker.sock" > /etc/systemd/system/docker.service.d/docker.conf
+# Reload because we replaced the docker.service provided by the package
+systemctl daemon-reload
 
-apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-echo "deb https://apt.dockerproject.org/repo ubuntu-wily main" > /etc/apt/sources.list.d/docker.list
-apt-get update
-apt-get install docker-engine=1.9.1-0~wily -y
+# Enable our services to run on boot
+systemctl enable {ovs,docker,minion}.service
 
-/usr/bin/docker run -d --net=host --name=minion --privileged -v /var/run/docker.sock:/var/run/docker.sock %s
+# Start our services
+systemctl restart {ovs,docker,minion}.service
+
+# Create dirs and files with correct users and permissions
+install -d -o ubuntu -m 700 $USER_DIR/.ssh
+install -o ubuntu -m 600 /dev/null $USER_DIR/.ssh/authorized_keys
 
 # allow the ubuntu user to use docker without sudo
 usermod -aG docker ubuntu
 
-/sbin/modprobe openvswitch
-/sbin/modprobe vport_geneve
-mkdir -p /var/run/netns
-
-install -d -o ubuntu -m 700 $USER_DIR/.ssh
-install -C -o ubuntu -m 600 $USER_DIR/.ssh/authorized_keys
+echo -n "Completed Boot Script: " >> /var/log/bootscript.log
+date >> /var/log/bootscript.log
     `
-	cloudConfig = fmt.Sprintf(cloudConfig, minionImage)
+	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, minionImage)
 
 	if len(keys) > 0 {
 		for _, key := range keys {
