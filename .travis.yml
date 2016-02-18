@@ -1,8 +1,20 @@
+sudo: required
+
 language: go
+
 go:
 - 1.5
+
+services:
+  - docker
+
 install: go get ./... github.com/davecgh/go-spew/spew
+
 script: make all check
+
+after_script:
+  - ./scripts/build-minion.sh
+
 notifications:
   slack:
     rooms:
