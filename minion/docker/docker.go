@@ -2,7 +2,6 @@ package docker
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"time"
 
@@ -32,7 +31,6 @@ type Client interface {
 	Pull(image string) error
 	List(filters map[string][]string) ([]Container, error)
 	Get(id string) (Container, error)
-	Copy(id, hostFile, cFile string) error
 }
 
 type RunOptions struct {
@@ -218,17 +216,6 @@ func (dk docker) Get(id string) (Container, error) {
 		Command: append([]string{c.Path}, c.Args...),
 		Pid:     c.State.Pid,
 	}, nil
-}
-
-func (dk docker) Copy(id, hostFile, cFile string) error {
-	file, err := os.Open(hostFile)
-	if err != nil {
-		return err
-	}
-	return dk.UploadToContainer(id, dkc.UploadToContainerOptions{
-		InputStream: file,
-		Path:        cFile,
-	})
 }
 
 func (dk docker) create(name, image string, args []string,
