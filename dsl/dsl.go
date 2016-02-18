@@ -14,9 +14,9 @@ type Dsl struct {
 type Container struct {
 	Image   string
 	Command []string
-	Labels  []string
 
 	Placement
+	AtomImpl
 }
 
 type Placement struct {
@@ -44,7 +44,14 @@ func New(reader io.Reader) (Dsl, error) {
 }
 
 func (dsl Dsl) QueryContainers() []*Container {
-	return dsl.ctx.containers
+	var containers []*Container
+	for _, atom := range dsl.ctx.atoms {
+		switch atom.(type) {
+		case *Container:
+			containers = append(containers, atom.(*Container))
+		}
+	}
+	return containers
 }
 
 func (dsl Dsl) QueryConnections() []Connection {

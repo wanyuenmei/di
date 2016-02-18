@@ -100,35 +100,37 @@ func TestList(t *testing.T) {
 func TestDocker(t *testing.T) {
 	checkContainers := func(code, expectedCode string, expected ...*Container) {
 		ctx := parseTest(t, code, expectedCode)
-		if !reflect.DeepEqual(ctx.containers, expected) {
+		containerResult := Dsl{nil, ctx}.QueryContainers()
+		if !reflect.DeepEqual(containerResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
-				code, ctx.containers, expected))
+				code, containerResult, expected))
 		}
 	}
 
 	code := `(docker "a")`
-	checkContainers(code, code, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, code, &Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}})
 
 	code = "(docker \"a\")\n(docker \"a\")"
-	checkContainers(code, code, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}}, &Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, code, &Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}})
 
 	code = `(makeList 2 (list (docker "a") (docker "b")))`
 	exp := `(list (list (docker "a") (docker "b"))` +
 		` (list (docker "a") (docker "b")))`
 	checkContainers(code, exp,
-		&Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}},
-		&Container{"b", nil, nil, Placement{make(map[[2]string]struct{})}},
-		&Container{"a", nil, nil, Placement{make(map[[2]string]struct{})}},
-		&Container{"b", nil, nil, Placement{make(map[[2]string]struct{})}})
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}})
 	code = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
 	checkContainers(code, code,
-		&Container{"a", []string{"c"}, nil, Placement{make(map[[2]string]struct{})}},
-		&Container{"b", []string{"d", "e", "f"}, nil, Placement{make(map[[2]string]struct{})}})
+		&Container{Image: "a", Command: []string{"c"}, Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "b", Command: []string{"d", "e", "f"}, Placement: Placement{make(map[[2]string]struct{})}})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
-	checkContainers(code, exp, &Container{"foo", nil, nil, Placement{make(map[[2]string]struct{})}},
-		&Container{"bar", nil, nil, Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}},
+		&Container{Image: "bar", Placement: Placement{make(map[[2]string]struct{})}})
 
 	runtimeErr(t, `(docker bar)`, `unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
@@ -142,13 +144,17 @@ func TestLabel(t *testing.T) {
 (label "qux" (docker "c"))`
 	ctx := parseTest(t, code, code)
 
-	expected := []*Container{
-		{"a", nil, []string{"foo", "bar", "baz", "baz2"}, Placement{make(map[[2]string]struct{})}},
-		{"b", nil, []string{"bar", "baz", "baz2"}, Placement{make(map[[2]string]struct{})}},
-		{"c", nil, []string{"qux"}, Placement{make(map[[2]string]struct{})}}}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	containerA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerA.SetLabels([]string{"foo", "bar", "baz", "baz2"})
+	containerB := &Container{Image: "b", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerB.SetLabels([]string{"bar", "baz", "baz2"})
+	containerC := &Container{Image: "c", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerC.SetLabels([]string{"qux"})
+	expected := []*Container{containerA, containerB, containerC}
+	containerResult := Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 
 	code = `(label "foo" (makeList 2 (docker "a")))` +
@@ -156,12 +162,13 @@ func TestLabel(t *testing.T) {
 	exp := `(label "foo" (list (docker "a") (docker "a")))` +
 		"\n(label \"bar\" \"foo\")"
 	ctx = parseTest(t, code, exp)
-	expected = []*Container{
-		{"a", nil, []string{"foo", "bar"}, Placement{make(map[[2]string]struct{})}},
-		{"a", nil, []string{"foo", "bar"}, Placement{make(map[[2]string]struct{})}}}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	expectedA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	expectedA.SetLabels([]string{"foo", "bar"})
+	expected = []*Container{expectedA, expectedA}
+	containerResult = Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 
 	runtimeErr(t, `(label 1 2)`, "label must be a string, found: 1")
@@ -179,32 +186,32 @@ func TestPlacement(t *testing.T) {
 (label "yellow" (docker "c"))
 (placement "exclusive" "red" "blue" "yellow")`
 	ctx := parseTest(t, code, code)
-	expected := []*Container{
-		{
-			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
-				[2]string{"blue", "red"}:    {},
-				[2]string{"blue", "yellow"}: {},
-				[2]string{"red", "yellow"}:  {},
-			}},
-		},
-		{
-			"b", nil, []string{"blue"}, Placement{map[[2]string]struct{}{
-				[2]string{"blue", "red"}:    {},
-				[2]string{"blue", "yellow"}: {},
-				[2]string{"red", "yellow"}:  {},
-			}},
-		},
-		{
-			"c", nil, []string{"yellow"}, Placement{map[[2]string]struct{}{
-				[2]string{"blue", "red"}:    {},
-				[2]string{"blue", "yellow"}: {},
-				[2]string{"red", "yellow"}:  {},
-			}},
-		},
-	}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	containerA := Container{
+		Image: "a", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"blue", "red"}:    {},
+			[2]string{"blue", "yellow"}: {},
+			[2]string{"red", "yellow"}:  {},
+		}}}
+	containerA.SetLabels([]string{"red"})
+	containerB := Container{
+		Image: "b", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"blue", "red"}:    {},
+			[2]string{"blue", "yellow"}: {},
+			[2]string{"red", "yellow"}:  {},
+		}}}
+	containerB.SetLabels([]string{"blue"})
+	containerC := Container{
+		Image: "c", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"blue", "red"}:    {},
+			[2]string{"blue", "yellow"}: {},
+			[2]string{"red", "yellow"}:  {},
+		}}}
+	containerC.SetLabels([]string{"yellow"})
+	expected := []*Container{&containerA, &containerB, &containerC}
+	containerResult := Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 
 	// All on one
@@ -213,34 +220,34 @@ func TestPlacement(t *testing.T) {
 (label "yellow" "red")
 (placement "exclusive" "red" "blue" "yellow")`
 	ctx = parseTest(t, code, code)
-	expected = []*Container{
-		{
-			"a", nil, []string{"red", "blue", "yellow"}, Placement{map[[2]string]struct{}{
-				[2]string{"blue", "red"}:    {},
-				[2]string{"blue", "yellow"}: {},
-				[2]string{"red", "yellow"}:  {},
-			}},
-		},
-	}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	containerA = Container{
+		Image: "a", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"blue", "red"}:    {},
+			[2]string{"blue", "yellow"}: {},
+			[2]string{"red", "yellow"}:  {},
+		}}}
+	containerA.SetLabels([]string{"red", "blue", "yellow"})
+	expected = []*Container{&containerA}
+	containerResult = Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 
 	// Duplicates
 	code = `(label "red" (docker "a"))
 (placement "exclusive" "red" "red" "red")`
 	ctx = parseTest(t, code, code)
-	expected = []*Container{
-		{
-			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
-				[2]string{"red", "red"}: {},
-			}},
-		},
-	}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	containerA = Container{
+		Image: "a", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"red", "red"}: {},
+		}}}
+	containerA.SetLabels([]string{"red"})
+	expected = []*Container{&containerA}
+	containerResult = Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 
 	// Unrelated definitions
@@ -249,21 +256,21 @@ func TestPlacement(t *testing.T) {
 (label "blue" (docker "b"))
 (placement "exclusive" "blue" "blue")`
 	ctx = parseTest(t, code, code)
-	expected = []*Container{
-		{
-			"a", nil, []string{"red"}, Placement{map[[2]string]struct{}{
-				[2]string{"red", "red"}: {},
-			}},
-		},
-		{
-			"b", nil, []string{"blue"}, Placement{map[[2]string]struct{}{
-				[2]string{"blue", "blue"}: {},
-			}},
-		},
-	}
-	if !reflect.DeepEqual(ctx.containers, expected) {
+	containerA = Container{
+		Image: "a", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"red", "red"}: {},
+		}}}
+	containerA.SetLabels([]string{"red"})
+	containerB = Container{
+		Image: "b", Placement: Placement{map[[2]string]struct{}{
+			[2]string{"blue", "blue"}: {},
+		}}}
+	containerB.SetLabels([]string{"blue"})
+	expected = []*Container{&containerA, &containerB}
+	containerResult = Dsl{nil, ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
-			code, ctx.containers, expected))
+			code, containerResult, expected))
 	}
 }
 

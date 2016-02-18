@@ -5,16 +5,33 @@ import "fmt"
 type evalCtx struct {
 	binds       map[astIdent]ast
 	defines     map[astIdent]ast
-	labels      map[string][]*Container
+	labels      map[string][]Atom
 	connections map[Connection]struct{}
-	containers  []*Container
+	atoms       []Atom
+}
+
+type Atom interface {
+	Labels() []string
+	SetLabels([]string)
+}
+
+type AtomImpl struct {
+	labels []string
+}
+
+func (l *AtomImpl) Labels() []string {
+	return l.labels
+}
+
+func (l *AtomImpl) SetLabels(labels []string) {
+	l.labels = labels
 }
 
 func eval(parsed ast) (ast, evalCtx, error) {
 	ctx := evalCtx{
 		make(map[astIdent]ast),
 		make(map[astIdent]ast),
-		make(map[string][]*Container),
+		make(map[string][]Atom),
 		make(map[Connection]struct{}),
 		nil}
 	evaluated, err := parsed.eval(&ctx)

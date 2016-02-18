@@ -69,7 +69,7 @@ func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		args = append(args, string(arg))
 	}
 
-	index := len(ctx.containers)
+	index := len(ctx.atoms)
 
 	var command []string
 	if len(args) > 1 {
@@ -77,10 +77,10 @@ func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	}
 
 	container := &Container{
-		args[0], command, nil,
-		Placement{make(map[[2]string]struct{})},
+		Image: args[0], Command: command,
+		Placement: Placement{make(map[[2]string]struct{})},
 	}
-	ctx.containers = append(ctx.containers, container)
+	ctx.atoms = append(ctx.atoms, container)
 
 	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
 }
@@ -121,6 +121,10 @@ func placementImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	case "exclusive":
 		for _, label := range labels {
 			for _, c := range ctx.labels[label] {
+				c, ok := c.(*Container)
+				if !ok {
+					return nil, fmt.Errorf("placement labels must contain containers: %s", label)
+				}
 				for k, v := range parsedLabels {
 					c.Placement.Exclusive[k] = v
 				}
@@ -222,11 +226,11 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)
 	}
 
-	var containers []*Container
+	var atoms []Atom
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
 		case astAtom:
-			containers = append(containers, ctx.containers[t.index])
+			atoms = append(atoms, ctx.atoms[t.index])
 		case astString:
 			children, ok := ctx.labels[string(t)]
 			if !ok {
@@ -234,7 +238,7 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 			}
 
 			for _, c := range children {
-				containers = append(containers, c)
+				atoms = append(atoms, c)
 			}
 		default:
 			return nil, fmt.Errorf("label must apply to atoms or other"+
@@ -242,19 +246,20 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		}
 	}
 
-	for _, c := range containers {
-		if len(c.Labels) > 0 && c.Labels[len(c.Labels)-1] == label {
+	for _, a := range atoms {
+		labels := a.Labels()
+		if len(labels) > 0 && labels[len(labels)-1] == label {
 			// It's possible that the same container appears in the list
 			// twice.  If that's the case, we'll end up labelling it multiple
 			// times unless we check it's most recently added label.
 			continue
 		}
 
-		c.Labels = append(c.Labels, label)
-
+		a.SetLabels(append(labels, label))
 	}
 
-	ctx.labels[label] = containers
+	ctx.labels[label] = atoms
+
 	return astFunc{astIdent("label"), labelImpl, args}, nil
 }
 

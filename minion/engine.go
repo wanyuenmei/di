@@ -68,7 +68,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 			return -1
 		}
 
-		score := editDistance(dbc.Labels, dslc.Labels)
+		score := editDistance(dbc.Labels, dslc.Labels())
 		for k := range dbc.Placement.Exclusive {
 			if _, ok := dslc.Placement.Exclusive[k]; !ok {
 				score += 100
@@ -99,7 +99,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		dslc := pair.L.(*dsl.Container)
 		dbc := pair.R.(db.Container)
 
-		dbc.Labels = dslc.Labels
+		dbc.Labels = dslc.Labels()
 		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
 		dbc.Placement.Exclusive = dslc.Placement.Exclusive

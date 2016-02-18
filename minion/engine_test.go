@@ -121,7 +121,7 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		for i, c := range containers {
 			if e.Image == c.Image &&
 				reflect.DeepEqual(e.Command, c.Command) &&
-				editDistance(c.Labels, e.Labels) == 0 {
+				editDistance(c.Labels, e.Labels()) == 0 {
 				containers = append(containers[:i], containers[i+1:]...)
 				found = true
 				break
