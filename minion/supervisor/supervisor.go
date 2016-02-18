@@ -16,7 +16,6 @@ const (
 	Etcd          = "etcd"
 	Ovncontroller = "ovn-controller"
 	Ovnnorthd     = "ovn-northd"
-	Ovnoverlay    = "ovn-overlay"
 	Ovsdb         = "ovsdb-server"
 	Ovsvswitchd   = "ovs-vswitchd"
 	Swarm         = "swarm"
@@ -26,7 +25,6 @@ var images = map[string]string{
 	Etcd:          "quay.io/coreos/etcd:v2.2.4",
 	Ovncontroller: "quay.io/netsys/ovn-controller",
 	Ovnnorthd:     "quay.io/netsys/ovn-northd",
-	Ovnoverlay:    "quay.io/netsys/ovn-overlay",
 	Ovsdb:         "quay.io/netsys/ovsdb-server",
 	Ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
 	Swarm:         "swarm:1.0.1",
@@ -223,8 +221,6 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 	 * So, we need to restart the container when the leader changes. */
 	sv.Remove(Ovncontroller)
 	sv.run(Ovncontroller)
-
-	sv.run(Ovnoverlay)
 }
 
 func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
@@ -274,9 +270,6 @@ func (sv *supervisor) run(name string, args ...string) {
 	}
 
 	switch name {
-	case Ovnoverlay:
-		ro.Binds = []string{"/etc/docker:/etc/docker:rw"}
-		fallthrough
 	case Ovsvswitchd:
 		ro.Privileged = true
 		fallthrough

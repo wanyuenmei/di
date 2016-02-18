@@ -173,7 +173,6 @@ func TestWorker(t *testing.T) {
 		Ovsdb:         nil,
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
-		Ovnoverlay:    nil,
 		Swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -218,7 +217,6 @@ func TestChange(t *testing.T) {
 		Ovsdb:         nil,
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
-		Ovnoverlay:    nil,
 		Swarm:         swarmArgsWorker(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -273,7 +271,6 @@ func TestChange(t *testing.T) {
 		Etcd:          etcdArgsWorker(etcdIPs),
 		Ovsdb:         nil,
 		Ovncontroller: nil,
-		Ovnoverlay:    nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
 	}
@@ -593,7 +590,6 @@ func validateImage(image string) {
 	case Etcd:
 	case Swarm:
 	case Ovnnorthd:
-	case Ovnoverlay:
 	case Ovncontroller:
 	case Ovsvswitchd:
 	case Ovsdb:
