@@ -100,7 +100,7 @@ func (fm *foreman) init() {
 
 		for _, m := range fm.minions {
 			if m.connected {
-				m.machine.Role = db.Role(m.config.Role)
+				m.machine.Role = db.PBToRole(m.config.Role)
 				view.Commit(m.machine)
 			}
 		}
@@ -173,7 +173,7 @@ func (fm *foreman) runOnce() {
 
 		newConfig := pb.MinionConfig{
 			ID:        m.machine.CloudID,
-			Role:      pb.MinionConfig_Role(m.machine.Role),
+			Role:      db.RoleToPB(m.machine.Role),
 			PrivateIP: m.machine.PrivateIP,
 			Spec:      spec,
 		}

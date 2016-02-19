@@ -1,4 +1,4 @@
-//go:generate stringer -type=Provider
+//go:generate stringer -type=Provider -type=Role
 
 package db
 
@@ -10,27 +10,51 @@ import (
 )
 
 // The Role a machine may take on within the cluster.
-type Role pb.MinionConfig_Role
+type Role int
 
 const (
-	// None machines haven't had a role assigned yet.
-	None Role = Role(pb.MinionConfig_NONE)
-
-	// Worker machines are responsible for running containers.
-	Worker = Role(pb.MinionConfig_WORKER)
-
-	// Master machines are responsible for running control processes.
-	Master = Role(pb.MinionConfig_MASTER)
+	None Role = iota
+	Worker
+	Master
 )
 
-var roleString = map[Role]string{
-	None:   "None",
-	Worker: "Worker",
-	Master: "Master",
+func (r Role) String() string {
+	switch r {
+	case None:
+		return ""
+	case Worker:
+		return "Worker"
+	case Master:
+		return "Master"
+	default:
+		panic("Not Reached")
+	}
 }
 
-func (r Role) String() string {
-	return roleString[r]
+func RoleToPB(r Role) pb.MinionConfig_Role {
+	switch r {
+	case None:
+		return pb.MinionConfig_NONE
+	case Worker:
+		return pb.MinionConfig_WORKER
+	case Master:
+		return pb.MinionConfig_MASTER
+	default:
+		panic("Not Reached")
+	}
+}
+
+func PBToRole(p pb.MinionConfig_Role) Role {
+	switch p {
+	case pb.MinionConfig_NONE:
+		return None
+	case pb.MinionConfig_WORKER:
+		return Worker
+	case pb.MinionConfig_MASTER:
+		return Master
+	default:
+		panic("Not Reached")
+	}
 }
 
 // A Provider implements a cloud interface on which machines may be instantiated.
