@@ -1,4 +1,4 @@
-package ovn
+package ovsdb
 
 import (
 	"errors"
@@ -8,9 +8,8 @@ import (
 	"github.com/socketplane/libovsdb"
 )
 
-type Ovn struct {
-	ipAddr string
-	port   int
+type Ovsdb struct {
+	*libovsdb.OvsdbClient
 }
 
 type LPort struct {
@@ -27,16 +26,17 @@ type Acl struct {
 	Log       bool
 }
 
-func NewOvn(ip string, port int) Ovn {
-	return Ovn{
-		ipAddr: ip,
-		port:   port,
-	}
+func Open() (Ovsdb, error) {
+	client, err := libovsdb.Connect("127.0.0.1", 6640)
+	return Ovsdb{client}, err
+}
+
+func (ovsdb Ovsdb) Close() {
+	ovsdb.Disconnect()
 }
 
 /* Helpers */
-func selectRows(ovs libovsdb.OvsdbClient, db string,
-	table string, field string, args []string,
+func (ovsdb Ovsdb) selectRows(db string, table string, field string, args []string,
 	op string) []map[string]interface{} {
 	var cond []interface{}
 	for _, arg := range args {
@@ -51,7 +51,7 @@ func selectRows(ovs libovsdb.OvsdbClient, db string,
 			Where: []interface{}{cond},
 		}
 		ops := []libovsdb.Operation{selectOp}
-		results, _ := ovs.Transact(db, ops...)
+		results, _ := ovsdb.Transact(db, ops...)
 		if len(results) == 1 {
 			return results[0].Rows
 		}
@@ -120,13 +120,9 @@ func errorCheck(results []libovsdb.OperationResult, expectedResponses int,
 }
 
 /* LSwitch Queries */
-func (o *Ovn) ListSwitches() ([]string, error) {
+func (ovsdb Ovsdb) ListSwitches() ([]string, error) {
 	var switches []string
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return switches, e
-	}
-	results := selectRows(*ovs, "OVN_Northbound", "Logical_Switch", "_uuid",
+	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "_uuid",
 		[]string{"_"}, "!=")
 	for _, result := range results {
 		/* Only return names, because they are effectively UUIDs as OVSDB
@@ -136,12 +132,8 @@ func (o *Ovn) ListSwitches() ([]string, error) {
 	return switches, nil
 }
 
-func (o *Ovn) CreateSwitch(lswitch string) error {
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return e
-	}
-	check := selectRows(*ovs, "OVN_Northbound", "Logical_Switch", "name",
+func (ovsdb Ovsdb) CreateSwitch(lswitch string) error {
+	check := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "name",
 		[]string{lswitch}, "==")
 	if len(check) > 0 {
 		return errors.New(fmt.Sprintf("Logical switch %s already exists", lswitch))
@@ -157,18 +149,14 @@ func (o *Ovn) CreateSwitch(lswitch string) error {
 	}
 
 	ops := []libovsdb.Operation{insertOp}
-	results, err := ovs.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", ops...)
 	if err != nil {
 		return errors.New("OVSDB Transaction error.")
 	}
-	return errorCheck(results, 1, 1)
+	return errorCheck(results, 1, 2)
 }
 
-func (o *Ovn) DeleteSwitch(lswitch string) error {
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return e
-	}
+func (ovsdb Ovsdb) DeleteSwitch(lswitch string) error {
 	deleteOp := libovsdb.Operation{
 		Op:    "delete",
 		Table: "Logical_Switch",
@@ -177,7 +165,7 @@ func (o *Ovn) DeleteSwitch(lswitch string) error {
 		},
 	}
 	ops := []libovsdb.Operation{deleteOp}
-	results, err := ovs.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", ops...)
 	if err != nil {
 		return err
 	}
@@ -185,13 +173,9 @@ func (o *Ovn) DeleteSwitch(lswitch string) error {
 }
 
 /* LPort Queries */
-func (o *Ovn) ListPorts(lswitch string) ([]LPort, error) {
+func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 	var lports []LPort
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return lports, e
-	}
-	results := selectRows(*ovs, "OVN_Northbound", "Logical_Switch",
+	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
 		"name", []string{lswitch}, "==")
 	if len(results) <= 0 {
 		return lports, nil
@@ -199,7 +183,7 @@ func (o *Ovn) ListPorts(lswitch string) ([]LPort, error) {
 	ports := ovsUUIDSetToSlice(results[0]["ports"])
 	for _, result := range ports {
 		pid := result.GoUuid
-		results = selectRows(*ovs, "OVN_Northbound", "Logical_Port",
+		results = ovsdb.selectRows("OVN_Northbound", "Logical_Port",
 			"_uuid", []string{pid}, "==")
 		if len(results) <= 0 {
 			continue
@@ -215,21 +199,17 @@ func (o *Ovn) ListPorts(lswitch string) ([]LPort, error) {
 }
 
 /* ACL Queries */
-func (o *Ovn) ListACLs(lswitch string) ([]Acl, error) {
+func (ovsdb Ovsdb) ListACLs(lswitch string) ([]Acl, error) {
 	var acls []Acl
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return acls, e
-	}
-	results := selectRows(*ovs, "OVN_Northbound", "Logical_Switch",
-		"name", []string{lswitch}, "==")
+	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "name",
+		[]string{lswitch}, "==")
 	if len(results) <= 0 {
 		return acls, nil
 	}
 	aids := ovsUUIDSetToSlice(results[0]["acls"])
 	for _, aid := range aids {
 		aid := aid.GoUuid
-		results := selectRows(*ovs, "OVN_Northbound", "ACL", "_uuid",
+		results := ovsdb.selectRows("OVN_Northbound", "ACL", "_uuid",
 			[]string{aid}, "==")
 		for _, result := range results {
 			acl := Acl{
@@ -267,12 +247,8 @@ func (o *Ovn) ListACLs(lswitch string) ([]Acl, error) {
  * be wildcarded by passing a value less than 0
  */
 
-func (o *Ovn) CreateACL(lswitch string, dir string, priority int, match string,
+func (ovsdb Ovsdb) CreateACL(lswitch string, dir string, priority int, match string,
 	action string, doLog bool) error {
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return e
-	}
 	acl := make(map[string]interface{})
 	if dir != "*" {
 		acl["direction"] = dir
@@ -295,20 +271,15 @@ func (o *Ovn) CreateACL(lswitch string, dir string, priority int, match string,
 		lswitch, "diacladd")
 
 	ops := []libovsdb.Operation{insertOp, mutateOp}
-	results, err := ovs.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", ops...)
 	if err != nil {
 		return errors.New("OVSDB Transaction error.")
 	}
 	return errorCheck(results, 2, 1)
 }
 
-func (o *Ovn) DeleteACL(lswitch string, dir string, priority int,
-	match string) error {
-	ovs, e := libovsdb.Connect(o.ipAddr, o.port)
-	if e != nil {
-		return e
-	}
-	acls, err := o.ListACLs(lswitch)
+func (ovsdb Ovsdb) DeleteACL(lswitch string, dir string, priority int, match string) error {
+	acls, err := ovsdb.ListACLs(lswitch)
 	if err != nil {
 		return err
 	}
@@ -335,7 +306,7 @@ func (o *Ovn) DeleteACL(lswitch string, dir string, priority int,
 			lswitch, acl.uuid.GoUuid)
 
 		ops := []libovsdb.Operation{deleteOp, mutateOp}
-		results, err := ovs.Transact("OVN_Northbound", ops...)
+		results, err := ovsdb.Transact("OVN_Northbound", ops...)
 		if err != nil {
 			return errors.New("OVSDB Transaction error.")
 		}
