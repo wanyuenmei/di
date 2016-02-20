@@ -10,9 +10,9 @@ current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 test_out=$(curl --connect-timeout 5 "$DI_TESTER_IP/cgi-bin/trigger_run?branch=$current_branch" 2>/dev/null )
 
 if [ $? -ne 0 ] ; then
-    echo "${red}Attempt to trigger tests timed out. Is $DI_TESTER_IP the IP of the vagrant box?${no_color}"
+    echo -e "${red}Attempt to trigger tests timed out. Is $DI_TESTER_IP the IP of the vagrant box?${no_color}"
 else
-    echo "${green}$test_out${no_color}"
+    echo -e "${green}$test_out${no_color}"
 fi
 
 exit 0
