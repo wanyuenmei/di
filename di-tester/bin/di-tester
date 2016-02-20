@@ -146,7 +146,7 @@ di_info "Cloning the di repo.."
 di_info "Going to test $REPO on branch $BRANCH"
 di_verbose "$(git clone $REPO $GOPATH/src/github.com/NetSys/di 2>&1)"
 pushd $GOPATH/src/github.com/NetSys/di > /dev/null
-di_verbose "$(git checkout -b $BRANCH 2>&1)"
+di_verbose "$(git checkout $BRANCH 2>&1)"
 
 # Log exactly what we're testing
 cat <<EOF > $GIT_LOG
