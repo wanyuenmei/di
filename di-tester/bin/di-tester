@@ -133,6 +133,19 @@ function cleanup() {
     kill_aws
 }
 
+function abort() {
+    ABORT_MESSAGE="$1"
+
+    cleanup
+    di_info "ABORTING: ${ABORT_MESSAGE}"
+    URL="http://$MY_IP/$(basename $WEB_OUT)"
+    if [ -n $SLACK_CHANNEL ] ; then
+        di_info "Posting to slack.."
+        slack 1 0 $URL
+    fi
+    exit 1
+}
+
 export GOPATH="$(mktemp -d -t di-tester.XXXXXXXXXX)"
 trap "cleanup" INT
 
@@ -181,12 +194,14 @@ di_verbose "---End boot spec---"
 $GOPATH/bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
 
 # Wait until the minion connects before we start running our tests
-# XXX: We should give up after a certain timeout and assume that the minion is is so broken that it never connects
+endtime=$((`date +%s` + (8 * 60)))
 while ! grep -q 'New Connection' "$RUN_OUT" &> /dev/null; do
-   sleep 5
+    [ $(date +%s) -gt $endtime ] && abort "Timeout!"
+    sleep 1
 done
 
 # Wait for containers to get downloaded and initialized, etc
+# XXX There should be a better way to do this
 sleep $BOOT_SLEEP
 
 di_info "Starting tests.."
