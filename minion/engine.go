@@ -6,12 +6,14 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func updatePolicy(view db.Database, spec string) {
 	compiled, err := dsl.New(strings.NewReader(spec))
 	if err != nil {
-		log.Warning("Invalid spec: %s", err)
+		log.WithError(err).Warn("Invalid spec.")
 		return
 	}
 

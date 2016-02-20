@@ -6,10 +6,9 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
-	"github.com/op/go-logging"
-)
 
-var log = logging.MustGetLogger("scheduler")
+	log "github.com/Sirupsen/logrus"
+)
 
 type scheduler interface {
 	list() ([]docker.Container, error)
@@ -44,7 +43,7 @@ func Run(conn db.Conn) {
 		for i := 0; i < 3; i++ {
 			dkc, err := sched.list()
 			if err != nil {
-				log.Warning("Failed to get containers: %s", err)
+				log.WithError(err).Warning("Failed to get containers.")
 				break
 			}
 

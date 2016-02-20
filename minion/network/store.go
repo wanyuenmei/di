@@ -11,6 +11,8 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/consensus"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const labelDir = "/minion/labels"
@@ -72,7 +74,7 @@ func readStoreRun(conn db.Conn, store consensus.Store) {
 		}
 
 		if err != nil {
-			log.Warning("Failed to read from cluster store: %s", err)
+			log.WithError(err).Warn("Failed to read from cluster store.")
 			continue
 		}
 
@@ -150,7 +152,7 @@ func writeStoreRun(conn db.Conn, store consensus.Store) {
 		}
 
 		if err := writeStoreContainers(store, containers); err != nil {
-			log.Warning("Failed to update containers: %s", err)
+			log.WithError(err).Warning("Failed to update containers in ETCD")
 		}
 
 		writeStoreLabels(store, containers)
@@ -260,7 +262,7 @@ func syncIPs(store consensus.Store, dir directory, path string, prefixIP net.IP)
 		ip32 := randomIP(ipSet, prefix, mask)
 		ipPath := fmt.Sprintf("%s/%s/IP", path, k)
 		if ip32 == 0 {
-			log.Error("Failed to allocate IP for %s.", k)
+			log.Errorf("Failed to allocate IP for %s.", k)
 			store.Delete(ipPath)
 			delete(dir[k], "IP")
 			continue
@@ -317,7 +319,7 @@ func syncLabels(store consensus.Store, dir directory, path string,
 
 		key := fmt.Sprintf("%s/%s/Labels", path, id)
 		if err := store.Set(key, js); err != nil {
-			log.Error("Failed to set label key: %s", path)
+			log.WithField("path", path).Error("Failed to set label key.")
 			continue
 		}
 		dir[id]["Labels"] = js

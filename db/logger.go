@@ -1,9 +1,10 @@
 package db
 
 import (
-	"fmt"
 	"sort"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func (conn Conn) runLogger() {
@@ -27,10 +28,10 @@ func (conn Conn) logTable(t TableType) {
 
 		sort.Sort(rowSlice(rows))
 		for _, r := range rows {
-			strs = append(strs, fmt.Sprintf("\t%s\n", r))
+			strs = append(strs, r.String())
 		}
 		return nil
 	})
 
-	log.Info("%s", fmt.Sprintf("%s:\n%s", t, strings.Join(strs, "")))
+	log.Infof("%s:\n\t%s", t, strings.Join(strs, "\n\t"))
 }

@@ -7,6 +7,8 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type swarm struct {
@@ -42,7 +44,7 @@ func (s swarm) boot(dbcs []db.Container) {
 				default:
 				}
 			} else {
-				log.Info("Started container: %s %s", dbc.Image,
+				log.Infof("Started container: %s %s", dbc.Image,
 					strings.Join(dbc.Command, " "))
 			}
 			wg.Done()
@@ -67,7 +69,7 @@ func (s swarm) terminate(ids []string) {
 		go func() {
 			err := s.dk.RemoveID(id)
 			if err != nil {
-				log.Warning("Failed to stop container: %s", err)
+				log.WithError(err).Warn("Failed to stop container.")
 			}
 			wg.Done()
 		}()

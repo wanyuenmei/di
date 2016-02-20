@@ -4,11 +4,9 @@ import (
 	"errors"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	dkc "github.com/fsouza/go-dockerclient"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("docker")
 
 var errNoSuchContainer = errors.New("container does not exist")
 
@@ -63,7 +61,7 @@ func New(sock string) Client {
 		var err error
 		client, err = dkc.NewClient(sock)
 		if err != nil {
-			log.Warning("Failed to create docker client: %s", err)
+			log.WithError(err).Warn("Failed to create docker client.")
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -85,12 +83,12 @@ func pullServer(dk docker) {
 			continue
 		}
 
-		log.Info("Pulling docker image: %s", req.image)
+		log.Infof("Pulling docker image %s.", req.image)
 		opts := dkc.PullImageOptions{Repository: string(req.image)}
 		err := dk.PullImage(opts, dkc.AuthConfiguration{})
 
 		if err != nil {
-			log.Warning("Failed to pull image: %s", req.image)
+			log.WithError(err).Errorf("Failed to pull image %s.", req.image)
 		} else {
 			images[req.image] = struct{}{}
 		}
@@ -103,7 +101,7 @@ func (dk docker) Run(opts RunOptions) error {
 		_, err := dk.getID(opts.Name)
 		if err == errNoSuchContainer {
 			// Only log the first time we attempt to boot.
-			log.Info("Start Container: %s", opts.Name)
+			log.Infof("Start Container: %s", opts.Name)
 		} else if err != nil {
 			return err
 		}
@@ -156,7 +154,7 @@ func (dk docker) Remove(name string) error {
 		return nil // Can't remove a non-existent container.
 	}
 
-	log.Info("Remove Container: %s", name)
+	log.Infof("Remove Container: %s", name)
 	return dk.RemoveID(id)
 }
 
@@ -190,7 +188,8 @@ func (dk docker) list(filters map[string][]string, all bool) ([]Container, error
 	for _, apic := range apics {
 		c, err := dk.Get(apic.ID)
 		if err != nil {
-			log.Warning("Failed to inspect container %s: %s", apic.ID, err)
+			log.WithError(err).Warnf("Failed to inspect container: %s",
+				apic.ID)
 			continue
 		}
 

@@ -1,9 +1,10 @@
 package cluster
 
 import (
-	"github.com/satori/go.uuid"
 	"os"
 	"sync"
+
+	"github.com/satori/go.uuid"
 )
 
 const BOX_NAME string = "coreos-beta"

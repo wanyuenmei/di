@@ -13,17 +13,22 @@ import (
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/engine"
 
-	"github.com/op/go-logging"
 	"google.golang.org/grpc/grpclog"
-)
 
-var log = logging.MustGetLogger("main")
+	log "github.com/Sirupsen/logrus"
+)
 
 func main() {
 	/* XXX: GRPC spews a lot of uselss log message so we tell to eat its logs.
 	 * Once we have more sophistcated logging support, we should enable the log
 	 * messages when in debug mode. */
 	grpclog.SetLogger(l_mod.New(ioutil.Discard, "", 0))
+
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors:     true,
+		FullTimestamp:   true,
+		TimestampFormat: time.StampMilli,
+	})
 
 	flag.Usage = func() {
 		flag.PrintDefaults()
@@ -37,7 +42,8 @@ func main() {
 		tick := time.Tick(5 * time.Second)
 		for {
 			if err := updateConfig(conn, *configPath); err != nil {
-				log.Warning("Failed to update configuration: %s", err)
+				log.WithError(err).Warn(
+					"Failed to update configuration.")
 			}
 
 			select {

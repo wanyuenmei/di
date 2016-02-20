@@ -12,6 +12,8 @@ import (
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/NetSys/di/ovsdb"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Query the database for any running containers and for each container running on this
@@ -73,7 +75,10 @@ func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) 
 
 		err := setupContainer(dk, dbc.SchedID, dbc.IP, dbc.Mac, dbc.Pid)
 		if err != nil {
-			log.Warning("Failed to setup container %s: %s", dbc.SchedID, err)
+			log.WithFields(log.Fields{
+				"id":    dbc.SchedID,
+				"error": err,
+			}).Error("Failed to setup container.")
 		} else {
 			initialized[dbc.SchedID] = struct{}{}
 			initContainers = append(initContainers, dbc)
@@ -103,7 +108,7 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		err := sh("/sbin/ip", "netns", "exec", pid,
 			"ip", "addr", "flush", "dev", "eth0")
 		if err != nil {
-			log.Error("Failed to flush IPs: %s", err)
+			log.WithError(err).Error("Failed to flush IPs.")
 			continue
 		}
 
@@ -111,7 +116,7 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "link", "set", "dev",
 			"eth0", "address", dbc.Mac)
 		if err != nil {
-			log.Error("Failed to set MAC: %s", err)
+			log.WithError(err).Error("Failed to set MAC.")
 			continue
 		}
 
@@ -119,7 +124,7 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "addr", "add", ip,
 			"dev", "eth0")
 		if err != nil {
-			log.Error("Failed to set IP: %s", err)
+			log.WithError(err).Error("Failed to set IP.")
 			continue
 		}
 
@@ -127,7 +132,7 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "route", "add",
 			"default", "via", ip)
 		if err != nil {
-			log.Error("Failed to set default gateway: %s", err)
+			log.WithError(err).Error("Failed to set default gateway.")
 			continue
 		}
 
@@ -136,7 +141,8 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 				err = sh("/sbin/ip", "netns", "exec", pid, "ip",
 					"addr", "add", ip, "dev", "eth0")
 				if err != nil {
-					log.Error("Failed to set label IP: %s", err)
+					log.WithError(err).Error(
+						"Failed to set label IP.")
 					continue
 				}
 			}
@@ -165,20 +171,20 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 
 		ovsdb, err := ovsdb.Open()
 		if err != nil {
-			log.Error("Failed to connect to OVSDB: %s", err)
+			log.WithError(err).Error("Failed to connect to OVSDB.")
 			return
 		}
 		defer ovsdb.Close()
 
 		ofDI, err := ovsdb.GetOFPort(peerDI)
 		if err != nil {
-			log.Error("Failed to get OpenFLow Port: %s", err)
+			log.WithError(err).Error("Failed to get OpenFLow Port.")
 			return
 		}
 
 		ofVeth, err := ovsdb.GetOFPort(vethOut)
 		if err != nil {
-			log.Error("Failed to get OpenFLow Port: %s", err)
+			log.WithError(err).Error("Failed to get OpenFLow Port")
 			return
 		}
 

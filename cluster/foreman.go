@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/pb"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type client interface {
@@ -135,7 +138,7 @@ func (fm *foreman) runOnce() {
 
 		connected := err == nil
 		if connected && !m.connected {
-			log.Info("New Connection: %s", m.machine)
+			log.WithField("machine", m.machine).Info("New connection.")
 		}
 
 		m.connected = connected
@@ -185,7 +188,7 @@ func (fm *foreman) runOnce() {
 		}
 		err = m.client.bootEtcd(pb.EtcdMembers{IPs: etcdIPs})
 		if err != nil {
-			log.Warning(err.Error())
+			log.WithError(err).Warn("Failed send etcd members.")
 			return
 		}
 	})
@@ -243,7 +246,7 @@ func (c clientImpl) getMinion() (pb.MinionConfig, error) {
 	cfg, err := c.GetMinionConfig(ctx, &pb.Request{})
 	if err != nil {
 		if ctx.Err() == nil {
-			log.Info("Failed to get MinionConfig: %s", err)
+			log.WithError(err).Error("Failed to get minion config.")
 		}
 		return pb.MinionConfig{}, err
 	}
@@ -256,12 +259,12 @@ func (c clientImpl) setMinion(cfg pb.MinionConfig) error {
 	reply, err := c.SetMinionConfig(ctx, &cfg)
 	if err != nil {
 		if ctx.Err() == nil {
-			log.Warning("Failed to set minion config: %s", err)
+			log.WithError(err).Error("Failed to set minion config.")
 		}
 		return err
 	} else if reply.Success == false {
-		err := fmt.Errorf("unsuccessful minion reply: %s", reply.Error)
-		log.Warning(err.Error())
+		err := errors.New(reply.Error)
+		log.WithError(err).Error("Unsuccessful minion reply.")
 		return err
 	}
 

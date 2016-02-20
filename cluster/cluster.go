@@ -3,7 +3,7 @@ package cluster
 import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/util"
-	"github.com/op/go-logging"
+	log "github.com/Sirupsen/logrus"
 )
 
 type machine struct {
@@ -11,8 +11,6 @@ type machine struct {
 	publicIP  string
 	privateIP string
 }
-
-var log = logging.MustGetLogger("cluster")
 
 type provider interface {
 	get() ([]machine, error)
@@ -86,19 +84,19 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		// XXX: not sure what to do with the error here
 		cloud, err = newGCE(conn, id, namespace)
 		if err != nil {
-			log.Error("%+v", err)
+			log.WithError(err).Error("Failed to create GCE cluster.")
 		}
 		cloudConfig = util.CloudConfigCoreOS(keys)
 	case db.Azure:
 		cloud, err = newAzure(conn, id, namespace)
 		if err != nil {
-			log.Error("%+v", err)
+			log.WithError(err).Error("Failed to create Azure cluster.")
 		}
 		cloudConfig = util.CloudConfigUbuntu(keys)
 	case db.Vagrant:
 		cloud = newVagrant(namespace)
 		if cloud == nil {
-			log.Error("Vagrant cluster didn't boot.")
+			log.WithError(err).Error("Failed to create Vagrant cluster.")
 		}
 		cloudConfig = util.CloudConfigCoreOS(append(keys, VagrantPublicKey))
 	default:
@@ -138,7 +136,7 @@ func (clst cluster) sync() {
 	for i := 0; i < 8; i++ {
 		cloudMachines, err := clst.get()
 		if err != nil {
-			log.Warning(err.Error())
+			log.WithError(err).Error("Failed to list machines.")
 			return
 		}
 
@@ -148,22 +146,21 @@ func (clst cluster) sync() {
 		}
 
 		if nBoot > 0 {
-			log.Info("Attempt to boot %d Machines", nBoot)
+			log.WithField("count", nBoot).Info("Attempt to boot machines.")
 			err := clst.boot(nBoot, clst.cloudConfig)
 			if err != nil {
-				log.Info("Failed to boot machines: %s", err)
+				log.WithError(err).Warn("Failed to boot machines.")
 			} else {
-				log.Info("Successfully booted %d Machines", nBoot)
+				log.Info("Successfully booted machines.")
 			}
 		}
 
 		if len(terminateSet) > 0 {
-			log.Info("Attempt to stop %s", terminateSet)
+			log.WithField("machines", terminateSet).Info("Attempt to stop.")
 			if err := clst.stop(terminateSet); err != nil {
-				log.Info("Failed to stop machines: %s", err)
+				log.WithError(err).Error("Failed to stop machines.")
 			} else {
-				log.Info("Successfully stopped %d machines",
-					len(terminateSet))
+				log.Info("Successfully stopped machines.")
 			}
 		}
 	}

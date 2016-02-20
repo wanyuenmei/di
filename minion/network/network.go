@@ -10,10 +10,9 @@ import (
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/ovsdb"
-	"github.com/op/go-logging"
-)
 
-var log = logging.MustGetLogger("network")
+	log "github.com/Sirupsen/logrus"
+)
 
 const LabelMac = "0A:00:00:00:00:00"
 const LSwitch = "di"
@@ -63,7 +62,7 @@ func runMaster(conn db.Conn) {
 
 	ovsdb, err := ovsdb.Open()
 	if err != nil {
-		log.Warning("Failed to connect to OVSDB: %s", err)
+		log.WithError(err).Error("Failed to connect to OVSDB.")
 		return
 	}
 	defer ovsdb.Close()
@@ -71,7 +70,7 @@ func runMaster(conn db.Conn) {
 	ovsdb.CreateSwitch(LSwitch)
 	lportSlice, err := ovsdb.ListPorts(LSwitch)
 	if err != nil {
-		log.Warning("Failed to list OVN ports: %s", err)
+		log.WithError(err).Error("Failed to list OVN ports.")
 		return
 	}
 
@@ -89,10 +88,13 @@ func runMaster(conn db.Conn) {
 			continue
 		}
 
-		log.Info("New logical port for %s with IP %s", dbl.Label, dbl.IP)
+		log.WithFields(log.Fields{
+			"name": dbl.Label,
+			"IP":   dbl.IP,
+		}).Info("New logical port.")
 		err := ovsdb.CreatePort(LSwitch, dbl.Label, LabelMac, dbl.IP)
 		if err != nil {
-			log.Warning("Failed to create port %s: %s", dbl.Label, err)
+			log.WithError(err).Warnf("Failed to create port %s.", dbl.Label)
 		}
 	}
 
@@ -102,19 +104,25 @@ func runMaster(conn db.Conn) {
 			continue
 		}
 
-		log.Info("New logical port for %s with IP %s", dbc.SchedID, dbc.IP)
+		log.WithFields(log.Fields{
+			"name": dbc.SchedID,
+			"IP":   dbc.IP,
+		}).Info("New logical port.")
 		err := ovsdb.CreatePort("di", dbc.SchedID, dbc.Mac, dbc.IP)
 		if err != nil {
-			log.Warning("Failed to create port %s: %s", dbc.SchedID, err)
+			log.WithFields(log.Fields{
+				"error": err,
+				"name":  dbc.SchedID,
+			}).Warn("Failed to create port.")
 		}
 	}
 
 	// Ports still in the map don't have a corresponding label otherwise they would
 	// have been deleted in the preceding loop.
 	for lport := range garbageMap {
-		log.Info("Delete logical port %s", lport)
+		log.Infof("Delete logical port %s.", lport)
 		if err := ovsdb.DeletePort(LSwitch, lport); err != nil {
-			log.Warning("Failed to delete logical port: %s", err)
+			log.WithError(err).Warn("Failed to delete logical port.")
 		}
 	}
 }

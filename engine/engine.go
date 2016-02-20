@@ -6,10 +6,10 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/util"
-	"github.com/op/go-logging"
+
+	log "github.com/Sirupsen/logrus"
 )
 
-var log = logging.MustGetLogger("engine")
 var myIP = util.MyIp
 
 // UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
@@ -133,7 +133,7 @@ func resolveACLs(acls []string) []string {
 		if acl == "local" {
 			ip, err := myIP()
 			if err != nil {
-				log.Warning(err.Error())
+				log.WithError(err).Warn("Failed to get IP address.")
 				continue
 			}
 			acl = ip + "/32"

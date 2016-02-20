@@ -6,10 +6,9 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/coreos/etcd/client"
-	"github.com/op/go-logging"
-)
 
-var log = logging.MustGetLogger("consensus")
+	log "github.com/Sirupsen/logrus"
+)
 
 const electionTTL = 30
 const bootDelay = 60
@@ -60,7 +59,7 @@ func campaign(conn db.Conn, store consensus.Store) {
 			commitLeader(conn, false, "")
 		case !oldMaster && master:
 			// When we first boot, wait a bit for etcd to come up.
-			log.Info("Starting leader election in %d seconds", bootDelay)
+			log.Infof("Starting leader election in %d seconds", bootDelay)
 			time.Sleep(bootDelay * time.Second)
 
 			// Update in case something changed while we were sleeping
@@ -92,7 +91,7 @@ func campaign(conn db.Conn, store consensus.Store) {
 		} else {
 			clientErr, ok := err.(client.Error)
 			if !ok || clientErr.Code != client.ErrorCodeNodeExist {
-				log.Warning("Error setting leader key: %s", err.Error())
+				log.WithError(err).Warn("Error setting leader key")
 				commitLeader(conn, false, "")
 
 				// Give things a chance to settle down.

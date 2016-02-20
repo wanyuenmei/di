@@ -6,11 +6,9 @@ import (
 
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("etcd")
 
 type Store interface {
 	Watch(path string, rateLimit time.Duration) chan struct{}
@@ -42,7 +40,7 @@ func NewStore() Store {
 			Transport: client.DefaultTransport,
 		})
 		if err != nil {
-			log.Warning("Failed to connect to ETCD: %s", err)
+			log.WithError(err).Warning("Failed to connect to ETCD.")
 			time.Sleep(30 * time.Second)
 			continue
 		}

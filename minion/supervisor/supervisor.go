@@ -9,10 +9,9 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/docker"
-	"github.com/op/go-logging"
-)
 
-var log = logging.MustGetLogger("supervisor")
+	log "github.com/Sirupsen/logrus"
+)
 
 const (
 	Etcd          = "etcd"
@@ -62,7 +61,7 @@ func (sv *supervisor) runApp() {
 
 		dkcs, err := sv.dk.List(map[string][]string{"label": {"DI=Scheduler"}})
 		if err != nil {
-			log.Warning("Failed to list local containers: %s", err)
+			log.WithError(err).Error("Failed to list local containers.")
 			continue
 		}
 
@@ -222,7 +221,7 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 		"--", "add-br", "di-int",
 		"--", "set", "bridge", "di-int", "fail_mode=secure")
 	if err != nil {
-		log.Warning("Failed to exec in %s: %s", Ovsvswitchd, err)
+		log.WithError(err).Warnf("Failed to exec in %s.", Ovsvswitchd)
 	}
 
 	/* The ovn controller doesn't support reconfiguring ovn-remote mid-run.
@@ -292,13 +291,13 @@ func (sv *supervisor) run(name string, args ...string) {
 	}
 
 	if err := sv.dk.Run(ro); err != nil {
-		log.Warning("Failed to run %s: %s", name, err)
+		log.WithError(err).Warnf("Failed to run %s.", name)
 	}
 }
 
 func (sv *supervisor) Remove(name string) {
 	if err := sv.dk.Remove(name); err != nil {
-		log.Warning("Failed to remove %s: %s", name, err)
+		log.WithError(err).Warnf("Failed to remove %s.")
 	}
 }
 

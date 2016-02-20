@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type server struct {
@@ -23,7 +25,7 @@ func minionServerRun(conn db.Conn) {
 		var err error
 		sock, err = net.Listen("tcp", ":9999")
 		if err != nil {
-			log.Warning("Failed to open socket: %s", err)
+			log.WithError(err).Error("Failed to open socket.")
 		} else {
 			break
 		}
@@ -67,7 +69,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 		var minion db.Minion
 		switch len(minionSlice) {
 		case 0:
-			log.Info("Received initial configuation")
+			log.Info("Received initial configuation.")
 			minion = view.InsertMinion()
 		case 1:
 			minion = minionSlice[0]
@@ -97,7 +99,7 @@ func (s server) BootEtcd(ctx context.Context,
 		var etcdRow db.Etcd
 		switch len(etcdSlice) {
 		case 0:
-			log.Info("Received boot etcd request")
+			log.Info("Received boot etcd request.")
 			etcdRow = view.InsertEtcd()
 		case 1:
 			etcdRow = etcdSlice[0]

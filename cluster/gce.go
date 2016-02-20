@@ -33,6 +33,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	compute "google.golang.org/api/compute/v1"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const COMPUTE_BASE_URL string = "https://www.googleapis.com/compute/v1/projects"
@@ -70,7 +72,6 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 
 	err := gceInit()
 	if err != nil {
-		log.Error("Initialize GCE failed")
 		return nil, err
 	}
 
@@ -110,7 +111,6 @@ func (clst *gceCluster) get() ([]machine, error) {
 	list, err := gceService.Instances.List(clst.projId, clst.zone).
 		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
 	if err != nil {
-		log.Error("%+v", err)
 		return nil, err
 	}
 	var mList []machine
@@ -164,14 +164,16 @@ func (clst *gceCluster) stop(ids []string) error {
 	for _, id := range ids {
 		op, err := clst.instanceDel(id)
 		if err != nil {
-			log.Error("%+v", err)
+			log.WithFields(log.Fields{
+				"error": err,
+				"id":    id,
+			}).Error("Failed to delete instance.")
 			continue
 		}
 		ops = append(ops, op)
 	}
 	err := clst.wait(ops, ZONE)
 	if err != nil {
-		log.Error("%+v", err)
 		return err
 	}
 	return nil
@@ -291,7 +293,6 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 	op, err := gceService.Instances.
 		Insert(clst.projId, clst.zone, instance).Do()
 	if err != nil {
-		log.Error("%+v", err)
 		return nil, err
 	}
 	return op, nil
@@ -404,13 +405,14 @@ func (clst *gceCluster) firewallPatch(name string, ips []string) (*compute.Opera
 func (clst *gceCluster) watchACLs(conn db.Conn, clusterID int) {
 	for range clst.aclTrigger.C {
 		var acls []string
-		err := conn.Transact(func(view db.Database) error {
+		conn.Transact(func(view db.Database) error {
 			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
 				return c.ID == clusterID
 			})
 
 			if len(clusters) == 0 {
-				return fmt.Errorf("Undefined cluster")
+				log.Warn("Undefined cluster")
+				return nil
 			} else if len(clusters) > 1 {
 				panic("Duplicate Clusters")
 			}
@@ -418,11 +420,6 @@ func (clst *gceCluster) watchACLs(conn db.Conn, clusterID int) {
 			acls = clusters[0].AdminACL
 			return nil
 		})
-
-		if err != nil {
-			log.Warning("%s", err)
-			continue
-		}
 
 		clst.updateSecurityGroups(acls)
 	}
@@ -444,12 +441,10 @@ func gceInit() error {
 			"di.json")
 		err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", keyfile)
 		if err != nil {
-			log.Error("Unable to set environment variable %v", err)
 			return err
 		}
 		srv, err := newComputeService(context.Background())
 		if err != nil {
-			log.Error("Unable to create Compute service %v", err)
 			return err
 		}
 		gceService = srv

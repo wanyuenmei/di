@@ -3,13 +3,14 @@ package cluster
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const SPOT_PRICE = "0.1"
@@ -63,7 +64,6 @@ func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 		InstanceCount: &count64,
 	})
 	if err != nil {
-		log.Warning(clst.namespace)
 		return err
 	}
 
@@ -77,7 +77,6 @@ func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 	}
 
 	if err := clst.wait(spotIds, true); err != nil {
-		log.Warning("Error waiting for new spot requests: %s", err)
 		return err
 	}
 
@@ -90,7 +89,6 @@ func (clst awsSpotCluster) stop(ids []string) error {
 			SpotInstanceRequestIds: aws.StringSlice(ids),
 		})
 	if err != nil {
-		log.Warning("Failed to describe Spot Machines: %s", err)
 		return err
 	}
 
@@ -106,8 +104,7 @@ func (clst awsSpotCluster) stop(ids []string) error {
 			InstanceIds: aws.StringSlice(instIds),
 		})
 		if err != nil {
-			log.Warning("Failed to terminate machines: %s", err)
-			/* May as well attempt to cancel the spot requests. */
+			return err
 		}
 	}
 
@@ -115,12 +112,10 @@ func (clst awsSpotCluster) stop(ids []string) error {
 		SpotInstanceRequestIds: aws.StringSlice(ids),
 	})
 	if err != nil {
-		log.Warning("Failed to cancel spot requests: %s", err)
 		return err
 	}
 
 	if err := clst.wait(ids, false); err != nil {
-		log.Warning("Error waiting for terminated spot requests: %s", err)
 		return err
 	}
 
@@ -229,15 +224,11 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 		time.Sleep(5 * time.Second)
 	}
 
-	log.Warning("Failed to tag spot requests: %s, cancelling.", err)
-	_, cancelErr := clst.CancelSpotInstanceRequests(
+	log.Warn("Failed to tag spot requests: ", err)
+	clst.CancelSpotInstanceRequests(
 		&ec2.CancelSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: aws.StringSlice(spotIds),
 		})
-
-	if cancelErr != nil {
-		log.Warning("Failed to cancel spot requests: %s", err)
-	}
 
 	return err
 }
@@ -249,7 +240,7 @@ OuterLoop:
 	for i := 0; i < 100; i++ {
 		machines, err := clst.get()
 		if err != nil {
-			log.Warning("Failed to get Machines: %s", err)
+			log.WithError(err).Warn("Failed to get Machines.")
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -311,7 +302,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 	for i, p := range ingress {
 		if (i > 0 || p.FromPort != nil || p.ToPort != nil ||
 			*p.IpProtocol != "-1") && p.UserIdGroupPairs == nil {
-			log.Info("Revoke Ingress Security Group: %s", *p)
+			log.Info("Revoke ingress security group: ", *p)
 			_, err = clst.RevokeSecurityGroupIngress(
 				&ec2.RevokeSecurityGroupIngressInput{
 					GroupName:     aws.String(clst.namespace),
@@ -326,7 +317,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 		for _, ipr := range p.IpRanges {
 			ip := *ipr.CidrIp
 			if !perm_map[ip] {
-				log.Info("Revoke Ingress Security Group CidrIp: %s", ip)
+				log.Info("Revoke ingress security group: ", ip)
 				_, err = clst.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
 						GroupName:  aws.String(clst.namespace),
@@ -345,7 +336,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 		if len(groups) > 0 {
 			for _, grp := range p.UserIdGroupPairs {
 				if *grp.GroupId != *groups[0].GroupId {
-					log.Info("Revoke Ingress Security Group GroupID: %s",
+					log.Info("Revoke ingress security group GroupID: ",
 						*grp.GroupId)
 					_, err = clst.RevokeSecurityGroupIngress(
 						&ec2.RevokeSecurityGroupIngressInput{
@@ -374,7 +365,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 			continue
 		}
 
-		log.Info("Add ACL: %s", perm)
+		log.Info("Add ACL: ", perm)
 		_, err = clst.AuthorizeSecurityGroupIngress(
 			&ec2.AuthorizeSecurityGroupIngressInput{
 				CidrIp:     aws.String(perm),
@@ -392,13 +383,14 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
 	for range clst.aclTrigger.C {
 		var acls []string
-		err := conn.Transact(func(view db.Database) error {
+		conn.Transact(func(view db.Database) error {
 			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
 				return c.ID == clusterID
 			})
 
 			if len(clusters) == 0 {
-				return fmt.Errorf("Undefined cluster")
+				log.Warn("Undefined cluster.")
+				return nil
 			} else if len(clusters) > 1 {
 				panic("Duplicate Clusters")
 			}
@@ -406,11 +398,6 @@ func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
 			acls = clusters[0].AdminACL
 			return nil
 		})
-
-		if err != nil {
-			log.Warning("%s", err)
-			continue
-		}
 
 		clst.updateSecurityGroups(acls)
 	}
