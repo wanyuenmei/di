@@ -99,7 +99,7 @@ function slack() {
     icon=":confetti_ball:"
     if [ $num_failed -ne 0 ] ; then
 	    icon=":oncoming_police_car:"
-        pretext="Some tests <$url|failed> :("
+        pretext="@ethan Some tests <$url|failed> :("
         color='#D00000' # red
     fi
     value="Passed: $num_passed\nFailed: $num_failed"
