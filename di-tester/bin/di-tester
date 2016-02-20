@@ -172,7 +172,7 @@ SPEC="$GOPATH/config.spec"
 cp "$TESTER_ROOT/config/config.spec" "$SPEC" > /dev/null
 
 di_namespace "$SPEC" "tester-$$-$(echo $MY_IP | tr '.' '_')"
-di_set "$SPEC" 1 1
+di_set "$SPEC" 2 3
 di_verbose "---Start boot spec---"
 di_verbose ""
 di_verbose "$(cat "$SPEC")"
