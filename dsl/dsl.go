@@ -54,6 +54,26 @@ func (dsl Dsl) QueryContainers() []*Container {
 	return containers
 }
 
+func (dsl Dsl) QueryKeySlice(key string) []Key {
+	result, ok := dsl.ctx.labels[key]
+	if !ok {
+		log.Warning("%s undefined", key)
+		return nil
+	}
+
+	var keys []Key
+	for _, val := range result {
+		key, ok := val.(Key)
+		if !ok {
+			log.Warning("%s: Requested []key, found %s", key, val)
+			continue
+		}
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
 func (dsl Dsl) QueryConnections() []Connection {
 	var connections []Connection
 	for c := range dsl.ctx.connections {

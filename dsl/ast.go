@@ -49,6 +49,17 @@ type astIdent string /* Identities, i.e. key words, variable names etc. */
 type astString string
 type astInt int
 
+type astGithubKey astString
+type astPlaintextKey astString
+
+func (key astGithubKey) String() string {
+	return fmt.Sprintf("(githubKey %s)", astString(key).String())
+}
+
+func (key astPlaintextKey) String() string {
+	return fmt.Sprintf("(plaintextKey %s)", astString(key).String())
+}
+
 func (root astRoot) String() string {
 	return fmt.Sprintf("%s", sliceStr(root, "\n"))
 }

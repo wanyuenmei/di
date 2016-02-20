@@ -38,13 +38,13 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 	return nil
 }
 
-func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
-	Namespace := dsl.QueryString("Namespace")
+func clusterTxn(view db.Database, _dsl dsl.Dsl) (int, error) {
+	Namespace := _dsl.QueryString("Namespace")
 	if Namespace == "" {
 		return 0, fmt.Errorf("Policy must specify a 'Namespace'")
 	}
 
-	provider, err := db.ParseProvider(dsl.QueryString("Provider"))
+	provider, err := db.ParseProvider(_dsl.QueryString("Provider"))
 	if err != nil {
 		return 0, err
 	}
@@ -62,9 +62,9 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 
 	cluster.Provider = provider
 	cluster.Namespace = Namespace
-	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
-	cluster.SSHKeys = dsl.QueryStrSlice("SSHKeys")
-	cluster.Spec = dsl.String()
+	cluster.AdminACL = resolveACLs(_dsl.QueryStrSlice("AdminACL"))
+	cluster.SSHKeys = dsl.ParseKeys(_dsl.QueryKeySlice("sshkeys"))
+	cluster.Spec = _dsl.String()
 	view.Commit(cluster)
 
 	return cluster.ID, nil

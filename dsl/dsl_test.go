@@ -136,6 +136,31 @@ func TestDocker(t *testing.T) {
 	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
 }
 
+func TestKeys(t *testing.T) {
+	checkKeys := func(code, expectedCode string, expected ...Key) {
+		ctx := parseTest(t, code, expectedCode)
+		keyResult := Dsl{nil, ctx}.QueryKeySlice("sshkeys")
+		if !reflect.DeepEqual(keyResult, expected) {
+			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+				code, keyResult, expected))
+		}
+	}
+
+	expectedPlaintext := &PlaintextKey{key: "key"}
+	expectedPlaintext.SetLabels([]string{"sshkeys"})
+	expectedGithub := &GithubKey{username: "user"}
+	expectedGithub.SetLabels([]string{"sshkeys"})
+
+	code := `(label "sshkeys" (list (plaintextKey "key")))`
+	checkKeys(code, code, expectedPlaintext)
+
+	code = `(label "sshkeys" (list (githubKey "user")))`
+	checkKeys(code, code, expectedGithub)
+
+	code = `(label "sshkeys" (list (githubKey "user") (plaintextKey "key")))`
+	checkKeys(code, code, expectedGithub, expectedPlaintext)
+}
+
 func TestLabel(t *testing.T) {
 	code := `(label "foo" (docker "a"))
 (label "bar" "foo" (docker "b"))
@@ -401,6 +426,7 @@ func TestQuery(t *testing.T) {
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
 		(define d (list "1" 2 "3"))
+		(label "sshkeys" (list (plaintextKey "key") (githubKey "github")))
 		(docker b)
 		(docker b)`))
 	if err != nil {
@@ -450,6 +476,10 @@ func TestQuery(t *testing.T) {
 	}
 
 	if val := dsl.QueryContainers(); len(val) != 2 {
+		t.Error(val)
+	}
+
+	if val := dsl.QueryKeySlice("sshkeys"); len(val) != 2 {
 		t.Error(val)
 	}
 }

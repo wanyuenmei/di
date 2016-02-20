@@ -131,3 +131,11 @@ func (str astString) eval(ctx *evalCtx) (ast, error) {
 func (x astInt) eval(ctx *evalCtx) (ast, error) {
 	return x, nil
 }
+
+func (githubKey astGithubKey) eval(ctx *evalCtx) (ast, error) {
+	return githubKey, nil
+}
+
+func (plaintextKey astPlaintextKey) eval(ctx *evalCtx) (ast, error) {
+	return plaintextKey, nil
+}

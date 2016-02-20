@@ -13,18 +13,20 @@ type funcImpl struct {
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"%":         {arithFun(func(a, b int) int { return a % b }), 2},
-	"*":         {arithFun(func(a, b int) int { return a * b }), 2},
-	"+":         {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":         {arithFun(func(a, b int) int { return a - b }), 2},
-	"/":         {arithFun(func(a, b int) int { return a / b }), 2},
-	"connect":   {connectImpl, 3},
-	"docker":    {dockerImpl, 1},
-	"label":     {labelImpl, 2},
-	"list":      {listImpl, 0},
-	"makeList":  {makeListImpl, 2},
-	"sprintf":   {sprintfImpl, 1},
-	"placement": {placementImpl, 3},
+	"%":            {arithFun(func(a, b int) int { return a % b }), 2},
+	"*":            {arithFun(func(a, b int) int { return a * b }), 2},
+	"+":            {arithFun(func(a, b int) int { return a + b }), 2},
+	"-":            {arithFun(func(a, b int) int { return a - b }), 2},
+	"/":            {arithFun(func(a, b int) int { return a / b }), 2},
+	"connect":      {connectImpl, 3},
+	"docker":       {dockerImpl, 1},
+	"label":        {labelImpl, 2},
+	"list":         {listImpl, 0},
+	"makeList":     {makeListImpl, 2},
+	"sprintf":      {sprintfImpl, 1},
+	"placement":    {placementImpl, 3},
+	"githubKey":    {githubKeyImpl, 1},
+	"plaintextKey": {plaintextKeyImpl, 1},
 }
 
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
@@ -83,6 +85,31 @@ func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	ctx.atoms = append(ctx.atoms, container)
 
 	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
+}
+
+func githubKeyImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+	index := len(ctx.atoms)
+	key := &GithubKey{username: string(evalArgs[0].(astString))}
+	ctx.atoms = append(ctx.atoms, key)
+
+	return astAtom{astFunc{astIdent("githubKey"), githubKeyImpl, evalArgs}, index}, nil
+}
+
+func plaintextKeyImpl(ctx *evalCtx, args__ []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, args__)
+	if err != nil {
+		return nil, err
+	}
+
+	index := len(ctx.atoms)
+	key := &PlaintextKey{key: string(evalArgs[0].(astString))}
+	ctx.atoms = append(ctx.atoms, key)
+
+	return astAtom{astFunc{astIdent("plaintextKey"), plaintextKeyImpl, evalArgs}, index}, nil
 }
 
 func placementImpl(ctx *evalCtx, args__ []ast) (ast, error) {

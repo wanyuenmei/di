@@ -24,7 +24,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 2)
 (define WorkerCount 3)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 
 	UpdatePolicy(conn, prog(t, code))
 	err := conn.Transact(func(view db.Database) error {
@@ -61,7 +61,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 4)
 (define WorkerCount 5)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -118,7 +118,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 1)
 (define WorkerCount 1)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -149,7 +149,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 1)
 (define WorkerCount 1)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -180,7 +180,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 1)
 (define WorkerCount 1)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -212,7 +212,7 @@ func TestEngine(t *testing.T) {
 (define MasterCount 0)
 (define WorkerCount 1)
 (define AdminACL (list "1.2.3.4/32"))
-(define SSHKeys (list "foo"))`
+(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -333,7 +333,7 @@ func TestSort(t *testing.T) {
 (define MasterCount 3)
 (define WorkerCount 1)
 (define AdminACL (list))
-(define SSHKeys (list))`))
+(label "sshkeys" (list))`))
 	err := conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -362,7 +362,7 @@ func TestSort(t *testing.T) {
 (define MasterCount 2)
 (define WorkerCount 1)
 (define AdminACL (list))
-(define SSHKeys (list))`))
+(label "sshkeys" (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -391,7 +391,7 @@ func TestSort(t *testing.T) {
 (define MasterCount 1)
 (define WorkerCount 1)
 (define AdminACL (list))
-(define SSHKeys (list))`))
+(label "sshkeys" (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -427,7 +427,7 @@ func TestLocal(t *testing.T) {
 (define MasterCount 1)
 (define WorkerCount 1)
 (define AdminACL (list "1.2.3.4/32" "local"))
-(define SSHKeys (list))`
+(label "sshkeys" (list))`
 
 	myIP = func() (string, error) {
 		return "5.6.7.8", nil
