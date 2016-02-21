@@ -91,9 +91,6 @@ By default, the tests are automatically run every hour. You can tweak `di-tester
 - Ping kklin on slack if the tester seems to be failing (e.g. if we're timing out)
 - Differentiate tests for master and workers?
 - Create summary of names of tests that failed
-- Allow stderr in tests
 - Do a security audit
-- Allow multiple unique instances of `di-ssh-manager`
-    - Right now, if multiple of instances of di are running, they'll overwrite the
-file at `/tmp/dictl` used for saving the IP addresses of the minions.
+- Allow only one instance of `di-tester` to run per machine at a time
 - Remove the `di-tester` ssh key
