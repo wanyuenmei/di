@@ -12,6 +12,7 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/engine"
+	"github.com/NetSys/di/util"
 
 	"google.golang.org/grpc/grpclog"
 
@@ -24,11 +25,7 @@ func main() {
 	 * messages when in debug mode. */
 	grpclog.SetLogger(l_mod.New(ioutil.Discard, "", 0))
 
-	log.SetFormatter(&log.TextFormatter{
-		ForceColors:     true,
-		FullTimestamp:   true,
-		TimestampFormat: time.StampMilli,
-	})
+	log.SetFormatter(util.Formatter{})
 
 	flag.Usage = func() {
 		flag.PrintDefaults()

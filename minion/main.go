@@ -2,8 +2,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
@@ -11,6 +9,7 @@ import (
 	"github.com/NetSys/di/minion/network"
 	"github.com/NetSys/di/minion/scheduler"
 	"github.com/NetSys/di/minion/supervisor"
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -18,11 +17,7 @@ import (
 func main() {
 	log.Info("Minion Start")
 
-	log.SetFormatter(&log.TextFormatter{
-		ForceColors:     true,
-		FullTimestamp:   true,
-		TimestampFormat: time.StampMilli,
-	})
+	log.SetFormatter(util.Formatter{})
 
 	conn := db.New()
 	dk := docker.New("unix:///var/run/docker.sock")
