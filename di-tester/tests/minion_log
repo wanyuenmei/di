@@ -1,0 +1,2 @@
+docker logs minion
+exit 0
