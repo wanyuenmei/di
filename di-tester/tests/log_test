@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# This script checks if there's anything in the minion logs referencing
+# errors or warnings.
+
+if docker logs minion |& grep 'ERROR' > /dev/null ; then
+    echo "Error log messages: $(docker logs minion | grep 'ERROR')"
+    exit 1
+fi
+
+if docker logs minion |& grep 'WARN' > /dev/null ; then
+    echo "Warn log messages: $(docker logs minion | grep 'WARN')"
+    exit 1
+fi
+
+exit 0
