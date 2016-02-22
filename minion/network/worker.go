@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -41,6 +42,7 @@ func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) 
 
 	var labels []db.Label
 	var containers []db.Container
+	var connections []db.Connection
 	conn.Transact(func(view db.Database) error {
 		containers = view.SelectFromContainer(func(c db.Container) bool {
 			return c.SchedID != "" && c.IP != "" && c.Mac != ""
@@ -48,6 +50,7 @@ func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) 
 		labels = view.SelectFromLabel(func(l db.Label) bool {
 			return l.IP != ""
 		})
+		connections = view.SelectFromConnection(nil)
 		return nil
 	})
 
@@ -88,6 +91,7 @@ func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) 
 
 	updateIPs(containers, labels)
 	updateOpenFlow(dk, containers, labels)
+	updateEtcHosts(dk, containers, labels, connections)
 }
 
 func updateIPs(containers []db.Container, labels []db.Label) {
@@ -353,4 +357,69 @@ func sh(args ...string) error {
 	}
 
 	return nil
+}
+
+func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Label,
+	connections []db.Connection) {
+
+	labelIP := make(map[string]string) /* Map label name to its IP. */
+	conns := make(map[string][]string) /* Map label to a list of all labels it connect to. */
+
+	for _, l := range labels {
+		labelIP[l.Label] = l.IP
+	}
+
+	for _, conn := range connections {
+		conns[conn.From] = append(conns[conn.From], conn.To)
+	}
+
+	for _, dbc := range containers {
+		id := dbc.SchedID
+
+		currHosts, err := dk.GetFromContainer(id, "/etc/hosts")
+		if err != nil {
+			log.WithError(err).Error("Failed to get /etc/hosts")
+			return
+		}
+
+		newHosts := generateEtcHosts(dbc, labelIP, conns)
+
+		if newHosts != currHosts {
+			err = dk.WriteToContainer(id, newHosts, "/etc", "hosts", 0644)
+			if err != nil {
+				log.WithError(err).Error("Failed to update /etc/hosts")
+			}
+		}
+	}
+}
+
+func generateEtcHosts(dbc db.Container, labelIP map[string]string,
+	conns map[string][]string) string {
+
+	newHosts := make(map[string]struct{})
+	newHosts["127.0.0.1\tlocalhost"] = struct{}{}
+
+	for _, l := range dbc.Labels {
+		for _, toLabel := range conns[l] {
+			ip := labelIP[toLabel]
+			if ip == "" {
+				continue
+			}
+
+			host := fmt.Sprintf("%s\t%s.di", ip, toLabel)
+			// If a container implements multiple labels that connect
+			// to the same label, only register the connection once.
+			if _, ok := newHosts[host]; !ok {
+				newHosts[host] = struct{}{}
+			}
+		}
+	}
+
+	var hosts []string
+	for h := range newHosts {
+		hosts = append(hosts, h)
+	}
+
+	sort.Strings(hosts)
+	return strings.Join(hosts, "\n") + "\n"
 }

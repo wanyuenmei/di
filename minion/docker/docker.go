@@ -1,8 +1,13 @@
 package docker
 
 import (
+	"archive/tar"
+	"bytes"
 	"errors"
+	"io"
 	"time"
+
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 	dkc "github.com/fsouza/go-dockerclient"
@@ -54,6 +59,8 @@ type Client interface {
 	Pull(image string) error
 	List(filters map[string][]string) ([]Container, error)
 	Get(id string) (Container, error)
+	WriteToContainer(id, src, dst, archiveName string, permission int) error
+	GetFromContainer(id string, src string) (string, error)
 }
 
 // RunOptions changes the behavior of the Run function.
@@ -174,6 +181,57 @@ func (dk docker) Exec(name string, cmd ...string) error {
 	}
 
 	return nil
+}
+
+// WriteToContainer writes the contents of SRC into the file at path DST on the
+// container with id ID. Overwrites DST if it already exists.
+func (dk docker) WriteToContainer(id, src, dst, archiveName string, permission int) error {
+
+	tarBuf, err := util.ToTar(archiveName, permission, src)
+
+	if err != nil {
+		return err
+	}
+
+	err = dk.UploadToContainer(id, dkc.UploadToContainerOptions{
+		InputStream: tarBuf,
+		Path:        dst,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetFromContainer returns a string containing the content of the file named
+// SRC on the container with id ID.
+func (dk docker) GetFromContainer(id string, src string) (string, error) {
+	var buffIn bytes.Buffer
+	var buffOut bytes.Buffer
+	err := dk.DownloadFromContainer(id, dkc.DownloadFromContainerOptions{
+		OutputStream: &buffIn,
+		Path:         src,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	writer := io.Writer(&buffOut)
+
+	for tr := tar.NewReader(&buffIn); err != io.EOF; _, err = tr.Next() {
+
+		if err != nil {
+			return "", err
+		}
+
+		_, err = io.Copy(writer, tr)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return buffOut.String(), nil
 }
 
 func (dk docker) Remove(name string) error {
