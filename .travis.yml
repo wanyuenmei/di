@@ -10,10 +10,7 @@ services:
 
 install: go get ./... github.com/davecgh/go-spew/spew
 
-script: make all check
-
-after_script:
-  - ./scripts/build-minion.sh
+script: ./scripts/build-push.sh
 
 notifications:
   slack:
