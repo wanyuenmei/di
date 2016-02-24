@@ -49,8 +49,14 @@ func Run(conn db.Conn) {
 		for _, row := range dbClusters {
 			clst, ok := clusters[row.ID]
 			if !ok {
-				clst = newCluster(conn, row.ID, row.Provider,
+				new, err := newCluster(conn, row.ID, row.Provider,
 					row.Namespace, row.SSHKeys)
+				if err != nil {
+					log.WithError(err).Errorf(
+						"Failed to create cluster.")
+					continue
+				}
+				clst = &new
 				clusters[row.ID] = clst
 			}
 
@@ -70,7 +76,7 @@ func Run(conn db.Conn) {
 }
 
 func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
-	keys []string) *cluster {
+	keys []string) (cluster, error) {
 
 	var cloud provider
 	var err error
@@ -81,26 +87,20 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 		cloud = newAWS(conn, id, namespace)
 		cloudConfig = util.CloudConfigUbuntu(keys)
 	case db.Google:
-		// XXX: not sure what to do with the error here
 		cloud, err = newGCE(conn, id, namespace)
-		if err != nil {
-			log.WithError(err).Error("Failed to create GCE cluster.")
-		}
 		cloudConfig = util.CloudConfigCoreOS(keys)
 	case db.Azure:
 		cloud, err = newAzure(conn, id, namespace)
-		if err != nil {
-			log.WithError(err).Error("Failed to create Azure cluster.")
-		}
 		cloudConfig = util.CloudConfigUbuntu(keys)
 	case db.Vagrant:
-		cloud = newVagrant(namespace)
-		if cloud == nil {
-			log.WithError(err).Error("Failed to create Vagrant cluster.")
-		}
+		cloud, err = newVagrant(namespace)
 		cloudConfig = util.CloudConfigCoreOS(append(keys, VagrantPublicKey))
 	default:
 		panic("Unimplemented")
+	}
+
+	if err != nil {
+		return cluster{}, err
 	}
 
 	clst := cluster{
@@ -118,7 +118,7 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 			clst.sync()
 		}
 	}()
-	return &clst
+	return clst, nil
 }
 
 func (clst cluster) sync() {

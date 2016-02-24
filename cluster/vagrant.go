@@ -16,18 +16,18 @@ type vagrantCluster struct {
 	vagrant   VagrantAPI
 }
 
-func newVagrant(namespace string) provider {
+func newVagrant(namespace string) (provider, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	vagrant := newVagrantAPI(cwd)
 	err = vagrant.AddBox(BOX_NAME, BOX_LINK)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	clst := &vagrantCluster{namespace, cwd, vagrant}
-	return clst
+	return clst, nil
 }
 
 func (clst vagrantCluster) boot(count int, cloudConfig string) error {
