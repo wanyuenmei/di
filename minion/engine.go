@@ -6,6 +6,7 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/di/join"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -22,31 +23,33 @@ func updatePolicy(view db.Database, spec string) {
 }
 
 func updateConnections(view db.Database, spec dsl.Dsl) {
-	dslSlice := spec.QueryConnections()
+	scoreFunc := func(left, right interface{}) int {
+		dslc := left.(dsl.Connection)
+		dbc := right.(db.Connection)
 
-	dslMap := make(map[dsl.Connection]struct{})
-	for _, c := range dslSlice {
-		dslMap[c] = struct{}{}
-	}
-
-	for _, dbc := range view.SelectFromConnection(nil) {
-		dslC := dsl.Connection{
-			From:    dbc.From,
-			To:      dbc.To,
-			MinPort: dbc.MinPort,
-			MaxPort: dbc.MaxPort,
-		}
-
-		if _, ok := dslMap[dslC]; ok {
-			delete(dslMap, dslC)
-			continue
+		if dslc.From == dbc.From && dslc.To == dbc.To &&
+			dslc.MinPort == dbc.MinPort && dslc.MaxPort == dbc.MaxPort {
+			return 0
 		} else {
-			view.Remove(dbc)
+			return 1
 		}
 	}
 
-	for dslc := range dslMap {
-		dbc := view.InsertConnection()
+	pairs, dsls, dbcs := join.Join(spec.QueryConnections(),
+		view.SelectFromConnection(nil), scoreFunc)
+
+	for _, dbc := range dbcs {
+		view.Remove(dbc.(db.Connection))
+	}
+
+	for _, dslc := range dsls {
+		pairs = append(pairs, join.Pair{dslc, view.InsertConnection()})
+	}
+
+	for _, pair := range pairs {
+		dslc := pair.L.(dsl.Connection)
+		dbc := pair.R.(db.Connection)
+
 		dbc.From = dslc.From
 		dbc.To = dslc.To
 		dbc.MinPort = dslc.MinPort
@@ -56,65 +59,52 @@ func updateConnections(view db.Database, spec dsl.Dsl) {
 }
 
 func updateContainers(view db.Database, spec dsl.Dsl) {
-	dslSlice := spec.QueryContainers()
-	dbSlice := view.SelectFromContainer(nil)
+	score := func(l, r interface{}) int {
+		dslc := l.(*dsl.Container)
+		dbc := r.(db.Container)
 
-	for _, dbc := range dbSlice {
-		var best *dsl.Container
-		dslSlice, best = bestFit(dbc, dslSlice)
-		if best == nil {
-			view.Remove(dbc)
-			continue
-		}
-
-		dbc.Image = best.Image
-		dbc.Command = best.Command
-		dbc.Labels = best.Labels
-		dbc.Placement.Exclusive = best.Placement.Exclusive
-		view.Commit(dbc)
-	}
-
-	for _, dslc := range dslSlice {
-		dbc := view.InsertContainer()
-		dbc.Labels = dslc.Labels
-		dbc.Placement.Exclusive = dslc.Placement.Exclusive
-		dbc.Command = dslc.Command
-		dbc.Image = dslc.Image
-		view.Commit(dbc)
-	}
-}
-
-// Find the best fit for 'c' in 'dslSlice' and return it along with an update 'dslSlice'
-func bestFit(dbc db.Container, dslSlice []*dsl.Container) ([]*dsl.Container,
-	*dsl.Container) {
-
-	bestIndex := -1
-	bestDistance := -1
-	for i, dslc := range dslSlice {
 		if dbc.Image != dslc.Image ||
 			!reflect.DeepEqual(dbc.Command, dslc.Command) {
-			continue
+			return -1
 		}
 
-		ed := editDistance(dbc.Labels, dslc.Labels)
-		if bestIndex < 0 || ed < bestDistance {
-			bestDistance = ed
-			bestIndex = i
+		score := editDistance(dbc.Labels, dslc.Labels)
+		for k := range dbc.Placement.Exclusive {
+			if _, ok := dslc.Placement.Exclusive[k]; !ok {
+				score += 100
+			}
 		}
 
-		if ed == 0 {
-			break
+		for k := range dslc.Placement.Exclusive {
+			if _, ok := dbc.Placement.Exclusive[k]; !ok {
+				score += 100
+			}
 		}
+
+		return score
 	}
 
-	if bestIndex < 0 {
-		return dslSlice, nil
+	pairs, dsls, dbcs := join.Join(spec.QueryContainers(),
+		view.SelectFromContainer(nil), score)
+
+	for _, dbc := range dbcs {
+		view.Remove(dbc.(db.Container))
 	}
 
-	best := dslSlice[bestIndex]
-	dslSlice[bestIndex] = dslSlice[len(dslSlice)-1]
-	dslSlice = dslSlice[:len(dslSlice)-1]
-	return dslSlice, best
+	for _, dslc := range dsls {
+		pairs = append(pairs, join.Pair{dslc, view.InsertContainer()})
+	}
+
+	for _, pair := range pairs {
+		dslc := pair.L.(*dsl.Container)
+		dbc := pair.R.(db.Container)
+
+		dbc.Labels = dslc.Labels
+		dbc.Command = dslc.Command
+		dbc.Image = dslc.Image
+		dbc.Placement.Exclusive = dslc.Placement.Exclusive
+		view.Commit(dbc)
+	}
 }
 
 func editDistance(a, b []string) int {

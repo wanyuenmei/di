@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/consensus"
 
 	log "github.com/Sirupsen/logrus"
@@ -115,24 +116,27 @@ func readContainerTransact(view db.Database, dir directory) {
 }
 
 func readLabelTransact(view db.Database, dir directory) {
-	dbLabelMap := make(map[string]db.Label)
-	for _, l := range view.SelectFromLabel(nil) {
-		if _, ok := dir[l.Label]; ok {
-			dbLabelMap[l.Label] = l
-		} else {
-			view.Remove(l)
-		}
+	pairs, dbls, dirKeys := join.Join(view.SelectFromLabel(nil), dir.keys(),
+		func(left, right interface{}) int {
+			if left.(db.Label).Label == right.(string) {
+				return 0
+			}
+			return 1
+		})
+
+	for _, dbl := range dbls {
+		view.Remove(dbl.(db.Label))
 	}
 
-	for label, children := range dir {
-		dbLabel, ok := dbLabelMap[label]
-		if !ok {
-			dbLabel = view.InsertLabel()
-		}
+	for _, key := range dirKeys {
+		pairs = append(pairs, join.Pair{view.InsertLabel(), key})
+	}
 
-		dbLabel.Label = label
-		dbLabel.IP = children["IP"]
-		view.Commit(dbLabel)
+	for _, pair := range pairs {
+		dbl := pair.L.(db.Label)
+		dbl.Label = pair.R.(string)
+		dbl.IP = dir[dbl.Label]["IP"]
+		view.Commit(dbl)
 	}
 }
 
@@ -160,10 +164,10 @@ func writeStoreRun(conn db.Conn, store consensus.Store) {
 }
 
 func writeStoreContainers(store consensus.Store, containers []db.Container) error {
-	ids := map[string]struct{}{}
+	var ids []string
 	for _, container := range containers {
 		if container.SchedID != "" {
-			ids[container.SchedID] = struct{}{}
+			ids = append(ids, container.SchedID)
 		}
 	}
 
@@ -187,10 +191,10 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 		return err
 	}
 
-	ids := make(map[string]struct{})
+	var ids []string
 	for _, c := range containers {
 		for _, l := range c.Labels {
-			ids[l] = struct{}{}
+			ids = append(ids, l)
 		}
 	}
 
@@ -199,20 +203,19 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 	return nil
 }
 
-func syncDir(store consensus.Store, dir directory, path string,
-	ids map[string]struct{}) {
-
-	copy := map[string]struct{}{}
-	for k := range dir {
-		copy[k] = struct{}{}
-	}
-
-	for id := range ids {
-		delete(copy, id)
-	}
+func syncDir(store consensus.Store, dir directory, path string, ids_ []string) {
+	_, dirKeys, ids := join.Join(dir.keys(), ids_,
+		func(left, right interface{}) int {
+			if left.(string) == right.(string) {
+				return 0
+			} else {
+				return -1
+			}
+		})
 
 	var etcdLog string
-	for id := range copy {
+	for _, dirKey := range dirKeys {
+		id := dirKey.(string)
 		keyPath := fmt.Sprintf("%s/%s", path, id)
 		err := store.Delete(keyPath)
 		if err != nil {
@@ -221,7 +224,8 @@ func syncDir(store consensus.Store, dir directory, path string,
 		delete(dir, id)
 	}
 
-	for id := range ids {
+	for _, id_ := range ids {
+		id := id_.(string)
 		if _, ok := dir[id]; ok {
 			continue
 		}
@@ -231,7 +235,6 @@ func syncDir(store consensus.Store, dir directory, path string,
 			etcdLog = fmt.Sprintf("Failed to create dir %s: %s", key, err)
 			continue
 		}
-
 		dir[id] = map[string]string{}
 	}
 
@@ -369,4 +372,12 @@ func randomIP(conflicts map[uint32]struct{}, prefix, mask uint32) uint32 {
 	}
 
 	return 0
+}
+
+func (dir directory) keys() []string {
+	var keys []string
+	for key := range dir {
+		keys = append(keys, key)
+	}
+	return keys
 }

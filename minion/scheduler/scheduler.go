@@ -2,9 +2,11 @@ package scheduler
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/docker"
 
 	log "github.com/Sirupsen/logrus"
@@ -63,39 +65,37 @@ func Run(conn db.Conn) {
 	}
 }
 
-func syncDB(view db.Database, dkcs []docker.Container) ([]string, []db.Container) {
-	var unassigned []db.Container
-	cmap := make(map[string]db.Container)
+func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Container) {
+	score := func(left, right interface{}) int {
+		dbc := left.(db.Container)
+		dkc := right.(docker.Container)
 
-	for _, c := range view.SelectFromContainer(nil) {
-		if c.SchedID == "" {
-			unassigned = append(unassigned, c)
+		if dkc.Image != dbc.Image ||
+			!reflect.DeepEqual(dkc.Command, dbc.Command) {
+			return -1
+		} else if dkc.ID == dbc.SchedID {
+			return 0
 		} else {
-			cmap[c.SchedID] = c
+			return 1
 		}
+	}
+	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcs_, score)
+
+	for _, pair := range pairs {
+		dbc := pair.L.(db.Container)
+		dbc.SchedID = pair.R.(docker.Container).ID
+		view.Commit(dbc)
 	}
 
 	var term []string
 	for _, dkc := range dkcs {
-		if dbc, ok := cmap[dkc.ID]; ok {
-			if dbc.Image == dkc.Image {
-				writeContainer(view, dbc, dkc.ID)
-			} else {
-				writeContainer(view, dbc, "")
-				term = append(term, dkc.ID)
-			}
-		} else if len(unassigned) > 0 {
-			writeContainer(view, unassigned[0], dkc.ID)
-			unassigned = unassigned[1:]
-		} else {
-			term = append(term, dkc.ID)
-		}
+		term = append(term, dkc.(docker.Container).ID)
 	}
 
-	return term, unassigned
-}
+	var boot []db.Container
+	for _, dbc := range dbcs {
+		boot = append(boot, dbc.(db.Container))
+	}
 
-func writeContainer(view db.Database, dbc db.Container, id string) {
-	dbc.SchedID = id
-	view.Commit(dbc)
+	return term, boot
 }

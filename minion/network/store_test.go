@@ -169,7 +169,7 @@ func TestSyncDir(t *testing.T) {
 	dir, _ := getDirectory(store, "/test")
 
 	ids := []string{"a", "b", "c"}
-	syncDir(store, dir, "/test", sliceToSet(ids))
+	syncDir(store, dir, "/test", ids)
 	newDir, _ := getDirectory(store, "/test")
 	if !eq(dir, newDir) {
 		t.Error(spew.Sprintf("syncDir did not update dir.\n"+
@@ -187,7 +187,7 @@ func TestSyncDir(t *testing.T) {
 
 	dir, _ = getDirectory(store, "/test")
 	ids = []string{"b", "c", "d"}
-	syncDir(store, dir, "/test", sliceToSet(ids))
+	syncDir(store, dir, "/test", ids)
 	newDir, _ = getDirectory(store, "/test")
 	if !eq(dir, newDir) {
 		t.Error(spew.Sprintf("syncDir did not update dir.\n"+

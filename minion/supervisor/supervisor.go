@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/docker"
 
 	log "github.com/Sirupsen/logrus"
@@ -65,72 +66,59 @@ func (sv *supervisor) runApp() {
 			continue
 		}
 
+		var tearDowns []string
 		sv.conn.Transact(func(view db.Database) error {
-			dbcs := view.SelectFromContainer(nil)
-			remove, insert, commit := diffApp(dbcs, dkcs)
-
-			for _, dbc := range remove {
-				// XXX: This is really not the place to call
-				// TeardownContainer(), It's a fairly extreme violation
-				// of modularity.
-				TeardownContainer(sv.dk, dbc)
-				view.Remove(dbc)
-			}
-
-			for _, dbc := range commit {
-				view.Commit(dbc)
-			}
-
-			for _, dkc := range insert {
-				dbc := view.InsertContainer()
-				syncDBcDKc(&dbc, dkc)
-				view.Commit(dbc)
-			}
-
+			tearDowns = sv.runAppTransact(view, dkcs)
 			return nil
 		})
+
+		for _, id := range tearDowns {
+			// XXX: Not the place to call TeardownContainer(). It's a fairly
+			// extreme violation of modularity.
+			TeardownContainer(sv.dk, id)
+		}
 	}
 }
 
-func diffApp(dbcs []db.Container, dkcs []docker.Container) (
-	remove []db.Container, insert []docker.Container, commit []db.Container) {
+func (sv *supervisor) runAppTransact(view db.Database,
+	dkcs_ []docker.Container) []string {
 
-	dkcMap := make(map[string]docker.Container)
+	var tearDowns []string
+
+	score := func(left, right interface{}) int {
+		dbc := left.(db.Container)
+		dkc := right.(docker.Container)
+
+		if dbc.SchedID != dkc.ID {
+			return -1
+		}
+		return 0
+	}
+	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcs_, score)
+
+	for _, iface := range dbcs {
+		dbc := iface.(db.Container)
+
+		tearDowns = append(tearDowns, dbc.SchedID)
+		view.Remove(dbc)
+	}
+
 	for _, dkc := range dkcs {
-		dkcMap[dkc.ID] = dkc
+		pairs = append(pairs, join.Pair{view.InsertContainer(), dkc})
 	}
 
-	dbcMap := make(map[string]db.Container)
-	for _, dbc := range dbcs {
-		_, dup := dbcMap[dbc.SchedID]
-		_, exists := dkcMap[dbc.SchedID]
-		if dbc.SchedID == "" || dup || !exists {
-			remove = append(remove, dbc)
-			continue
-		}
+	for _, pair := range pairs {
+		dbc := pair.L.(db.Container)
+		dkc := pair.R.(docker.Container)
 
-		dbcMap[dbc.SchedID] = dbc
+		dbc.SchedID = dkc.ID
+		dbc.Pid = dkc.Pid
+		dbc.Image = dkc.Image
+		dbc.Command = dkc.Command
+		view.Commit(dbc)
 	}
 
-	for _, dkc := range dkcMap {
-		dbc, ok := dbcMap[dkc.ID]
-		if !ok {
-			insert = append(insert, dkc)
-			continue
-		}
-
-		syncDBcDKc(&dbc, dkc)
-		commit = append(commit, dbc)
-	}
-
-	return remove, insert, commit
-}
-
-func syncDBcDKc(dbc *db.Container, dkc docker.Container) {
-	dbc.SchedID = dkc.ID
-	dbc.Pid = dkc.Pid
-	dbc.Image = dkc.Image
-	dbc.Command = dkc.Command
+	return tearDowns
 }
 
 // Manage system infrstracture containers that support the application.
@@ -320,13 +308,13 @@ func nodeName(IP string) string {
 }
 
 // XXX: This is soooo ugly that outsiders call it.  Very important that we fix this.
-func TeardownContainer(dk docker.Client, dbc db.Container) {
-	if dbc.SchedID == "" {
+func TeardownContainer(dk docker.Client, id string) {
+	if id == "" {
 		return
 	}
-	veth_outside := dbc.SchedID[0:15]
-	peer_ovn := fmt.Sprintf("%s_o", dbc.SchedID[0:13])
-	peer_di := fmt.Sprintf("%s_d", dbc.SchedID[0:13])
+	veth_outside := id[0:15]
+	peer_ovn := fmt.Sprintf("%s_o", id[0:13])
+	peer_di := fmt.Sprintf("%s_d", id[0:13])
 
 	// delete veth_outside
 	c := exec.Command("/sbin/ip", "link", "delete", veth_outside)

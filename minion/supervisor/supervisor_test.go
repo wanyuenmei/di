@@ -3,6 +3,7 @@ package supervisor
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/NetSys/di/db"
@@ -388,67 +389,53 @@ func TestEtcdRemove(t *testing.T) {
 	}
 }
 
-func TestAppDiff(t *testing.T) {
-	var expRemove []db.Container
-	var expInsert []docker.Container
-	var expCommit []db.Container
-	remove, insert, commit := diffApp(nil, nil)
-	if !eq(remove, expRemove) {
-		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
-	}
-	if !eq(insert, expInsert) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
-	}
-	if !eq(commit, expCommit) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
-	}
+func TestRunAppTransact(t *testing.T) {
+	ctx := initTest()
 
-	dbcs := []db.Container{{ID: 1}, {ID: 2}}
-	expRemove = dbcs
-	expInsert = nil
-	expCommit = nil
-	remove, insert, commit = diffApp(dbcs, nil)
-	if !eq(remove, expRemove) {
-		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
-	}
-	if !eq(insert, expInsert) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
-	}
-	if !eq(commit, expCommit) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
-	}
+	ctx.conn.Transact(func(view db.Database) error {
+		ctx.sv.runAppTransact(view, []docker.Container{
+			{ID: "1"},
+			{ID: "2"},
+		})
 
-	dkcs := []docker.Container{{ID: "a"}}
-	dbcs = nil
-	expRemove = nil
-	expInsert = dkcs
-	expCommit = nil
-	remove, insert, commit = diffApp(dbcs, dkcs)
-	if !eq(remove, expRemove) {
-		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
-	}
-	if !eq(insert, expInsert) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
-	}
-	if !eq(commit, expCommit) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
-	}
+		var ids []string
+		dbcs := view.SelectFromContainer(nil)
+		for _, dbc := range dbcs {
+			ids = append(ids, dbc.SchedID)
+		}
+		sort.Sort(sort.StringSlice(ids))
 
-	dkcs = []docker.Container{{ID: "a"}, {ID: "b"}}
-	dbcs = []db.Container{{ID: 1, SchedID: "a"}, {ID: 2, SchedID: "c"}}
-	expRemove = dbcs[1:]
-	expInsert = dkcs[1:]
-	expCommit = dbcs[:1]
-	remove, insert, commit = diffApp(dbcs, dkcs)
-	if !eq(remove, expRemove) {
-		t.Error(spew.Sprintf("\nremove: %s\nexpected: %s\n", remove, expRemove))
-	}
-	if !eq(insert, expInsert) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", insert, expInsert))
-	}
-	if !eq(commit, expCommit) {
-		t.Error(spew.Sprintf("\ninsert: %s\nexpected: %s\n", commit, expCommit))
-	}
+		expected := []string{"1", "2"}
+		if !eq(ids, expected) {
+			t.Errorf("Container Ids = %s, expected %s", ids, expected)
+		}
+
+		ctx.sv.runAppTransact(view, []docker.Container{
+			{ID: "3"},
+			{ID: "1"},
+		})
+
+		ids = nil
+		dbcs = view.SelectFromContainer(nil)
+		for _, dbc := range dbcs {
+			ids = append(ids, dbc.SchedID)
+		}
+		sort.Sort(sort.StringSlice(ids))
+
+		expected = []string{"1", "3"}
+		if !eq(ids, expected) {
+			t.Errorf("Container Ids = %s, expected %s", ids, expected)
+		}
+
+		ctx.sv.runAppTransact(view, []docker.Container{})
+
+		dbcs = view.SelectFromContainer(nil)
+		if len(dbcs) > 0 {
+			t.Errorf(spew.Sprintf("Unexpected containers %s", dbcs))
+		}
+
+		return nil
+	})
 }
 
 type testCtx struct {

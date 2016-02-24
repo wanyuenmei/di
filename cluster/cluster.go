@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/util"
 	log "github.com/Sirupsen/logrus"
 )
@@ -174,40 +175,43 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 			return m.ClusterID == clst.id
 		})
 
-		cloudMap := make(map[string]machine)
-		for _, m := range cloudMachines {
-			cloudMap[m.id] = m
-		}
+		scoreFun := func(left, right interface{}) int {
+			dbm := left.(db.Machine)
+			m := right.(machine)
 
-		var unassigned []db.Machine
-		for _, m := range machines {
-			if cm, ok := cloudMap[m.CloudID]; ok {
-				writeMachine(view, m, cm)
-				delete(cloudMap, m.CloudID)
-			} else {
-				unassigned = append(unassigned, m)
+			switch {
+			case dbm.CloudID == m.id:
+				return 0
+			case dbm.PublicIP == m.publicIP:
+				return 1
+			case dbm.PrivateIP == m.privateIP:
+				return 2
+			default:
+				return 3
 			}
 		}
 
-		for id, m := range cloudMap {
-			if len(unassigned) == 0 {
-				terminateSet = append(terminateSet, id)
-			} else {
-				writeMachine(view, unassigned[0], m)
-				unassigned = unassigned[1:]
-			}
+		pairs, dbmIface, cmIface := join.Join(machines, cloudMachines, scoreFun)
+
+		for _, pair := range pairs {
+			dbm := pair.L.(db.Machine)
+			m := pair.R.(machine)
+
+			dbm.CloudID = m.id
+			dbm.PublicIP = m.publicIP
+			dbm.PrivateIP = m.privateIP
+			view.Commit(dbm)
 		}
-		nBoot = len(unassigned)
+
+		for _, cm := range cmIface {
+			m := cm.(machine)
+			terminateSet = append(terminateSet, m.id)
+		}
+
+		nBoot = len(dbmIface)
 
 		return nil
 	})
 
 	return nBoot, terminateSet
-}
-
-func writeMachine(view db.Database, dbm db.Machine, m machine) {
-	dbm.CloudID = m.id
-	dbm.PublicIP = m.publicIP
-	dbm.PrivateIP = m.privateIP
-	view.Commit(dbm)
 }
