@@ -56,20 +56,24 @@ containers that can be found in the following repos:
 * [ovs-containers](https://github.com/NetSys/ovs-containers)
 * [kubelet](https://github.com/NetSys/di-kubelet)
 
-## The Minion
-To work on the minion:
+## Developing the Minion
+Whenever you develop code in `minion`, make sure you run your personal minion
+image, and not the default DI minion image.
+To do that, follow these steps:
 
-1. Create a new empty repository on your favorite registry:
+1. Create a new empty repository on your favorite registry -
 [docker hub](https://hub.docker.com/) or [quay.io](https://quay.io/) for
 example.
 2. Modify `minionImage` in [util.go](util/util.go) to point to your repo.
-3. Modify the repo [Makefile](Makefile).
-4. Create the docker image:
+3. Modify the repo [Makefile](Makefile) so it builds your image.
+4. Create the docker image: `make docker`
+   * Since Docker requires certain Linux features, you can't run Docker
+   natively on OS X or other non-Linux boxes. A simple workaround is Docker's
+   [Docker Quickstart Terminal](https://docs.docker.com/mac/step_one/) which
+   provides you with a simple way to set up an appropriate environment.
+5. Sign in to your image registry using `docker login`.
+6. Push your image: `docker push $YOUR_REPO`. You can consider adding this to
+your Makefile as well.
 
-    `make docker`
-
-   * Note that this must be run on a Linux box because the minion will also be running
-     on a Linux box.
-5. Push the image:
-
-    `docker push $YOUR_REPO`
+After the above setup, you're good to go - just remember to build and push your
+image first, whenever you want to run the `minion` with your latest changes.
