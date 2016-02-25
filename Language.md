@@ -47,6 +47,23 @@ more concepts.
 SSH keys are represented as atoms. Specifically, there's `(plaintextKey <key>)` and
 `(githubKey <username>)`.
 
+#### Machines
+Each instance of a machine is also an atom. A machine is defined as
+`(machine <attributes>)` where `<attributes>` are either `(provider <provider>)`
+or `(size <size>)`. For example,
+```
+(machine (provider "AmazonSpot") (size "m4.large"))
+```
+
+The attributes of labeled machines can be later modified with
+`(machineAttribute <machine> <attributes>)`. For example,
+```
+(label "masters" (makeList 2 (machine)))
+(machineAttribute "masters" (size "m3.medium") (provider "AmazonSpot"))
+```
+If the attribute is already defined, it is replaced. `machineAttributes` works
+both for a list of machines and a single instance.
+
 ## Labels
 ```
 (label <name> <member list>)

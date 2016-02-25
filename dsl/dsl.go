@@ -36,6 +36,14 @@ type Connection struct {
 	MaxPort int
 }
 
+// A Machine specifies the type of VM that should be booted.
+type Machine struct {
+	Provider string
+	Size     string
+
+	atomImpl
+}
+
 // New parses and executes a dsl (in text form), and returns an abstract Dsl handle.
 func New(reader io.Reader) (Dsl, error) {
 	parsed, err := parse(reader)
@@ -74,7 +82,7 @@ func (dsl Dsl) QueryKeySlice(label string) []string {
 	for _, val := range result {
 		key, ok := val.(key)
 		if !ok {
-			log.Warning("%s: Requested []key, found %s", key, val)
+			log.Warnf("%s: Requested []key, found %s", key, val)
 			continue
 		}
 
@@ -91,6 +99,27 @@ func (dsl Dsl) QueryKeySlice(label string) []string {
 	}
 
 	return keys
+}
+
+// QueryMachineSlice returns the machines associated with a label.
+func (dsl Dsl) QueryMachineSlice(key string) []Machine {
+	result, ok := dsl.ctx.labels[key]
+	if !ok {
+		log.Warnf("%s undefined", key)
+		return nil
+	}
+
+	var machines []Machine
+	for _, val := range result {
+		machine, ok := val.(*Machine)
+		if !ok {
+			log.Warnf("%s: Requested []machine, found %s", key, val)
+			return nil
+		}
+		machines = append(machines, *machine)
+	}
+
+	return machines
 }
 
 // QueryConnections returns the connections declared in the dsl.

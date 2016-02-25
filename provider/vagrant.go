@@ -35,7 +35,8 @@ func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string,
 	return nil
 }
 
-func (clst vagrantCluster) Boot(count int) error {
+func (clst vagrantCluster) Boot(bootSet []Machine) error {
+	count := len(bootSet)
 	vagrant := clst.vagrant
 	var wg sync.WaitGroup
 	wg.Add(count)
@@ -76,6 +77,7 @@ func (clst vagrantCluster) Get() ([]Machine, error) {
 				ID:        instanceID,
 				PublicIP:  ip,
 				PrivateIP: ip,
+				Provider:  db.Vagrant,
 			}
 			machines = append(machines, instance)
 		} else {

@@ -136,6 +136,115 @@ func TestDocker(t *testing.T) {
 	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
 }
 
+func TestMachines(t *testing.T) {
+	checkMachines := func(code, expectedCode string, expected ...Machine) {
+		ctx := parseTest(t, code, expectedCode)
+		machineResult := Dsl{nil, ctx}.QueryMachineSlice("machines")
+		if !reflect.DeepEqual(machineResult, expected) {
+			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+				code, machineResult, expected))
+		}
+	}
+
+	// Test no attributes
+	code := `(label "machines" (list (machine)))`
+	expMachine := Machine{}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test specifying the provider
+	code = `(label "machines" (list (machine (provider "AmazonSpot"))))`
+	expMachine = Machine{Provider: "AmazonSpot"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test making a list of machines
+	code = `(label "machines" (makeList 2 (machine (provider "AmazonSpot"))))`
+	expCode := `(label "machines" (list (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot"))))`
+	checkMachines(code, expCode, expMachine, expMachine)
+
+	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
+	expMachine.SetLabels([]string{"machines"})
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))`
+	checkMachines(code, code, expMachine)
+
+	// Test heterogenous sizes
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge"))))`
+	expMachine2 := Machine{Provider: "AmazonSpot", Size: "m4.xlarge"}
+	expMachine2.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine, expMachine2)
+
+	// Test heterogenous providers
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant"))))`
+	expMachine2 = Machine{Provider: "Vagrant"}
+	expMachine2.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine, expMachine2)
+
+	// Test invalid attribute type
+	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `unrecognized argument to machine definition: "foo"`)
+}
+
+func TestMachineAttribute(t *testing.T) {
+	checkMachines := func(code, expectedCode string, expected ...Machine) {
+		ctx := parseTest(t, code, expectedCode)
+		machineResult := Dsl{nil, ctx}.QueryMachineSlice("machines")
+		if !reflect.DeepEqual(machineResult, expected) {
+			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+				code, machineResult, expected))
+		}
+	}
+
+	// Test adding an attribute to an empty machine definition
+	code := `(label "machines" (list (machine)))
+(machineAttribute "machines" (provider "AmazonSpot"))`
+	expMachine := Machine{Provider: "AmazonSpot"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test adding an attribute to a machine that already has another attribute
+	code = `(label "machines" (list (machine (size "m4.large"))))
+(machineAttribute "machines" (provider "AmazonSpot"))`
+	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test adding two attributes
+	code = `(label "machines" (list (machine)))
+(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
+	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test replacing an attribute
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))
+(machineAttribute "machines" (size "m4.medium"))`
+	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test setting attributes on a single machine (non-list)
+	code = `(label "machines" (machine (provider "AmazonSpot")))
+(machineAttribute "machines" (size "m4.medium"))`
+	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test setting attributes on a bad label argument (non-string)
+	code = `(machineAttribute 1 (machine (provider "AmazonSpot")))`
+	runtimeErr(t, code, `machineAttribute key must be a string: 1`)
+
+	// Test setting attributes on a non-existent label
+	code = `(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
+	runtimeErr(t, code, `machineAttribute key not defined: "badlabel"`)
+
+	// Test setting attribute on a non-machine
+	code = `(label "badlabel" (plaintextKey "key"))
+(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
+	badKey := plaintextKey{key: "key"}
+	badKey.SetLabels([]string{"badlabel"})
+	runtimeErr(t, code, fmt.Sprintf(`bad type, cannot change machine attributes: %s`, &badKey))
+}
+
 func TestKeys(t *testing.T) {
 	getGithubKeys = func(username string) ([]string, error) {
 		return []string{username}, nil

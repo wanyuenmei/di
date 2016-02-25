@@ -48,30 +48,33 @@ func (clst *awsSpotCluster) Disconnect() {
 	clst.aclTrigger.Stop()
 }
 
-func (clst awsSpotCluster) Boot(count int) error {
-	if count <= 0 {
+func (clst awsSpotCluster) Boot(bootSet []Machine) error {
+	if len(bootSet) <= 0 {
 		return nil
 	}
 
-	count64 := int64(count)
+	one := int64(1)
 	cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(clst.cloudConfig))
-	resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
-		SpotPrice: aws.String(spotPrice),
-		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-			ImageId:        aws.String(ami),
-			InstanceType:   aws.String(instanceType),
-			UserData:       &cloudConfig64,
-			SecurityGroups: []*string{&clst.namespace},
-		},
-		InstanceCount: &count64,
-	})
-	if err != nil {
-		return err
-	}
-
 	var spotIds []string
-	for _, request := range resp.SpotInstanceRequests {
-		spotIds = append(spotIds, *request.SpotInstanceRequestId)
+	for _, m := range bootSet {
+		resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
+			SpotPrice: aws.String(spotPrice),
+			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
+				ImageId:        aws.String(ami),
+				InstanceType:   aws.String(m.Size),
+				UserData:       &cloudConfig64,
+				SecurityGroups: []*string{&clst.namespace},
+			},
+			InstanceCount: &one,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		for _, request := range resp.SpotInstanceRequests {
+			spotIds = append(spotIds, *request.SpotInstanceRequestId)
+		}
 	}
 
 	if err := clst.tagSpotRequests(spotIds); err != nil {
@@ -187,7 +190,8 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 		}
 
 		machine := Machine{
-			ID: *spot.SpotInstanceRequestId,
+			ID:       *spot.SpotInstanceRequestId,
+			Provider: db.AmazonSpot,
 		}
 
 		if inst != nil {
@@ -202,6 +206,10 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 
 			if inst.PrivateIpAddress != nil {
 				machine.PrivateIP = *inst.PrivateIpAddress
+			}
+
+			if inst.InstanceType != nil {
+				machine.Size = *inst.InstanceType
 			}
 		}
 

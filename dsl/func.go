@@ -13,20 +13,24 @@ type funcImpl struct {
 }
 
 var funcImplMap = map[astIdent]funcImpl{
-	"%":            {arithFun(func(a, b int) int { return a % b }), 2},
-	"*":            {arithFun(func(a, b int) int { return a * b }), 2},
-	"+":            {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":            {arithFun(func(a, b int) int { return a - b }), 2},
-	"/":            {arithFun(func(a, b int) int { return a / b }), 2},
-	"connect":      {connectImpl, 3},
-	"docker":       {dockerImpl, 1},
-	"label":        {labelImpl, 2},
-	"list":         {listImpl, 0},
-	"makeList":     {makeListImpl, 2},
-	"sprintf":      {sprintfImpl, 1},
-	"placement":    {placementImpl, 3},
-	"githubKey":    {githubKeyImpl, 1},
-	"plaintextKey": {plaintextKeyImpl, 1},
+	"%":                {arithFun(func(a, b int) int { return a % b }), 2},
+	"*":                {arithFun(func(a, b int) int { return a * b }), 2},
+	"+":                {arithFun(func(a, b int) int { return a + b }), 2},
+	"-":                {arithFun(func(a, b int) int { return a - b }), 2},
+	"/":                {arithFun(func(a, b int) int { return a / b }), 2},
+	"connect":          {connectImpl, 3},
+	"docker":           {dockerImpl, 1},
+	"label":            {labelImpl, 2},
+	"list":             {listImpl, 0},
+	"makeList":         {makeListImpl, 2},
+	"sprintf":          {sprintfImpl, 1},
+	"placement":        {placementImpl, 3},
+	"githubKey":        {githubKeyImpl, 1},
+	"plaintextKey":     {plaintextKeyImpl, 1},
+	"size":             {sizeImpl, 1},
+	"provider":         {providerImpl, 1},
+	"machine":          {machineImpl, 0},
+	"machineAttribute": {machineAttributeImpl, 2},
 }
 
 // XXX: support float operators?
@@ -163,6 +167,85 @@ func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	}
 
 	return astFunc{astIdent("placement"), placementImpl, args}, nil
+}
+
+func setMachineAttributes(machine *Machine, args []ast) error {
+	for _, arg := range args {
+		switch arg.(type) {
+		case astProvider:
+			machine.Provider = string(arg.(astProvider))
+		case astSize:
+			machine.Size = string(arg.(astSize))
+		default:
+			return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
+		}
+	}
+	return nil
+}
+
+func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	index := len(ctx.atoms)
+	machine := &Machine{}
+	err = setMachineAttributes(machine, evalArgs)
+	if err != nil {
+		return nil, err
+	}
+	ctx.atoms = append(ctx.atoms, machine)
+
+	return astAtom{astFunc{astIdent("machine"), machineImpl, evalArgs}, index}, nil
+}
+
+func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	key, ok := evalArgs[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("machineAttribute key must be a string: %s", evalArgs[0])
+	}
+
+	target, ok := ctx.labels[string(key)]
+	if !ok {
+		return nil, fmt.Errorf("machineAttribute key not defined: %s", key)
+	}
+
+	for _, val := range target {
+		machine, ok := val.(*Machine)
+		if !ok {
+			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", val)
+		}
+		err = setMachineAttributes(machine, evalArgs[1:])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return astFunc{astIdent("machineAttribute"), machineAttributeImpl, evalArgs}, nil
+}
+
+func providerImpl(ctx *evalCtx, args []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return astProvider((evalArgs[0].(astString))), nil
+}
+
+func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return astSize((evalArgs[0].(astString))), nil
 }
 
 func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {

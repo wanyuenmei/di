@@ -7,6 +7,8 @@ type Machine struct {
 	ID        string
 	PublicIP  string
 	PrivateIP string
+	Size      string
+	Provider  db.Provider
 }
 
 // Provider defines an interface for interacting with cloud providers.
@@ -15,7 +17,7 @@ type Provider interface {
 
 	Get() ([]Machine, error)
 
-	Boot(count int) error
+	Boot(bootSet []Machine) error
 
 	Stop(ids []string) error
 
@@ -36,4 +38,27 @@ func New(dbp db.Provider) Provider {
 	default:
 		panic("Unimplemented")
 	}
+}
+
+// GroupBy transforms the `machines` into a map of `db.Provider` to the machines
+// with that provider.
+func GroupBy(machines []Machine) map[db.Provider][]Machine {
+	machineMap := make(map[db.Provider][]Machine)
+	for _, m := range machines {
+		if _, ok := machineMap[m.Provider]; !ok {
+			machineMap[m.Provider] = []Machine{}
+		}
+		machineMap[m.Provider] = append(machineMap[m.Provider], m)
+	}
+
+	return machineMap
+}
+
+// IDs returns the cloud IDs of `machines`.
+func IDs(machines []Machine) []string {
+	var IDs []string
+	for _, m := range machines {
+		IDs = append(IDs, m.ID)
+	}
+	return IDs
 }

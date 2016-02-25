@@ -5,6 +5,7 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -38,15 +39,10 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 	return nil
 }
 
-func clusterTxn(view db.Database, _dsl dsl.Dsl) (int, error) {
-	Namespace := _dsl.QueryString("Namespace")
+func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
+	Namespace := dsl.QueryString("Namespace")
 	if Namespace == "" {
 		return 0, fmt.Errorf("policy must specify a 'Namespace'")
-	}
-
-	provider, err := db.ParseProvider(_dsl.QueryString("Provider"))
-	if err != nil {
-		return 0, err
 	}
 
 	var cluster db.Cluster
@@ -60,68 +56,94 @@ func clusterTxn(view db.Database, _dsl dsl.Dsl) (int, error) {
 		panic("Unimplemented")
 	}
 
-	cluster.Provider = provider
 	cluster.Namespace = Namespace
-	cluster.AdminACL = resolveACLs(_dsl.QueryStrSlice("AdminACL"))
-	cluster.SSHKeys = _dsl.QueryKeySlice("sshkeys")
-	cluster.Spec = _dsl.String()
+	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
+	cluster.SSHKeys = dsl.QueryKeySlice("sshkeys")
+	cluster.Spec = dsl.String()
 	view.Commit(cluster)
 
 	return cluster.ID, nil
 }
 
-func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
-	masterCount := dsl.QueryInt("MasterCount")
-	workerCount := dsl.QueryInt("WorkerCount")
-	if masterCount == 0 || workerCount == 0 {
-		masterCount = 0
-		workerCount = 0
-	}
-
-	masters := view.SelectFromMachine(func(m db.Machine) bool {
-		return m.ClusterID == clusterID && m.Role == db.Master
-	})
-	workers := view.SelectFromMachine(func(m db.Machine) bool {
-		return m.ClusterID == clusterID && m.Role == db.Worker
-	})
-
-	masters = db.SortMachines(masters)
-	workers = db.SortMachines(workers)
-
-	var changes []db.Machine
-
-	nBoot := masterCount + workerCount - len(masters) - len(workers)
-
-	if len(masters) > masterCount {
-		changes = append(changes, masters[masterCount:]...)
-		masters = masters[:masterCount]
-	}
-
-	if len(workers) > workerCount {
-		changes = append(changes, workers[workerCount:]...)
-		workers = workers[:workerCount]
-	}
-
-	for i := 0; i < nBoot; i++ {
-		changes = append(changes, view.InsertMachine())
-	}
-
-	newWorkers := workerCount - len(workers)
-	newMasters := masterCount - len(masters)
-	for i := range changes {
-		change := changes[i]
-		change.ClusterID = clusterID
-		if newMasters > 0 {
-			newMasters--
-			change.Role = db.Master
-			view.Commit(change)
-		} else if newWorkers > 0 {
-			newWorkers--
-			change.Role = db.Worker
-			view.Commit(change)
-		} else {
-			view.Remove(change)
+// toDBMachine converts machines specified in the DSL into db.Machines that can
+// be compared against what's already in the db.
+// Specifically, it sets the role of the db.Machine, the size (which may depend
+// on RAM and CPU constraints), and the provider.
+// Additionally, it skips machines with invalid sizes or providers
+func toDBMachine(machines []dsl.Machine, role db.Role) []db.Machine {
+	var dbMachines []db.Machine
+	for _, dslm := range machines {
+		var m db.Machine
+		m.Role = role
+		m.Size = dslm.Size
+		provider, err := db.ParseProvider(dslm.Provider)
+		if err != nil {
+			log.WithError(err).Warn("Error parsing provider.")
+			continue
 		}
+		m.Provider = provider
+		dbMachines = append(dbMachines, m)
+	}
+	return dbMachines
+}
+
+func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+	dslMasters := dsl.QueryMachineSlice("masters")
+	dslWorkers := dsl.QueryMachineSlice("workers")
+
+	var dslMachines []db.Machine
+	if len(dslMasters) == 0 || len(dslWorkers) == 0 {
+		dslMachines = []db.Machine{}
+	} else {
+		dslMachines = append(toDBMachine(dslMasters, db.Master), toDBMachine(dslWorkers, db.Worker)...)
+	}
+
+	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {
+		return m.ClusterID == clusterID
+	})
+
+	scoreFun := func(left, right interface{}) int {
+		dslMachine := left.(db.Machine)
+		dbMachine := right.(db.Machine)
+
+		switch {
+		case dslMachine.Provider != dslMachine.Provider:
+			return -1
+		case dbMachine.Size != "" && dslMachine.Size != dbMachine.Size:
+			return -1
+		case dbMachine.Role != db.None && dbMachine.Role != dslMachine.Role:
+			return -1
+		case dbMachine.PrivateIP == "":
+			return 2
+		case dbMachine.PublicIP == "":
+			return 1
+		default:
+			return 0
+		}
+	}
+
+	pairs, bootList, terminateList := join.Join(dslMachines, dbMachines, scoreFun)
+
+	for _, toTerminate := range terminateList {
+		toTerminate := toTerminate.(db.Machine)
+		view.Remove(toTerminate)
+	}
+
+	for _, bootSet := range bootList {
+		bootSet := bootSet.(db.Machine)
+
+		pairs = append(pairs, join.Pair{L: bootSet, R: view.InsertMachine()})
+	}
+
+	for _, pair := range pairs {
+		dslMachine := pair.L.(db.Machine)
+		dbMachine := pair.R.(db.Machine)
+
+		dbMachine.Role = dslMachine.Role
+		dbMachine.Size = dslMachine.Size
+		dbMachine.Provider = dslMachine.Provider
+		dbMachine.ClusterID = clusterID
+		view.Commit(dbMachine)
 	}
 
 	return nil

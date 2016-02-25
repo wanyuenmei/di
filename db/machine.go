@@ -12,6 +12,8 @@ type Machine struct {
 	/* Populated by the policy engine. */
 	ClusterID int //Parent Cluster ID
 	Role      Role
+	Provider  Provider
+	Size      string
 
 	/* Populated by the cloud provider. */
 	CloudID   string //Cloud Provider ID

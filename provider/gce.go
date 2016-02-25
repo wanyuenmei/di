@@ -120,6 +120,7 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 			ID:        item.Name,
 			PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
 			PrivateIP: item.NetworkInterfaces[0].NetworkIP,
+			Provider:  db.Google,
 		})
 	}
 	return mList, nil
@@ -129,7 +130,8 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 //
 // XXX: currently ignores cloudConfig
 // XXX: should probably have a better clean up routine if an error is encountered
-func (clst *gceCluster) Boot(count int) error {
+func (clst *gceCluster) Boot(bootSet []Machine) error {
+	count := len(bootSet)
 	if count < 0 {
 		return errors.New("count must be >= 0")
 	}

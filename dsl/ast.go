@@ -50,8 +50,21 @@ type astString string
 type astFloat float64
 type astInt int
 
+/* SSH Keys */
 type astGithubKey astString
 type astPlaintextKey astString
+
+/* Machine configurations */
+type astSize astString
+type astProvider astString
+
+func (p astProvider) String() string {
+	return fmt.Sprintf("(provider %s)", astString(p).String())
+}
+
+func (size astSize) String() string {
+	return fmt.Sprintf("(size %s)", astString(size).String())
+}
 
 func (key astGithubKey) String() string {
 	return fmt.Sprintf("(githubKey %s)", astString(key).String())

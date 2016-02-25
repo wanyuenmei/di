@@ -109,6 +109,7 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 			ID:        id,
 			PublicIP:  publicIP,
 			PrivateIP: privateIP,
+			Provider:  db.Azure,
 		})
 	}
 
@@ -116,7 +117,8 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 }
 
 // Boot Azure instances (blocking by calling instanceNew).
-func (clst *azureCluster) Boot(count int) error {
+func (clst *azureCluster) Boot(bootSet []Machine) error {
+	count := len(bootSet)
 	if count < 0 {
 		panic("boot count cannot be negative")
 	}

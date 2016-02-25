@@ -143,3 +143,11 @@ func (githubKey astGithubKey) eval(ctx *evalCtx) (ast, error) {
 func (plaintextKey astPlaintextKey) eval(ctx *evalCtx) (ast, error) {
 	return plaintextKey, nil
 }
+
+func (size astSize) eval(ctx *evalCtx) (ast, error) {
+	return size, nil
+}
+
+func (p astProvider) eval(ctx *evalCtx) (ast, error) {
+	return p, nil
+}
