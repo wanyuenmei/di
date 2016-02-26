@@ -11,14 +11,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const (
-	labelBase = "di."
-
-	LabelTrueValue = "1"
-	UserLabel      = labelBase + "user.label."
-	SelfLabel      = labelBase + "self.label."
-)
-
 type swarm struct {
 	dk docker.Client
 }
@@ -28,7 +20,7 @@ func newSwarm(dk docker.Client) scheduler {
 }
 
 func (s swarm) list() ([]docker.Container, error) {
-	return s.dk.List(map[string][]string{"label": {SelfLabel + "DI=Scheduler"}})
+	return s.dk.List(map[string][]string{"label": {docker.SchedulerLabelPair}})
 }
 
 func (s swarm) boot(dbcs []db.Container) {
@@ -72,9 +64,11 @@ func (s swarm) boot(dbcs []db.Container) {
 }
 
 func makeLabels(dbc db.Container) map[string]string {
-	labels := map[string]string{SelfLabel + "DI": "Scheduler"}
+	labels := map[string]string{
+		docker.SchedulerLabelKey: docker.SchedulerLabelValue,
+	}
 	for _, lb := range dbc.Labels {
-		labels[UserLabel+lb] = LabelTrueValue
+		labels[docker.UserLabel(lb)] = docker.LabelTrueValue
 	}
 	return labels
 }
@@ -85,13 +79,13 @@ func makeEnv(dbc db.Container) map[string]struct{} {
 		for excludeLabels := range dbc.Placement.Exclusive {
 			if excludeLabels[0] == label {
 				affinityStr := fmt.Sprintf("affinity:%s!=%s",
-					UserLabel+excludeLabels[1],
-					LabelTrueValue)
+					docker.UserLabel(excludeLabels[1]),
+					docker.LabelTrueValue)
 				env[affinityStr] = struct{}{}
 			} else if excludeLabels[1] == label {
 				affinityStr := fmt.Sprintf("affinity:%s!=%s",
-					UserLabel+excludeLabels[0],
-					LabelTrueValue)
+					docker.UserLabel(excludeLabels[0]),
+					docker.LabelTrueValue)
 				env[affinityStr] = struct{}{}
 			}
 		}

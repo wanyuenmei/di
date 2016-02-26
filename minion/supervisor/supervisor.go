@@ -60,7 +60,9 @@ func (sv *supervisor) runApp() {
 			continue
 		}
 
-		dkcs, err := sv.dk.List(map[string][]string{"label": {"DI=Scheduler"}})
+		dkcs, err := sv.dk.List(map[string][]string{
+			"label": {docker.SchedulerLabelPair},
+		})
 		if err != nil {
 			log.WithError(err).Error("Failed to list local containers.")
 			continue

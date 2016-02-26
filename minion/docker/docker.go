@@ -8,6 +8,24 @@ import (
 	dkc "github.com/fsouza/go-dockerclient"
 )
 
+const (
+	// The root namespace for all labels
+	labelBase = "di."
+	// This is the namespace for user defined labels
+	userLabelPrefix = labelBase + "user.label."
+	// This is the namespace for system defined labels
+	systemLabelPrefix = labelBase + "system.label."
+
+	// This is needed because a label has to be a key/value pair, hence this
+	// is the value that will be used if we're only interested in the key
+	LabelTrueValue = "1"
+
+	// This is the key, value, and key/value pair used by the scheduler
+	SchedulerLabelKey   = systemLabelPrefix + "DI"
+	SchedulerLabelValue = "Scheduler"
+	SchedulerLabelPair  = SchedulerLabelKey + "=" + SchedulerLabelValue
+)
+
 var errNoSuchContainer = errors.New("container does not exist")
 
 type Container struct {
@@ -259,4 +277,12 @@ func (dk docker) getID(name string) (string, error) {
 	}
 
 	return "", errNoSuchContainer
+}
+
+func UserLabel(label string) string {
+	return userLabelPrefix + label
+}
+
+func SystemLabel(label string) string {
+	return systemLabelPrefix + label
 }
