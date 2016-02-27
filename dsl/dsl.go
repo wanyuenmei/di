@@ -57,7 +57,7 @@ func (dsl Dsl) QueryContainers() []*Container {
 func (dsl Dsl) QueryKeySlice(key string) []Key {
 	result, ok := dsl.ctx.labels[key]
 	if !ok {
-		log.Warning("%s undefined", key)
+		log.Warnf("%s undefined", key)
 		return nil
 	}
 
