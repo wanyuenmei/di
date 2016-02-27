@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/NetSys/di/db"
@@ -70,12 +69,20 @@ func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Containe
 		dbc := left.(db.Container)
 		dkc := right.(docker.Container)
 
-		if dkc.Image != dbc.Image ||
-			!reflect.DeepEqual(dkc.Command, dbc.Command) {
+		// Depending on the container, the command in the database could be
+		// either The command plus it's arguments, or just it's arguments.  To
+		// handle that case, we check both.
+		cmd1 := dkc.Args
+		cmd2 := append([]string{dkc.Path}, dkc.Args...)
+
+		switch {
+		case dkc.Image != dbc.Image:
 			return -1
-		} else if dkc.ID == dbc.SchedID {
+		case !strEq(dbc.Command, cmd1) && !strEq(dbc.Command, cmd2):
+			return -1
+		case dkc.ID == dbc.SchedID:
 			return 0
-		} else {
+		default:
 			return 1
 		}
 	}
@@ -98,4 +105,18 @@ func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Containe
 	}
 
 	return term, boot
+}
+
+func strEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }

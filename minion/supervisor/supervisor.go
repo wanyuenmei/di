@@ -116,7 +116,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 		dbc.SchedID = dkc.ID
 		dbc.Pid = dkc.Pid
 		dbc.Image = dkc.Image
-		dbc.Command = dkc.Command
+		dbc.Command = append([]string{dkc.Path}, dkc.Args...)
 		view.Commit(dbc)
 	}
 

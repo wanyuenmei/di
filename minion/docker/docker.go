@@ -29,12 +29,13 @@ const (
 var errNoSuchContainer = errors.New("container does not exist")
 
 type Container struct {
-	ID      string
-	Name    string
-	Image   string
-	IP      string
-	Command []string
-	Pid     int
+	ID    string
+	Name  string
+	Image string
+	IP    string
+	Path  string
+	Args  []string
+	Pid   int
 }
 
 // A Client to the local docker daemon.
@@ -225,12 +226,13 @@ func (dk docker) Get(id string) (Container, error) {
 	}
 
 	return Container{
-		Name:    c.Name,
-		ID:      c.ID,
-		IP:      c.NetworkSettings.IPAddress,
-		Image:   c.Config.Image,
-		Command: append([]string{c.Path}, c.Args...),
-		Pid:     c.State.Pid,
+		Name:  c.Name,
+		ID:    c.ID,
+		IP:    c.NetworkSettings.IPAddress,
+		Image: c.Config.Image,
+		Path:  c.Path,
+		Args:  c.Args,
+		Pid:   c.State.Pid,
 	}, nil
 }
 
