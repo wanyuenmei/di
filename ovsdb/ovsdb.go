@@ -388,5 +388,11 @@ func (ovsdb Ovsdb) GetOFPort(name string) (int, error) {
 	if len(results) == 0 {
 		return 0, errors.New(fmt.Sprintf("No interfaces with name %s", name))
 	}
-	return int(results[0]["ofport"].(float64)), nil
+
+	port, ok := results[0]["ofport"].(float64)
+	if !ok {
+		return 0, fmt.Errorf("no openflow port")
+	}
+
+	return int(port), nil
 }
