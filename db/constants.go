@@ -1,4 +1,4 @@
-//go:generate stringer -type=Provider -type=Role
+//go:generate stringer -type=Provider
 
 package db
 
