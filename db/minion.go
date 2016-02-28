@@ -39,7 +39,7 @@ func (conn Conn) SelectFromMinion(check func(Minion) bool) []Minion {
 }
 
 func (m Minion) String() string {
-	return DefaultString(m)
+	return defaultString(m)
 }
 
 func (m Minion) less(r row) bool {

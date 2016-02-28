@@ -36,9 +36,9 @@ func updateConnections(view db.Database, spec dsl.Dsl) {
 		if dslc.From == dbc.From && dslc.To == dbc.To &&
 			dslc.MinPort == dbc.MinPort && dslc.MaxPort == dbc.MaxPort {
 			return 0
-		} else {
-			return 1
 		}
+
+		return 1
 	}
 
 	pairs, dsls, dbcs := join.Join(spec.QueryConnections(),
@@ -49,7 +49,7 @@ func updateConnections(view db.Database, spec dsl.Dsl) {
 	}
 
 	for _, dslc := range dsls {
-		pairs = append(pairs, join.Pair{dslc, view.InsertConnection()})
+		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertConnection()})
 	}
 
 	for _, pair := range pairs {
@@ -98,7 +98,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 	}
 
 	for _, dslc := range dsls {
-		pairs = append(pairs, join.Pair{dslc, view.InsertContainer()})
+		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertContainer()})
 	}
 
 	for _, pair := range pairs {

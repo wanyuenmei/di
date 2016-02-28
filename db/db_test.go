@@ -165,7 +165,7 @@ func SelectMachineCheck(db Database, do func(Machine) bool, expected []Machine) 
 	sort.Sort(mSort(expected))
 	sort.Sort(mSort(query))
 	if !reflect.DeepEqual(expected, query) {
-		return fmt.Errorf("Unexpect query result: %s\nExpected %s",
+		return fmt.Errorf("unexpected query result: %s\nExpected %s",
 			spew.Sdump(query), spew.Sdump(expected))
 	}
 

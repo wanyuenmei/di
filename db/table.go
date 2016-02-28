@@ -4,21 +4,32 @@ import (
 	"reflect"
 )
 
+// TableType represents a table in the database.
 type TableType string
 
-/* Used by the global controller. */
-var ClusterTable TableType = TableType(reflect.TypeOf(Cluster{}).String())
-var MachineTable TableType = TableType(reflect.TypeOf(Machine{}).String())
+// ClusterTable is the type of the cluster table.
+var ClusterTable = TableType(reflect.TypeOf(Cluster{}).String())
 
-/* Used by the minions. */
-var ContainerTable TableType = TableType(reflect.TypeOf(Container{}).String())
-var MinionTable TableType = TableType(reflect.TypeOf(Minion{}).String())
-var ConnectionTable TableType = TableType(reflect.TypeOf(Connection{}).String())
-var LabelTable TableType = TableType(reflect.TypeOf(Label{}).String())
-var EtcdTable TableType = TableType(reflect.TypeOf(Etcd{}).String())
+// MachineTable is the type of the machine table.
+var MachineTable = TableType(reflect.TypeOf(Machine{}).String())
 
-var allTables []TableType = []TableType{ClusterTable, MachineTable, ContainerTable,
-	MinionTable, ConnectionTable, LabelTable, EtcdTable}
+// ContainerTable is the type of the container table.
+var ContainerTable = TableType(reflect.TypeOf(Container{}).String())
+
+// MinionTable is the type of the minion table.
+var MinionTable = TableType(reflect.TypeOf(Minion{}).String())
+
+// ConnectionTable is the type of the connection table.
+var ConnectionTable = TableType(reflect.TypeOf(Connection{}).String())
+
+// LabelTable is the type of the label table.
+var LabelTable = TableType(reflect.TypeOf(Label{}).String())
+
+// EtcdTable is the type of the etcd table.
+var EtcdTable = TableType(reflect.TypeOf(Etcd{}).String())
+
+var allTables = []TableType{ClusterTable, MachineTable, ContainerTable, MinionTable,
+	ConnectionTable, LabelTable, EtcdTable}
 
 type table struct {
 	rows map[int]row

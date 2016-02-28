@@ -118,6 +118,7 @@ func (db Database) insert(r row) {
 	table.rows[getID(r)] = r
 }
 
+// Commit update the database with the data contained in row.
 func (db Database) Commit(r row) {
 	rid := getID(r)
 	table := db.tables[getTableType(r)]
@@ -133,6 +134,7 @@ func (db Database) Commit(r row) {
 	}
 }
 
+// Remove deletes row from the database.
 func (db Database) Remove(r row) {
 	table := db.tables[getTableType(r)]
 	delete(table.rows, getID(r))
@@ -140,7 +142,7 @@ func (db Database) Remove(r row) {
 }
 
 func (db Database) nextID() int {
-	*db.idAlloc += 1
+	*db.idAlloc++
 	return *db.idAlloc
 }
 
@@ -158,12 +160,12 @@ func (rows rowSlice) Less(i, j int) bool {
 	return rows[i].less(rows[j])
 }
 
-func DefaultString(r row) string {
+func defaultString(r row) string {
 	trow := reflect.TypeOf(r)
 	vrow := reflect.ValueOf(r)
 
 	var tags []string
-	for i := 0; i < trow.NumField(); i += 1 {
+	for i := 0; i < trow.NumField(); i++ {
 		formatString := trow.Field(i).Tag.Get("rowStringer")
 		if trow.Field(i).Name == "ID" || formatString == "omit" {
 			continue

@@ -10,7 +10,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-var myIP = util.MyIp
+var myIP = util.MyIP
 
 // UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
 func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
@@ -41,7 +41,7 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 func clusterTxn(view db.Database, _dsl dsl.Dsl) (int, error) {
 	Namespace := _dsl.QueryString("Namespace")
 	if Namespace == "" {
-		return 0, fmt.Errorf("Policy must specify a 'Namespace'")
+		return 0, fmt.Errorf("policy must specify a 'Namespace'")
 	}
 
 	provider, err := db.ParseProvider(_dsl.QueryString("Provider"))

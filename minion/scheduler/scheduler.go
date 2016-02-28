@@ -19,6 +19,7 @@ type scheduler interface {
 	terminate(ids []string)
 }
 
+// Run blocks implementing the scheduler module.
 func Run(conn db.Conn) {
 	var sched scheduler
 	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable).C {
@@ -64,7 +65,7 @@ func Run(conn db.Conn) {
 	}
 }
 
-func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Container) {
+func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Container) {
 	score := func(left, right interface{}) int {
 		dbc := left.(db.Container)
 		dkc := right.(docker.Container)
@@ -87,7 +88,7 @@ func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Containe
 			return 1
 		}
 	}
-	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcs_, score)
+	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcsArg, score)
 
 	for _, pair := range pairs {
 		dbc := pair.L.(db.Container)

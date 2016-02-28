@@ -2,7 +2,6 @@
 // ensuring that containers can find and communicate with each other in accordance with
 // the policy specification.  It achieves this by manipulating IP addresses and hostnames
 // within the containers, Open vSwitch on each running worker, and the OVN controller.
-
 package network
 
 import (
@@ -14,11 +13,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const LabelMac = "0A:00:00:00:00:00"
-const LSwitch = "di"
-const DIBridge = "di-int"
-const OVNBridge = "br-int"
+const labelMac = "0A:00:00:00:00:00"
+const lSwitch = "di"
+const diBridge = "di-int"
+const ovnBridge = "br-int"
 
+// Run blocks implementing the network services.
 func Run(conn db.Conn, store consensus.Store, dk docker.Client) {
 	go readStoreRun(conn, store)
 	go writeStoreRun(conn, store)
@@ -67,8 +67,8 @@ func runMaster(conn db.Conn) {
 	}
 	defer ovsdb.Close()
 
-	ovsdb.CreateSwitch(LSwitch)
-	lportSlice, err := ovsdb.ListPorts(LSwitch)
+	ovsdb.CreateSwitch(lSwitch)
+	lportSlice, err := ovsdb.ListPorts(lSwitch)
 	if err != nil {
 		log.WithError(err).Error("Failed to list OVN ports.")
 		return
@@ -92,7 +92,7 @@ func runMaster(conn db.Conn) {
 			"name": dbl.Label,
 			"IP":   dbl.IP,
 		}).Info("New logical port.")
-		err := ovsdb.CreatePort(LSwitch, dbl.Label, LabelMac, dbl.IP)
+		err := ovsdb.CreatePort(lSwitch, dbl.Label, labelMac, dbl.IP)
 		if err != nil {
 			log.WithError(err).Warnf("Failed to create port %s.", dbl.Label)
 		}
@@ -121,7 +121,7 @@ func runMaster(conn db.Conn) {
 	// have been deleted in the preceding loop.
 	for lport := range garbageMap {
 		log.Infof("Delete logical port %s.", lport)
-		if err := ovsdb.DeletePort(LSwitch, lport); err != nil {
+		if err := ovsdb.DeletePort(lSwitch, lport); err != nil {
 			log.WithError(err).Warn("Failed to delete logical port.")
 		}
 	}

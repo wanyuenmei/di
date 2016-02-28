@@ -28,6 +28,7 @@ func (db Database) SelectFromLabel(check func(Label) bool) []Label {
 	return result
 }
 
+// SelectFromLabel gets all containers in the database connection that satisfy 'check'.
 func (conn Conn) SelectFromLabel(check func(Label) bool) []Label {
 	var result []Label
 	conn.Transact(func(view Database) error {
@@ -38,7 +39,7 @@ func (conn Conn) SelectFromLabel(check func(Label) bool) []Label {
 }
 
 func (r Label) String() string {
-	return DefaultString(r)
+	return defaultString(r)
 }
 
 func (r Label) less(row row) bool {

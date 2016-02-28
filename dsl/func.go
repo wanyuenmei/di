@@ -30,8 +30,8 @@ var funcImplMap = map[astIdent]funcImpl{
 }
 
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
-	return func(ctx *evalCtx, args__ []ast) (ast, error) {
-		args, err := evalArgs(ctx, args__)
+	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
+		args, err := evalArgs(ctx, argsAst)
 		if err != nil {
 			return nil, err
 		}
@@ -55,8 +55,8 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 	}
 }
 
-func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args__)
+func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
@@ -87,33 +87,33 @@ func dockerImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
 }
 
-func githubKeyImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args__)
+func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
 	index := len(ctx.atoms)
-	key := &GithubKey{username: string(evalArgs[0].(astString))}
+	key := &githubKey{username: string(evalArgs[0].(astString))}
 	ctx.atoms = append(ctx.atoms, key)
 
 	return astAtom{astFunc{astIdent("githubKey"), githubKeyImpl, evalArgs}, index}, nil
 }
 
-func plaintextKeyImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args__)
+func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	evalArgs, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
 
 	index := len(ctx.atoms)
-	key := &PlaintextKey{key: string(evalArgs[0].(astString))}
+	key := &plaintextKey{key: string(evalArgs[0].(astString))}
 	ctx.atoms = append(ctx.atoms, key)
 
 	return astAtom{astFunc{astIdent("plaintextKey"), plaintextKeyImpl, evalArgs}, index}, nil
 }
 
-func placementImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
@@ -158,14 +158,14 @@ func placementImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 			}
 		}
 	default:
-		return nil, fmt.Errorf("Not a valid placement type: %s", ptype)
+		return nil, fmt.Errorf("not a valid placement type: %s", ptype)
 	}
 
 	return astFunc{astIdent("placement"), placementImpl, args}, nil
 }
 
-func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +234,8 @@ func connectImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	return astFunc{astIdent("connect"), connectImpl, newArgs}, nil
 }
 
-func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)
 	}
 
-	var atoms []Atom
+	var atoms []atom
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
 		case astAtom:
@@ -290,8 +290,8 @@ func labelImpl(ctx *evalCtx, args__ []ast) (ast, error) {
 	return astFunc{astIdent("label"), labelImpl, args}, nil
 }
 
-func listImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+func listImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
 	return astList(args), err
 }
 
@@ -318,8 +318,8 @@ func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astList(result), nil
 }
 
-func sprintfImpl(ctx *evalCtx, args__ []ast) (ast, error) {
-	args, err := evalArgs(ctx, args__)
+func sprintfImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
 	if err != nil {
 		return nil, err
 	}

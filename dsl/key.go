@@ -2,25 +2,25 @@ package dsl
 
 import "github.com/google/go-github/github"
 
-type Key interface {
+type key interface {
 	keys() ([]string, error)
 }
 
-type GithubKey struct {
+type githubKey struct {
 	username string
 
-	AtomImpl
+	atomImpl
 }
 
-type PlaintextKey struct {
+type plaintextKey struct {
 	key string
 
-	AtomImpl
+	atomImpl
 }
 
 var githubCache = make(map[string][]string)
 
-func (githubKey GithubKey) keys() ([]string, error) {
+func (githubKey githubKey) keys() ([]string, error) {
 	if keys, ok := githubCache[githubKey.username]; ok {
 		return keys, nil
 	}
@@ -32,7 +32,7 @@ func (githubKey GithubKey) keys() ([]string, error) {
 	return keys, nil
 }
 
-func (plaintextKey PlaintextKey) keys() ([]string, error) {
+func (plaintextKey plaintextKey) keys() ([]string, error) {
 	return []string{plaintextKey.key}, nil
 }
 

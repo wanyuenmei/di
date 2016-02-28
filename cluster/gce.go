@@ -37,18 +37,18 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const COMPUTE_BASE_URL string = "https://www.googleapis.com/compute/v1/projects"
+const computeBaseURL string = "https://www.googleapis.com/compute/v1/projects"
 const (
 	// These are the various types of Operations that the GCE API returns
-	ZONE = iota
-	GLOBAL
+	local = iota
+	global
 )
 
 var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
 
 type gceCluster struct {
-	projId   string // gce project ID
+	projID   string // gce project ID
 	zone     string // gce zone
 	imgURL   string // gce url to the VM image
 	machType string // gce machine type
@@ -65,7 +65,7 @@ type gceCluster struct {
 // filtering off of that.
 //
 // XXX: A lot of the fields are hardcoded.
-func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
+func newGCE(conn db.Conn, clusterID int, namespace string) (provider, error) {
 	if namespace == "" {
 		panic("newGCE(): namespace CANNOT be empty")
 	}
@@ -76,18 +76,18 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 	}
 
 	clst := &gceCluster{
-		projId:     "declarative-infrastructure",
+		projID:     "declarative-infrastructure",
 		zone:       "us-central1-a",
 		machType:   "f1-micro",
-		id:         clusterId,
+		id:         clusterID,
 		ns:         namespace,
 		aclTrigger: conn.TriggerTick(60, db.ClusterTable),
 		imgURL: fmt.Sprintf(
 			"%s/%s",
-			COMPUTE_BASE_URL,
+			computeBaseURL,
 			"coreos-cloud/global/images/coreos-beta-899-3-0-v20160115"),
 	}
-	clst.baseURL = fmt.Sprintf("%s/%s", COMPUTE_BASE_URL, clst.projId)
+	clst.baseURL = fmt.Sprintf("%s/%s", computeBaseURL, clst.projID)
 
 	err = clst.netInit()
 	if err != nil {
@@ -99,7 +99,7 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 		return nil, err
 	}
 
-	go clst.watchACLs(conn, clusterId)
+	go clst.watchACLs(conn, clusterID)
 	return clst, nil
 }
 
@@ -108,7 +108,7 @@ func newGCE(conn db.Conn, clusterId int, namespace string) (provider, error) {
 // XXX: This doesn't use the instance group listing functionality because
 // listing that way doesn't get you information about the instances
 func (clst *gceCluster) get() ([]machine, error) {
-	list, err := gceService.Instances.List(clst.projId, clst.zone).
+	list, err := gceService.Instances.List(clst.projID, clst.zone).
 		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 			Instance: op.TargetLink,
 		})
 	}
-	err := clst.wait(ops, ZONE)
+	err := clst.wait(ops, local)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (clst *gceCluster) stop(ids []string) error {
 		}
 		ops = append(ops, op)
 	}
-	err := clst.wait(ops, ZONE)
+	err := clst.wait(ops, local)
 	if err != nil {
 		return err
 	}
@@ -202,21 +202,21 @@ func (clst *gceCluster) wait(ops []*compute.Operation, domain int) error {
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 
-	var op *compute.Operation = nil
-	var err error = nil
+	var op *compute.Operation
+	var err error
 	for {
 		select {
 		case <-after:
-			return errors.New(fmt.Sprintf("wait(): timeout"))
+			return fmt.Errorf("wait(): timeout")
 		case <-tick.C:
 			for len(ops) > 0 {
 				switch {
-				case domain == ZONE:
+				case domain == local:
 					op, err = gceService.ZoneOperations.
-						Get(clst.projId, clst.zone, ops[0].Name).Do()
-				case domain == GLOBAL:
+						Get(clst.projID, clst.zone, ops[0].Name).Do()
+				case domain == global:
 					op, err = gceService.GlobalOperations.
-						Get(clst.projId, ops[0].Name).Do()
+						Get(clst.projID, ops[0].Name).Do()
 				}
 				if err != nil {
 					return err
@@ -236,7 +236,7 @@ func (clst *gceCluster) wait(ops []*compute.Operation, domain int) error {
 // Get a GCE instance.
 func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
 	ist, err := gceService.Instances.
-		Get(clst.projId, clst.zone, name).Do()
+		Get(clst.projID, clst.zone, name).Do()
 	return ist, err
 }
 
@@ -291,7 +291,7 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 	}
 
 	op, err := gceService.Instances.
-		Insert(clst.projId, clst.zone, instance).Do()
+		Insert(clst.projID, clst.zone, instance).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.O
 //
 // Does not check if the operation succeeds
 func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
-	op, err := gceService.Instances.Delete(clst.projId, clst.zone, name).Do()
+	op, err := gceService.Instances.Delete(clst.projID, clst.zone, name).Do()
 	return op, err
 }
 
@@ -311,7 +311,7 @@ func (clst *gceCluster) updateSecurityGroups(acls []string) error {
 	if err != nil {
 		return err
 	}
-	err = clst.wait([]*compute.Operation{op}, GLOBAL)
+	err = clst.wait([]*compute.Operation{op}, global)
 	if err != nil {
 		return err
 	}
@@ -324,12 +324,12 @@ func (clst *gceCluster) networkNew(name string) (*compute.Operation, error) {
 		Name: name,
 	}
 
-	op, err := gceService.Networks.Insert(clst.projId, network).Do()
+	op, err := gceService.Networks.Insert(clst.projID, network).Do()
 	return op, err
 }
 
 func (clst *gceCluster) networkExists(name string) (bool, error) {
-	list, err := gceService.Networks.List(clst.projId).Do()
+	list, err := gceService.Networks.List(clst.projID).Do()
 	if err != nil {
 		return false, err
 	}
@@ -367,12 +367,12 @@ func (clst *gceCluster) firewallNew(name string) (*compute.Operation, error) {
 		SourceRanges: []string{"127.0.0.1/32"},
 	}
 
-	op, err := gceService.Firewalls.Insert(clst.projId, firewall).Do()
+	op, err := gceService.Firewalls.Insert(clst.projID, firewall).Do()
 	return op, err
 }
 
 func (clst *gceCluster) firewallExists(name string) (bool, error) {
-	list, err := gceService.Firewalls.List(clst.projId).Do()
+	list, err := gceService.Firewalls.List(clst.projID).Do()
 	if err != nil {
 		return false, err
 	}
@@ -398,7 +398,7 @@ func (clst *gceCluster) firewallPatch(name string, ips []string) (*compute.Opera
 		SourceRanges: ips,
 	}
 
-	op, err := gceService.Firewalls.Patch(clst.projId, name, firewall).Do()
+	op, err := gceService.Firewalls.Patch(clst.projID, name, firewall).Do()
 	return op, err
 }
 
@@ -475,19 +475,21 @@ func (clst *gceCluster) netInit() error {
 	if err != nil {
 		return err
 	}
+
 	if exists {
 		log.Debug("Network already exists")
 		return nil
 	}
+
 	log.Debug("Creating network")
 	op, err := clst.networkNew(clst.ns)
 	if err != nil {
 		return err
-	} else {
-		err = clst.wait([]*compute.Operation{op}, GLOBAL)
-		if err != nil {
-			return err
-		}
+	}
+
+	err = clst.wait([]*compute.Operation{op}, global)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -509,11 +511,11 @@ func (clst *gceCluster) fwInit() error {
 	op, err := clst.firewallNew(clst.ns)
 	if err != nil {
 		return err
-	} else {
-		err = clst.wait([]*compute.Operation{op}, GLOBAL)
-		if err != nil {
-			return err
-		}
+	}
+
+	err = clst.wait([]*compute.Operation{op}, global)
+	if err != nil {
+		return err
 	}
 	return nil
 }

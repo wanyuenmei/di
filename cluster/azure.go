@@ -42,9 +42,9 @@ type azureCluster struct {
 }
 
 // Create an Azure clister.
-func newAzure(conn db.Conn, clusterId int, namespace string) (provider, error) {
+func newAzure(conn db.Conn, clusterID int, namespace string) (provider, error) {
 	if namespace == "" {
-		return nil, errors.New("namespace cannot be empty.")
+		return nil, errors.New("namespace cannot be empty")
 	}
 
 	keyfile := filepath.Join(os.Getenv("HOME"), ".azure", "azure.publishsettings")
@@ -102,13 +102,13 @@ func (clst *azureCluster) get() ([]machine, error) {
 		}
 
 		roleInstance := deploymentResponse.RoleInstanceList[0]
-		privateIp := roleInstance.IPAddress
-		publicIp := roleInstance.InstanceEndpoints[0].Vip
+		privateIP := roleInstance.IPAddress
+		publicIP := roleInstance.InstanceEndpoints[0].Vip
 
 		mList = append(mList, machine{
 			id:        id,
-			publicIP:  publicIp,
-			privateIP: privateIp,
+			publicIP:  publicIP,
+			privateIP: privateIP,
 		})
 	}
 

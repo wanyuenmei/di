@@ -38,15 +38,15 @@ func TestEngine(t *testing.T) {
 
 		if len(clusters) != 1 || len(clusters[0].AdminACL) != 1 ||
 			len(clusters[0].SSHKeys) != 1 {
-			return fmt.Errorf("Bad Clusters: %s", spew.Sdump(clusters))
+			return fmt.Errorf("bad clusters: %s", spew.Sdump(clusters))
 		}
 
 		if len(masters) != 2 {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 3 {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -73,11 +73,11 @@ func TestEngine(t *testing.T) {
 		})
 
 		if len(masters) != 4 {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 5 {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -130,12 +130,12 @@ func TestEngine(t *testing.T) {
 
 		if len(masters) != 1 || masters[0].CloudID != "1" ||
 			masters[0].PublicIP != "2" || masters[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 1 || workers[0].CloudID != "1" ||
 			workers[0].PublicIP != "2" || workers[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -161,12 +161,12 @@ func TestEngine(t *testing.T) {
 
 		if len(masters) != 1 || masters[0].CloudID != "1" ||
 			masters[0].PublicIP != "2" || masters[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 1 || workers[0].CloudID != "1" ||
 			workers[0].PublicIP != "2" || workers[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -192,12 +192,12 @@ func TestEngine(t *testing.T) {
 
 		if len(masters) != 1 || masters[0].CloudID != "1" ||
 			masters[0].PublicIP != "2" || masters[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 1 || workers[0].CloudID != "1" ||
 			workers[0].PublicIP != "2" || workers[0].PrivateIP != "3" {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -223,11 +223,11 @@ func TestEngine(t *testing.T) {
 		})
 
 		if len(masters) != 0 {
-			return fmt.Errorf("Bad Masters: %s", spew.Sdump(masters))
+			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
 		if len(workers) != 0 {
-			return fmt.Errorf("Bad Workers: %s", spew.Sdump(workers))
+			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
 	})
@@ -340,7 +340,7 @@ func TestSort(t *testing.T) {
 		})
 
 		if len(machines) != 3 {
-			return fmt.Errorf("Bad Machines: %s", spew.Sdump(machines))
+			return fmt.Errorf("bad machines: %s", spew.Sdump(machines))
 		}
 
 		machines[2].PublicIP = "a"
@@ -369,12 +369,12 @@ func TestSort(t *testing.T) {
 		})
 
 		if len(machines) != 2 {
-			return fmt.Errorf("Bad Machines: %s", spew.Sdump(machines))
+			return fmt.Errorf("bad machines: %s", spew.Sdump(machines))
 		}
 
 		for _, m := range machines {
 			if m.PublicIP == "" && m.PrivateIP == "" {
-				return fmt.Errorf("Bad machine: %s",
+				return fmt.Errorf("bad machine: %s",
 					spew.Sdump(machines))
 			}
 		}
@@ -398,12 +398,12 @@ func TestSort(t *testing.T) {
 		})
 
 		if len(machines) != 1 {
-			return fmt.Errorf("Bad Machines: %s", spew.Sdump(machines))
+			return fmt.Errorf("bad machines: %s", spew.Sdump(machines))
 		}
 
 		for _, m := range machines {
 			if m.PublicIP == "" || m.PrivateIP == "" {
-				return fmt.Errorf("Bad machine: %s",
+				return fmt.Errorf("bad machine: %s",
 					spew.Sdump(machines))
 			}
 		}
@@ -437,13 +437,13 @@ func TestLocal(t *testing.T) {
 		clusters := view.SelectFromCluster(nil)
 
 		if len(clusters) != 1 {
-			return fmt.Errorf("Bad Clusters : %s", spew.Sdump(clusters))
+			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
 		}
 		cluster := clusters[0]
 
 		if !reflect.DeepEqual(cluster.AdminACL,
 			[]string{"1.2.3.4/32", "5.6.7.8/32"}) {
-			return fmt.Errorf("Bad AdminACL: %s",
+			return fmt.Errorf("bad AdminACL: %s",
 				spew.Sdump(cluster.AdminACL))
 		}
 
@@ -454,19 +454,19 @@ func TestLocal(t *testing.T) {
 	}
 
 	myIP = func() (string, error) {
-		return "", errors.New("Something")
+		return "", errors.New("")
 	}
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		clusters := view.SelectFromCluster(nil)
 
 		if len(clusters) != 1 {
-			return fmt.Errorf("Bad Clusters : %s", spew.Sdump(clusters))
+			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
 		}
 		cluster := clusters[0]
 
 		if !reflect.DeepEqual(cluster.AdminACL, []string{"1.2.3.4/32"}) {
-			return fmt.Errorf("Bad AdminACL: %s",
+			return fmt.Errorf("bad AdminACL: %s",
 				spew.Sdump(cluster.AdminACL))
 		}
 

@@ -9,8 +9,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// Formatter implements the log formatter for DI.
 type Formatter struct{}
 
+// Format converts a logrus entry into a string for logging.
 func (f Formatter) Format(entry *log.Entry) ([]byte, error) {
 	b := &bytes.Buffer{}
 

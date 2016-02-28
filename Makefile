@@ -19,8 +19,11 @@ docker:
 check:
 	go test ./...
 
-vet:
-	cd -P . && go vet ./...
+lint:
+	go vet ./...
+	for package in `go list ./... | grep -v minion/pb`; do \
+	    golint -min_confidence .25 $$package ; \
+	done
 
 coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov
 

@@ -6,23 +6,28 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// A Dsl is an abstract representation of the policy language.
 type Dsl struct {
 	spec ast
 	ctx  evalCtx
 }
 
+// A Container may be instantiated in the dsl and queried by users.
 type Container struct {
 	Image   string
 	Command []string
 
 	Placement
-	AtomImpl
+	atomImpl
 }
 
+// A Placement constraint restricts where containers may be instantiated.
 type Placement struct {
 	Exclusive map[[2]string]struct{}
 }
 
+// A Connection allows containers implementing the From label to speak to containers
+// implementing the To label in ports in the range [MinPort, MaxPort]
 type Connection struct {
 	From    string
 	To      string
@@ -30,6 +35,7 @@ type Connection struct {
 	MaxPort int
 }
 
+// New parses and executes a dsl (in text form), and returns an abstract Dsl handle.
 func New(reader io.Reader) (Dsl, error) {
 	parsed, err := parse(reader)
 	if err != nil {
@@ -43,6 +49,7 @@ func New(reader io.Reader) (Dsl, error) {
 	return Dsl{spec, ctx}, nil
 }
 
+// QueryContainers retreives all containers declared in dsl.
 func (dsl Dsl) QueryContainers() []*Container {
 	var containers []*Container
 	for _, atom := range dsl.ctx.atoms {
@@ -54,16 +61,17 @@ func (dsl Dsl) QueryContainers() []*Container {
 	return containers
 }
 
-func (dsl Dsl) QueryKeySlice(key string) []string {
-	result, ok := dsl.ctx.labels[key]
+// QueryKeySlice returns the ssh keys associated with a label.
+func (dsl Dsl) QueryKeySlice(label string) []string {
+	result, ok := dsl.ctx.labels[label]
 	if !ok {
-		log.Warnf("%s undefined", key)
+		log.Warnf("%s undefined", label)
 		return nil
 	}
 
 	var keys []string
 	for _, val := range result {
-		key, ok := val.(Key)
+		key, ok := val.(key)
 		if !ok {
 			log.Warning("%s: Requested []key, found %s", key, val)
 			continue
@@ -84,6 +92,7 @@ func (dsl Dsl) QueryKeySlice(key string) []string {
 	return keys
 }
 
+// QueryConnections returns the connections declared in the dsl.
 func (dsl Dsl) QueryConnections() []Connection {
 	var connections []Connection
 	for c := range dsl.ctx.connections {
@@ -92,6 +101,7 @@ func (dsl Dsl) QueryConnections() []Connection {
 	return connections
 }
 
+// QueryInt returns an integer value defined in the dsl.
 func (dsl Dsl) QueryInt(key string) int {
 	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
@@ -99,14 +109,16 @@ func (dsl Dsl) QueryInt(key string) int {
 		return 0
 	}
 
-	if val, ok := result.(astInt); ok {
-		return int(val)
-	} else {
+	val, ok := result.(astInt)
+	if !ok {
 		log.Warnf("%s: Requested int, found %s", key, val)
 		return 0
 	}
+
+	return int(val)
 }
 
+// QueryString returns a string value defined in the dsl.
 func (dsl Dsl) QueryString(key string) string {
 	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
@@ -114,14 +126,16 @@ func (dsl Dsl) QueryString(key string) string {
 		return ""
 	}
 
-	if val, ok := result.(astString); ok {
-		return string(val)
-	} else {
+	val, ok := result.(astString)
+	if !ok {
 		log.Warnf("%s: Requested string, found %s", key, val)
 		return ""
 	}
+
+	return string(val)
 }
 
+// QueryStrSlice returns a string slice value defined in the dsl.
 func (dsl Dsl) QueryStrSlice(key string) []string {
 	result, ok := dsl.ctx.defines[astIdent(key)]
 	if !ok {
@@ -148,6 +162,7 @@ func (dsl Dsl) QueryStrSlice(key string) []string {
 	return slice
 }
 
+// String returns the dsl in its code form.
 func (dsl Dsl) String() string {
 	return dsl.spec.String()
 }

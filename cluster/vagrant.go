@@ -7,13 +7,13 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-const BOX_NAME string = "coreos-beta"
-const BOX_LINK string = "http://beta.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
+const boxName string = "coreos-beta"
+const boxLink string = "http://beta.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
 
 type vagrantCluster struct {
 	namespace string
 	cwd       string
-	vagrant   VagrantAPI
+	vagrant   vagrantAPI
 }
 
 func newVagrant(namespace string) (provider, error) {
@@ -22,7 +22,7 @@ func newVagrant(namespace string) (provider, error) {
 		return nil, err
 	}
 	vagrant := newVagrantAPI(cwd)
-	err = vagrant.AddBox(BOX_NAME, BOX_LINK)
+	err = vagrant.AddBox(boxName, boxLink)
 	if err != nil {
 		return nil, err
 	}

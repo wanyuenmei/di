@@ -16,12 +16,14 @@ import (
 
 // specifically that we don't respect ttl a the moment.
 type mock struct {
-	sync.Mutex
+	*sync.Mutex
 	root Tree
 }
 
+// NewMock creates a new mock consensus store for use of the unit tests.
 func NewMock() Store {
 	m := mock{}
+	m.Mutex = &sync.Mutex{}
 	m.root.Children = make(map[string]Tree)
 	return m
 }
@@ -165,9 +167,8 @@ func (m mock) Set(path, value string) error {
 
 	if _, err := m.get(path); err != nil {
 		return m.create(path, value, 0)
-	} else {
-		return m.update(path, value, 0)
 	}
+	return m.update(path, value, 0)
 }
 
 func (m mock) createPrefix(path string) (Tree, string, error) {

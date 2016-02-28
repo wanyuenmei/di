@@ -13,12 +13,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const SPOT_PRICE = "0.1"
+const spotPrice = "0.1"
 
 // Ubuntu 15.10, us-west-2, 64-bit hvm-ssd
-const AMI = "ami-b7cc2ed7"
-const INSTANCE_TYPE = "m4.large"
-const AWS_REGION = "us-west-2"
+const ami = "ami-b7cc2ed7"
+const instanceType = "m4.large"
+const awsRegion = "us-west-2"
 
 type awsSpotCluster struct {
 	*ec2.EC2
@@ -27,16 +27,16 @@ type awsSpotCluster struct {
 	aclTrigger db.Trigger
 }
 
-func newAWS(conn db.Conn, clusterId int, namespace string) provider {
+func newAWS(conn db.Conn, clusterID int, namespace string) provider {
 	session := session.New()
-	session.Config.Region = aws.String(AWS_REGION)
+	session.Config.Region = aws.String(awsRegion)
 	clst := &awsSpotCluster{
 		ec2.New(session),
 		namespace,
 		conn.TriggerTick(60, db.ClusterTable),
 	}
 
-	go clst.watchACLs(conn, clusterId)
+	go clst.watchACLs(conn, clusterID)
 	return clst
 }
 
@@ -52,13 +52,13 @@ func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 	}
 
 	count64 := int64(count)
-	cloud_config64 := base64.StdEncoding.EncodeToString([]byte(cloudConfig))
+	cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(cloudConfig))
 	resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
-		SpotPrice: aws.String(SPOT_PRICE),
+		SpotPrice: aws.String(spotPrice),
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-			ImageId:        aws.String(AMI),
-			InstanceType:   aws.String(INSTANCE_TYPE),
-			UserData:       &cloud_config64,
+			ImageId:        aws.String(ami),
+			InstanceType:   aws.String(instanceType),
+			UserData:       &cloudConfig64,
 			SecurityGroups: []*string{&clst.namespace},
 		},
 		InstanceCount: &count64,
@@ -260,7 +260,7 @@ OuterLoop:
 		return nil
 	}
 
-	return errors.New("Timed out")
+	return errors.New("timed out")
 }
 
 func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
@@ -293,9 +293,9 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 		ingress = groups[0].IpPermissions
 	}
 
-	perm_map := make(map[string]bool)
+	permMap := make(map[string]bool)
 	for _, acl := range acls {
-		perm_map[acl] = true
+		permMap[acl] = true
 	}
 
 	groupIngressExists := false
@@ -316,7 +316,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 
 		for _, ipr := range p.IpRanges {
 			ip := *ipr.CidrIp
-			if !perm_map[ip] {
+			if !permMap[ip] {
 				log.Info("Revoke ingress security group: ", ip)
 				_, err = clst.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
@@ -329,7 +329,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 					return err
 				}
 			} else {
-				perm_map[ip] = false
+				permMap[ip] = false
 			}
 		}
 
@@ -360,7 +360,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 				SourceSecurityGroupName: aws.String(clst.namespace)})
 	}
 
-	for perm, install := range perm_map {
+	for perm, install := range permMap {
 		if !install {
 			continue
 		}

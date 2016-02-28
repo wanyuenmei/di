@@ -200,23 +200,23 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		// are there, compute a diff and fix things up.
 		args := "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
 			"actions=output:%d"
-		args = fmt.Sprintf(args, DIBridge, 5000, ofDI, ofVeth)
+		args = fmt.Sprintf(args, diBridge, 5000, ofDI, ofVeth)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 		args = "ovs-ofctl add-flow %s priority=%d,table=2,in_port=%d," +
 			"actions=output:%d"
-		args = fmt.Sprintf(args, DIBridge, 5000, ofVeth, ofDI)
+		args = fmt.Sprintf(args, diBridge, 5000, ofVeth, ofDI)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 		args = "ovs-ofctl add-flow"
 		args += " %s priority=%d,table=0,arp,in_port=%d,actions=output:%d"
-		args = fmt.Sprintf(args, DIBridge, 4500, ofVeth, ofDI)
+		args = fmt.Sprintf(args, diBridge, 4500, ofVeth, ofDI)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 		/* Catch-all toward OVN */
 		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
 			"actions=output:%d"
-		args = fmt.Sprintf(args, DIBridge, 0, ofVeth, ofDI)
+		args = fmt.Sprintf(args, diBridge, 0, ofVeth, ofDI)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 	}
 
@@ -243,7 +243,7 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		pri := "priority=4000"
 		mpa := fmt.Sprintf("multipath(symmetric_l3l4, 0, modulo_n, %d, 0,"+
 			" NXM_NX_REG0[0..%d])", n, lg2n)
-		match := fmt.Sprintf("table=0,dl_dst=%s,nw_dst=%s", LabelMac, ip)
+		match := fmt.Sprintf("table=0,dl_dst=%s,nw_dst=%s", labelMac, ip)
 		flow0 := fmt.Sprintf("%s,%s,actions=%s,resubmit(,1)", pri, match, mpa)
 
 		// XXX: Our whole algorithm here is based on blowing away all of the
@@ -253,10 +253,12 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "del-flows", match)
 		dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "add-flow", flow0)
 
-		for i, mac := range macs {
+		i := 0
+		for mac := range macs {
 			flow1 := fmt.Sprintf("priority=5000,table=1,nw_dst=%s,reg0=%d,"+
 				"actions=mod_dl_dst:%s,resubmit(,2)", ip, i, mac)
 			dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "add-flow", flow1)
+			i++
 		}
 	}
 }
@@ -268,9 +270,9 @@ func setupContainer(dk docker.Client, id, ip, mac string, pidInt int) error {
 	peerBr, peerDI := patchPorts(id)
 
 	// Bind netns to the host.
-	netns_src := "/hostproc/" + pid + "/ns/net"
-	netns_dst := "/var/run/netns/" + pid
-	if err := sh("/bin/ln", "-s", netns_src, netns_dst); err != nil {
+	netnsSrc := "/hostproc/" + pid + "/ns/net"
+	netnsDst := "/var/run/netns/" + pid
+	if err := sh("/bin/ln", "-s", netnsSrc, netnsDst); err != nil {
 		return err
 	}
 
@@ -318,8 +320,8 @@ func setupContainer(dk docker.Client, id, ip, mac string, pidInt int) error {
 	args += " type=patch options:peer=%s -- add-port %s %s -- set interface %s"
 	args += " external_ids:attached_mac=%s external_ids:iface-id=%s"
 	args += " type=patch options:peer=%s"
-	args = fmt.Sprintf(args, DIBridge, vethOut, DIBridge, peerDI, peerDI,
-		peerBr, OVNBridge, peerBr, peerBr, mac, id, peerDI)
+	args = fmt.Sprintf(args, diBridge, vethOut, diBridge, peerDI, peerDI,
+		peerBr, ovnBridge, peerBr, peerBr, mac, id, peerDI)
 	dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 	return nil

@@ -3,7 +3,6 @@ package cluster
 import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/util"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -86,16 +85,16 @@ func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 	switch dbp {
 	case db.AmazonSpot:
 		cloud = newAWS(conn, id, namespace)
-		cloudConfig = util.CloudConfigUbuntu(keys)
+		cloudConfig = cloudConfigUbuntu(keys)
 	case db.Google:
 		cloud, err = newGCE(conn, id, namespace)
-		cloudConfig = util.CloudConfigCoreOS(keys)
+		cloudConfig = cloudConfigCoreOS(keys)
 	case db.Azure:
 		cloud, err = newAzure(conn, id, namespace)
-		cloudConfig = util.CloudConfigUbuntu(keys)
+		cloudConfig = cloudConfigUbuntu(keys)
 	case db.Vagrant:
 		cloud, err = newVagrant(namespace)
-		cloudConfig = util.CloudConfigCoreOS(append(keys, VagrantPublicKey))
+		cloudConfig = cloudConfigCoreOS(append(keys, vagrantPublicKey))
 	default:
 		panic("Unimplemented")
 	}

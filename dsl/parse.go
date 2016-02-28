@@ -9,8 +9,8 @@ import (
 	"text/scanner"
 )
 
-var ErrUnbalancedParens = errors.New("unbalanced Parenthesis")
-var ErrBinding = errors.New("error parsing bindings")
+var errUnbalancedParens = errors.New("unbalanced Parenthesis")
+var errBinding = errors.New("error parsing bindings")
 
 func parse(reader io.Reader) (astRoot, error) {
 	var s scanner.Scanner
@@ -63,12 +63,12 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 
 		case ')':
 			if depth == 0 {
-				return nil, ErrUnbalancedParens
+				return nil, errUnbalancedParens
 			}
 			return slice, nil
 		case scanner.EOF:
 			if depth != 0 {
-				return nil, ErrUnbalancedParens
+				return nil, errUnbalancedParens
 			}
 			return slice, nil
 
@@ -90,11 +90,11 @@ func parseInterface(p1 interface{}) (ast, error) {
 	case astString:
 		return elem, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("bad element: %s", elem))
+		return nil, fmt.Errorf("bad element: %s", elem)
 	}
 
 	if len(list) == 0 {
-		return nil, errors.New(fmt.Sprintf("bad element: %s", list))
+		return nil, fmt.Errorf("bad element: %s", list)
 	}
 
 	first, ok := list[0].(astIdent)
@@ -105,8 +105,7 @@ func parseInterface(p1 interface{}) (ast, error) {
 	switch first {
 	case "let":
 		if len(list) != 3 {
-			return nil, errors.New(fmt.Sprintf(
-				"not enough arguments: %s", list))
+			return nil, fmt.Errorf("not enough arguments: %s", list)
 		}
 
 		binds, err := parseBindList(list[1])
@@ -156,7 +155,7 @@ func parseFunc(fn astIdent, ifaceArgs []interface{}) (ast, error) {
 func parseBindList(bindIface interface{}) ([]astBind, error) {
 	list, ok := bindIface.([]interface{})
 	if !ok {
-		return nil, ErrBinding
+		return nil, errBinding
 	}
 
 	result := []astBind{}
@@ -174,16 +173,16 @@ func parseBindList(bindIface interface{}) ([]astBind, error) {
 func parseBind(iface interface{}) (astBind, error) {
 	pair, ok := iface.([]interface{})
 	if !ok {
-		return astBind{}, ErrBinding
+		return astBind{}, errBinding
 	}
 
 	if len(pair) != 2 {
-		return astBind{}, ErrBinding
+		return astBind{}, errBinding
 	}
 
 	ident, ok := pair[0].(astIdent)
 	if !ok {
-		return astBind{}, ErrBinding
+		return astBind{}, errBinding
 	}
 
 	tree, err := parseInterface(pair[1])

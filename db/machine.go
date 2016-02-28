@@ -26,7 +26,7 @@ func (db Database) InsertMachine() Machine {
 	return result
 }
 
-// SelectFromMachine gets all machines in the database thatsatisfy the 'check'.
+// SelectFromMachine gets all machines in the database that satisfy the 'check'.
 func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 	result := []Machine{}
 	for _, row := range db.tables[MachineTable].rows {
@@ -38,7 +38,7 @@ func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 }
 
 func (m Machine) String() string {
-	return DefaultString(m)
+	return defaultString(m)
 }
 
 func (m Machine) less(arg row) bool {
@@ -62,6 +62,8 @@ func (m Machine) less(arg row) bool {
 	}
 }
 
+// SortMachines returns a slice of machines sorted according to the default database sort
+// order.
 func SortMachines(machines []Machine) []Machine {
 	rows := make([]row, 0, len(machines))
 	for _, m := range machines {

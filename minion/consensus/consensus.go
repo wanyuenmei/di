@@ -10,6 +10,7 @@ import (
 	"github.com/coreos/etcd/client"
 )
 
+// A Store implements a consistent distributed key value store similar to Etcd.
 type Store interface {
 	Watch(path string, rateLimit time.Duration) chan struct{}
 	Mkdir(dir string) error
@@ -25,12 +26,7 @@ type store struct {
 	kapi client.KeysAPI
 }
 
-type Tree struct {
-	Key      string
-	Value    string
-	Children map[string]Tree
-}
-
+// NewStore creates a new consensus store and returns it.
 func NewStore() Store {
 	var etcd client.Client
 	for {
@@ -71,6 +67,14 @@ func (s store) Mkdir(dir string) error {
 		PrevExist: client.PrevNoExist,
 	})
 	return err
+}
+
+// A Tree is a parsed subtree of the consensus store including each node's key, value and
+// all of it's children recursively.
+type Tree struct {
+	Key      string
+	Value    string
+	Children map[string]Tree
 }
 
 func (s store) GetTree(dir string) (Tree, error) {

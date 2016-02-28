@@ -14,6 +14,7 @@ const electionTTL = 30
 const bootDelay = 60
 const leaderKey = "/minion/leader"
 
+// Run blocks implementing leader election.
 func Run(conn db.Conn, store consensus.Store) {
 	go watchLeader(conn, store)
 	campaign(conn, store)

@@ -15,12 +15,23 @@ import (
 )
 
 const (
-	Etcd          = "etcd"
+	// Etcd is the name etcd cluster store container.
+	Etcd = "etcd"
+
+	// Ovncontroller is the name of the OVN controller container.
 	Ovncontroller = "ovn-controller"
-	Ovnnorthd     = "ovn-northd"
-	Ovsdb         = "ovsdb-server"
-	Ovsvswitchd   = "ovs-vswitchd"
-	Swarm         = "swarm"
+
+	// Ovnnorthd is the name of the OVN northd container.
+	Ovnnorthd = "ovn-northd"
+
+	// Ovsdb is the name of the OVSDB container.
+	Ovsdb = "ovsdb-server"
+
+	// Ovsvswitchd is the name of the ovs-vswitchd container.
+	Ovsvswitchd = "ovs-vswitchd"
+
+	// Swarm is the name of the docker swarm.
+	Swarm = "swarm"
 )
 
 var images = map[string]string{
@@ -46,6 +57,7 @@ type supervisor struct {
 	leader   bool
 }
 
+// Run blocks implementing the supervisor module.
 func Run(conn db.Conn, dk docker.Client) {
 	sv := supervisor{conn: conn, dk: dk}
 	go sv.runSystem()
@@ -83,7 +95,7 @@ func (sv *supervisor) runApp() {
 }
 
 func (sv *supervisor) runAppTransact(view db.Database,
-	dkcs_ []docker.Container) []string {
+	dkcsArgs []docker.Container) []string {
 
 	var tearDowns []string
 
@@ -96,7 +108,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 		}
 		return 0
 	}
-	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcs_, score)
+	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcsArgs, score)
 
 	for _, iface := range dbcs {
 		dbc := iface.(db.Container)
@@ -106,7 +118,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 	}
 
 	for _, dkc := range dkcs {
-		pairs = append(pairs, join.Pair{view.InsertContainer(), dkc})
+		pairs = append(pairs, join.Pair{L: view.InsertContainer(), R: dkc})
 	}
 
 	for _, pair := range pairs {
@@ -309,17 +321,19 @@ func nodeName(IP string) string {
 	return fmt.Sprintf("master-%s", IP)
 }
 
+// TeardownContainer deletes the networking services setup when the container was booted.
+//
 // XXX: This is soooo ugly that outsiders call it.  Very important that we fix this.
 func TeardownContainer(dk docker.Client, id string) {
 	if id == "" {
 		return
 	}
-	veth_outside := id[0:15]
-	peer_ovn := fmt.Sprintf("%s_o", id[0:13])
-	peer_di := fmt.Sprintf("%s_d", id[0:13])
+	vethOutside := id[0:15]
+	peerOvn := fmt.Sprintf("%s_o", id[0:13])
+	peerDi := fmt.Sprintf("%s_d", id[0:13])
 
-	// delete veth_outside
-	c := exec.Command("/sbin/ip", "link", "delete", veth_outside)
+	// delete vethOutside
+	c := exec.Command("/sbin/ip", "link", "delete", vethOutside)
 	stderr, _ := c.StderrPipe()
 	c.Start()
 	sc := bufio.NewScanner(stderr)
@@ -329,6 +343,6 @@ func TeardownContainer(dk docker.Client, id string) {
 	c.Wait()
 
 	// delete patch ports
-	dk.Exec(Ovsvswitchd, "ovs-vsctl", "del-port", veth_outside, "--",
-		"del-port", peer_ovn, "--", "del-port", peer_di)
+	dk.Exec(Ovsvswitchd, "ovs-vsctl", "del-port", vethOutside, "--",
+		"del-port", peerOvn, "--", "del-port", peerDi)
 }

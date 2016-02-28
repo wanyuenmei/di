@@ -327,7 +327,7 @@ func TestConnect(t *testing.T) {
 
 	for exp := range expected {
 		if _, ok := ctx.connections[exp]; !ok {
-			t.Error(spew.Sprintf("Missing connection: %s", exp))
+			t.Error(spew.Sprintf("Missing connection: %v", exp))
 			continue
 		}
 
@@ -335,7 +335,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	if len(ctx.connections) > 0 {
-		t.Error(spew.Sprintf("Unexpected connections: %s", ctx.connections))
+		t.Error(spew.Sprintf("Unexpected connections: %v", ctx.connections))
 	}
 
 	runtimeErr(t, `(connect a "foo" "bar")`, "unassigned variable: a")
@@ -486,7 +486,7 @@ func TestQuery(t *testing.T) {
 func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 	parsed, err := parse(strings.NewReader(code))
 	if err != nil {
-		t.Error(fmt.Sprintf("%s: %s", code, err))
+		t.Errorf("%s: %s", code, err)
 		return evalCtx{}
 	}
 
@@ -497,7 +497,7 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 
 	result, ctx, err := eval(parsed)
 	if err != nil {
-		t.Error(fmt.Sprintf("%s: %s", code, err))
+		t.Errorf("%s: %s", code, err)
 		return evalCtx{}
 	}
 
@@ -510,7 +510,7 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 	// should be exactly the same.
 	eval2, _, err := eval(result)
 	if err != nil {
-		t.Error(fmt.Sprintf("%s: %s", code, err))
+		t.Errorf("%s: %s", code, err)
 		return evalCtx{}
 	}
 
@@ -532,7 +532,7 @@ func parseErr(t *testing.T, code, expectedErr string) {
 func runtimeErr(t *testing.T, code, expectedErr string) {
 	prog, err := parse(strings.NewReader(code))
 	if err != nil {
-		t.Error(fmt.Sprintf("%s: %s", code, err))
+		t.Errorf("%s: %s", code, err)
 		return
 	}
 

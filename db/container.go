@@ -22,6 +22,7 @@ type Container struct {
 	Placement
 }
 
+// Placement represents scheduler placement constraints.
 type Placement struct {
 	Exclusive map[[2]string]struct{}
 }

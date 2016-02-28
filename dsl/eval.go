@@ -5,25 +5,25 @@ import "fmt"
 type evalCtx struct {
 	binds       map[astIdent]ast
 	defines     map[astIdent]ast
-	labels      map[string][]Atom
+	labels      map[string][]atom
 	connections map[Connection]struct{}
-	atoms       []Atom
+	atoms       []atom
 }
 
-type Atom interface {
+type atom interface {
 	Labels() []string
 	SetLabels([]string)
 }
 
-type AtomImpl struct {
+type atomImpl struct {
 	labels []string
 }
 
-func (l *AtomImpl) Labels() []string {
+func (l *atomImpl) Labels() []string {
 	return l.labels
 }
 
-func (l *AtomImpl) SetLabels(labels []string) {
+func (l *atomImpl) SetLabels(labels []string) {
 	l.labels = labels
 }
 
@@ -31,7 +31,7 @@ func eval(parsed ast) (ast, evalCtx, error) {
 	ctx := evalCtx{
 		make(map[astIdent]ast),
 		make(map[astIdent]ast),
-		make(map[string][]Atom),
+		make(map[string][]atom),
 		make(map[Connection]struct{}),
 		nil}
 	evaluated, err := parsed.eval(&ctx)
@@ -117,11 +117,11 @@ func (lt astLet) eval(ctx *evalCtx) (ast, error) {
 }
 
 func (ident astIdent) eval(ctx *evalCtx) (ast, error) {
-	if val, ok := ctx.binds[ident]; ok {
-		return val, nil
-	} else {
+	val, ok := ctx.binds[ident]
+	if !ok {
 		return nil, fmt.Errorf("unassigned variable: %s", ident)
 	}
+	return val, nil
 }
 
 func (str astString) eval(ctx *evalCtx) (ast, error) {

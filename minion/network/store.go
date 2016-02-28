@@ -129,7 +129,7 @@ func readLabelTransact(view db.Database, dir directory) {
 	}
 
 	for _, key := range dirKeys {
-		pairs = append(pairs, join.Pair{view.InsertLabel(), key})
+		pairs = append(pairs, join.Pair{L: view.InsertLabel(), R: key})
 	}
 
 	for _, pair := range pairs {
@@ -203,14 +203,13 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 	return nil
 }
 
-func syncDir(store consensus.Store, dir directory, path string, ids_ []string) {
-	_, dirKeys, ids := join.Join(dir.keys(), ids_,
+func syncDir(store consensus.Store, dir directory, path string, idsArg []string) {
+	_, dirKeys, ids := join.Join(dir.keys(), idsArg,
 		func(left, right interface{}) int {
-			if left.(string) == right.(string) {
-				return 0
-			} else {
+			if left.(string) != right.(string) {
 				return -1
 			}
+			return 0
 		})
 
 	var etcdLog string
@@ -224,8 +223,8 @@ func syncDir(store consensus.Store, dir directory, path string, ids_ []string) {
 		delete(dir, id)
 	}
 
-	for _, id_ := range ids {
-		id := id_.(string)
+	for _, idElem := range ids {
+		id := idElem.(string)
 		if _, ok := dir[id]; ok {
 			continue
 		}

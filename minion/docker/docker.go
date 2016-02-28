@@ -11,23 +11,30 @@ import (
 const (
 	// The root namespace for all labels
 	labelBase = "di."
+
 	// This is the namespace for user defined labels
 	userLabelPrefix = labelBase + "user.label."
+
 	// This is the namespace for system defined labels
 	systemLabelPrefix = labelBase + "system.label."
 
-	// This is needed because a label has to be a key/value pair, hence this
-	// is the value that will be used if we're only interested in the key
+	// LabelTrueValue is needed because a label has to be a key/value pair, hence
+	// this is the value that will be used if we're only interested in the key
 	LabelTrueValue = "1"
 
-	// This is the key, value, and key/value pair used by the scheduler
-	SchedulerLabelKey   = systemLabelPrefix + "DI"
+	// SchedulerLabelKey is the key, used by the scheduler.
+	SchedulerLabelKey = systemLabelPrefix + "DI"
+
+	// SchedulerLabelValue is the value, used by the scheduler.
 	SchedulerLabelValue = "Scheduler"
-	SchedulerLabelPair  = SchedulerLabelKey + "=" + SchedulerLabelValue
+
+	// SchedulerLabelPair is the key/value pair, used by the scheduler.
+	SchedulerLabelPair = SchedulerLabelKey + "=" + SchedulerLabelValue
 )
 
 var errNoSuchContainer = errors.New("container does not exist")
 
+// A Container as returned by the docker client API.
 type Container struct {
 	ID    string
 	Name  string
@@ -49,6 +56,7 @@ type Client interface {
 	Get(id string) (Container, error)
 }
 
+// RunOptions changes the behavior of the Run function.
 type RunOptions struct {
 	Name   string
 	Image  string
@@ -289,10 +297,12 @@ func (dk docker) getID(name string) (string, error) {
 	return "", errNoSuchContainer
 }
 
+// UserLabel returns the supplied label tagged with the user prefix.
 func UserLabel(label string) string {
 	return userLabelPrefix + label
 }
 
+// SystemLabel returns the supplied label tagged with the system prefix.
 func SystemLabel(label string) string {
 	return systemLabelPrefix + label
 }

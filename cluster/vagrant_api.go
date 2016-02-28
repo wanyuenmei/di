@@ -9,21 +9,21 @@ import (
 	"strings"
 )
 
-var VagrantPublicKey string = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key"
+var vagrantPublicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key"
 
 var vagrantCmd = "vagrant"
 var shCmd = "sh"
 
-type VagrantAPI struct {
+type vagrantAPI struct {
 	cwd string
 }
 
-func newVagrantAPI(cwd string) VagrantAPI {
-	vagrant := VagrantAPI{cwd}
+func newVagrantAPI(cwd string) vagrantAPI {
+	vagrant := vagrantAPI{cwd}
 	return vagrant
 }
 
-func (api *VagrantAPI) Init(cloudConfig string, id string) error {
+func (api *vagrantAPI) Init(cloudConfig string, id string) error {
 	_, err := os.Stat(api.VagrantDir())
 	if os.IsNotExist(err) {
 		os.Mkdir(api.VagrantDir(), os.ModeDir|os.ModePerm)
@@ -43,14 +43,14 @@ func (api *VagrantAPI) Init(cloudConfig string, id string) error {
 		return err
 	}
 
-	vagrant := Vagrantfile()
-	err = ioutil.WriteFile(path+"/Vagrantfile", []byte(vagrant), 0644)
+	vagrant := vagrantFile()
+	err = ioutil.WriteFile(path+"/vagrantFile", []byte(vagrant), 0644)
 	if err != nil {
 		api.Destroy(id)
 		return err
 	}
 
-	configRB := Configrb()
+	configRB := configRB()
 	err = ioutil.WriteFile(path+"/config.rb", []byte(configRB), 0644)
 	if err != nil {
 		api.Destroy(id)
@@ -59,7 +59,7 @@ func (api *VagrantAPI) Init(cloudConfig string, id string) error {
 	return nil
 }
 
-func (api *VagrantAPI) Up(id string) error {
+func (api *vagrantAPI) Up(id string) error {
 	_, err := api.Shell(id, `vagrant --machine-readable up)`)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (api *VagrantAPI) Up(id string) error {
 	return nil
 }
 
-func (api *VagrantAPI) Destroy(id string) error {
+func (api *vagrantAPI) Destroy(id string) error {
 	_, err := api.Shell(id, `vagrant --machine-readable destroy -f; cd ../; rm -rf %s)`)
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (api *VagrantAPI) Destroy(id string) error {
 	return nil
 }
 
-func (api *VagrantAPI) PublicIP(id string) (string, error) {
+func (api *vagrantAPI) PublicIP(id string) (string, error) {
 	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'")`)
 	if err != nil {
 		return "", err
@@ -83,7 +83,7 @@ func (api *VagrantAPI) PublicIP(id string) (string, error) {
 	return string(ip[:]), nil
 }
 
-func (api *VagrantAPI) Status(id string) (string, error) {
+func (api *vagrantAPI) Status(id string) (string, error) {
 	output, err := api.Shell(id, `vagrant --machine-readable status)`)
 	if err != nil {
 		return "", err
@@ -100,7 +100,7 @@ func (api *VagrantAPI) Status(id string) (string, error) {
 	return "", nil
 }
 
-func (api *VagrantAPI) List() ([]string, error) {
+func (api *vagrantAPI) List() ([]string, error) {
 	subdirs := []string{}
 	_, err := os.Stat(api.VagrantDir())
 	if os.IsNotExist(err) {
@@ -117,7 +117,7 @@ func (api *VagrantAPI) List() ([]string, error) {
 	return subdirs, nil
 }
 
-func (api *VagrantAPI) AddBox(name string, link string) error {
+func (api *vagrantAPI) AddBox(name string, link string) error {
 	/* Adding a box fails if it already exists, hence the check. */
 	exists, err := api.ContainsBox(name)
 	if err != nil {
@@ -133,7 +133,7 @@ func (api *VagrantAPI) AddBox(name string, link string) error {
 	return nil
 }
 
-func (api *VagrantAPI) ContainsBox(name string) (bool, error) {
+func (api *vagrantAPI) ContainsBox(name string) (bool, error) {
 	output, err := exec.Command(vagrantCmd, []string{"--machine-readable", "box", "list"}...).Output()
 	if err != nil {
 		return false, err
@@ -148,7 +148,7 @@ func (api *VagrantAPI) ContainsBox(name string) (bool, error) {
 	return false, nil
 }
 
-func (api *VagrantAPI) Shell(id string, commands string) ([]byte, error) {
+func (api *vagrantAPI) Shell(id string, commands string) ([]byte, error) {
 	chdir := `(cd %s/vagrant/%s; `
 	chdir = fmt.Sprintf(chdir, api.cwd, id)
 	shellCommand := chdir + strings.Replace(commands, "%s", id, -1)
@@ -156,11 +156,11 @@ func (api *VagrantAPI) Shell(id string, commands string) ([]byte, error) {
 	return output, err
 }
 
-func (api *VagrantAPI) VagrantDir() string {
+func (api *vagrantAPI) VagrantDir() string {
 	return api.cwd + "/vagrant/"
 }
 
-func Vagrantfile() string {
+func vagrantFile() string {
 	vagrantfile := `# -*- mode: ruby -*-
 # # vi: set ft=ruby :
 
@@ -308,7 +308,7 @@ end
 	return vagrantfile
 }
 
-func Configrb() string {
+func configRB() string {
 	configrb := `# Size of the CoreOS cluster created by Vagrant
 $num_instances=1
 

@@ -11,8 +11,13 @@ import (
 type Role int
 
 const (
+	// None is for workers who haven't been assigned a role yet.
 	None Role = iota
+
+	// Worker minions run application containers.
 	Worker
+
+	// Master containers provide services for the Worker containers.
 	Master
 )
 
@@ -29,6 +34,7 @@ func (r Role) String() string {
 	}
 }
 
+// RoleToPB converts db.Role to a protobuf role.
 func RoleToPB(r Role) pb.MinionConfig_Role {
 	switch r {
 	case None:
@@ -42,6 +48,7 @@ func RoleToPB(r Role) pb.MinionConfig_Role {
 	}
 }
 
+// PBToRole converts a protobuf role to a db.Role.
 func PBToRole(p pb.MinionConfig_Role) Role {
 	switch p {
 	case pb.MinionConfig_NONE:
@@ -59,11 +66,17 @@ func PBToRole(p pb.MinionConfig_Role) Role {
 type Provider string
 
 const (
-	// AmazonSpot runs spot requests on Amazon EC2.
+	// AmazonSpot implements amazon EC2.
 	AmazonSpot Provider = "AmazonSpot"
-	Google              = "Google"
-	Vagrant             = "Vagrant"
-	Azure               = "Azure"
+
+	// Google implements Google Cloud Engine.
+	Google = "Google"
+
+	// Vagrant implements local virtual machines.
+	Vagrant = "Vagrant"
+
+	// Azure implements the Azure cloud provider.
+	Azure = "Azure"
 )
 
 // ParseProvider returns the Provider represented by 'name' or an error.

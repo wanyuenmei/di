@@ -12,7 +12,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
-const TEST_IMAGE = "alpine"
+const testImage = "alpine"
 
 func TestContainerTxn(t *testing.T) {
 	conn := db.New()
@@ -245,7 +245,7 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 		}
 
 		if found == false {
-			return fmt.Sprintf("Missing expected connection: %s", e)
+			return fmt.Sprintf("Missing expected connection: %v", e)
 		}
 	}
 
@@ -310,7 +310,7 @@ func TestEditDistance(t *testing.T) {
 
 func ed(a, b []string, exp int) string {
 	if ed := editDistance(a, b); ed != exp {
-		return fmt.Sprintf("Distance(%s, %s) = %s, expected %s", a, b, ed, exp)
+		return fmt.Sprintf("Distance(%s, %s) = %v, expected %v", a, b, ed, exp)
 	}
 	return ""
 }
