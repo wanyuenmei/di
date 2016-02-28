@@ -174,11 +174,19 @@ func (dk docker) Remove(name string) error {
 		return nil // Can't remove a non-existent container.
 	}
 
-	log.Infof("Remove Container: %s", name)
-	return dk.RemoveID(id)
+	log.WithFields(log.Fields{
+		"name": name,
+		"id":   id,
+	}).Info("Remove container.")
+	return dk.removeID(id)
 }
 
 func (dk docker) RemoveID(id string) error {
+	log.WithField("id", id).Info("Remove Container.")
+	return dk.removeID(id)
+}
+
+func (dk docker) removeID(id string) error {
 	err := dk.RemoveContainer(dkc.RemoveContainerOptions{ID: id, Force: true})
 	if err != nil {
 		return err
