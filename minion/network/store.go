@@ -219,7 +219,7 @@ func syncDir(store consensus.Store, dir directory, path string, ids_ []string) {
 		keyPath := fmt.Sprintf("%s/%s", path, id)
 		err := store.Delete(keyPath)
 		if err != nil {
-			etcdLog = fmt.Sprintf("Failed to delete %s: %s", keyPath)
+			etcdLog = fmt.Sprintf("Failed to delete %s: %s", keyPath, err)
 		}
 		delete(dir, id)
 	}
