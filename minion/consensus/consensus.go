@@ -115,7 +115,7 @@ func (s store) Get(path string) (string, error) {
 }
 
 func (s store) Delete(path string) error {
-	_, err := s.kapi.Delete(ctx(), path, nil)
+	_, err := s.kapi.Delete(ctx(), path, &client.DeleteOptions{Recursive: true})
 	return err
 }
 
