@@ -105,7 +105,7 @@ func TestContainerTxn(t *testing.T) {
 func testContainerTxn(conn db.Conn, spec string) string {
 	var containers []db.Container
 	conn.Transact(func(view db.Database) error {
-		updatePolicy(view, spec)
+		updatePolicy(view, db.Master, spec)
 		containers = view.SelectFromContainer(nil)
 		return nil
 	})
@@ -222,7 +222,7 @@ func TestConnectionTxn(t *testing.T) {
 func testConnectionTxn(conn db.Conn, spec string) string {
 	var connections []db.Connection
 	conn.Transact(func(view db.Database) error {
-		updatePolicy(view, spec)
+		updatePolicy(view, db.Master, spec)
 		connections = view.SelectFromConnection(nil)
 		return nil
 	})

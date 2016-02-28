@@ -166,16 +166,11 @@ func (fm *foreman) runOnce() {
 			return
 		}
 
-		var spec string
-		if m.machine.Role == db.Master {
-			spec = fm.spec
-		}
-
 		newConfig := pb.MinionConfig{
 			ID:        m.machine.CloudID,
 			Role:      db.RoleToPB(m.machine.Role),
 			PrivateIP: m.machine.PrivateIP,
-			Spec:      spec,
+			Spec:      fm.spec,
 		}
 
 		if newConfig == m.config {

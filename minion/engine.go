@@ -11,14 +11,20 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func updatePolicy(view db.Database, spec string) {
+func updatePolicy(view db.Database, role db.Role, spec string) {
 	compiled, err := dsl.New(strings.NewReader(spec))
 	if err != nil {
 		log.WithError(err).Warn("Invalid spec.")
 		return
 	}
 
-	updateContainers(view, compiled)
+	if role == db.Master {
+		// The container table is aspirational -- it's the set of containers that
+		// should exist.  In the workers, however, the container table is just
+		// what's running locally.  That's why we only sync the database
+		// containers on the master.
+		updateContainers(view, compiled)
+	}
 	updateConnections(view, compiled)
 }
 
