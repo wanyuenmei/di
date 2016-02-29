@@ -74,11 +74,12 @@ func syncDB(view db.Database, dkcs_ []docker.Container) ([]string, []db.Containe
 		// handle that case, we check both.
 		cmd1 := dkc.Args
 		cmd2 := append([]string{dkc.Path}, dkc.Args...)
+		dbcCmd := dbc.Command
 
 		switch {
 		case dkc.Image != dbc.Image:
 			return -1
-		case !strEq(dbc.Command, cmd1) && !strEq(dbc.Command, cmd2):
+		case len(dbcCmd) != 0 && !strEq(dbcCmd, cmd1) && !strEq(dbcCmd, cmd2):
 			return -1
 		case dkc.ID == dbc.SchedID:
 			return 0
