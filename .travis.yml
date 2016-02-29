@@ -8,7 +8,7 @@ go:
 services:
   - docker
 
-install: go get ./... github.com/davecgh/go-spew/spew
+install: go get ./... github.com/davecgh/go-spew/spew github.com/golang/lint/golint
 
 script: ./scripts/build-push.sh
 
