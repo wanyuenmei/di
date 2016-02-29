@@ -63,7 +63,7 @@ func clusterTxn(view db.Database, _dsl dsl.Dsl) (int, error) {
 	cluster.Provider = provider
 	cluster.Namespace = Namespace
 	cluster.AdminACL = resolveACLs(_dsl.QueryStrSlice("AdminACL"))
-	cluster.SSHKeys = dsl.ParseKeys(_dsl.QueryKeySlice("sshkeys"))
+	cluster.SSHKeys = _dsl.QueryKeySlice("sshkeys")
 	cluster.Spec = _dsl.String()
 	view.Commit(cluster)
 

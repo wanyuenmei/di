@@ -54,21 +54,31 @@ func (dsl Dsl) QueryContainers() []*Container {
 	return containers
 }
 
-func (dsl Dsl) QueryKeySlice(key string) []Key {
+func (dsl Dsl) QueryKeySlice(key string) []string {
 	result, ok := dsl.ctx.labels[key]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return nil
 	}
 
-	var keys []Key
+	var keys []string
 	for _, val := range result {
 		key, ok := val.(Key)
 		if !ok {
 			log.Warning("%s: Requested []key, found %s", key, val)
 			continue
 		}
-		keys = append(keys, key)
+
+		parsedKeys, err := key.keys()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+				"key":   key,
+			}).Warning("Failed to retrieve key.")
+			continue
+		}
+
+		keys = append(keys, parsedKeys...)
 	}
 
 	return keys

@@ -137,7 +137,11 @@ func TestDocker(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	checkKeys := func(code, expectedCode string, expected ...Key) {
+	getGithubKeys = func(username string) ([]string, error) {
+		return []string{username}, nil
+	}
+
+	checkKeys := func(code, expectedCode string, expected ...string) {
 		ctx := parseTest(t, code, expectedCode)
 		keyResult := Dsl{nil, ctx}.QueryKeySlice("sshkeys")
 		if !reflect.DeepEqual(keyResult, expected) {
@@ -146,19 +150,14 @@ func TestKeys(t *testing.T) {
 		}
 	}
 
-	expectedPlaintext := &PlaintextKey{key: "key"}
-	expectedPlaintext.SetLabels([]string{"sshkeys"})
-	expectedGithub := &GithubKey{username: "user"}
-	expectedGithub.SetLabels([]string{"sshkeys"})
-
 	code := `(label "sshkeys" (list (plaintextKey "key")))`
-	checkKeys(code, code, expectedPlaintext)
+	checkKeys(code, code, "key")
 
 	code = `(label "sshkeys" (list (githubKey "user")))`
-	checkKeys(code, code, expectedGithub)
+	checkKeys(code, code, "user")
 
 	code = `(label "sshkeys" (list (githubKey "user") (plaintextKey "key")))`
-	checkKeys(code, code, expectedGithub, expectedPlaintext)
+	checkKeys(code, code, "user", "key")
 }
 
 func TestLabel(t *testing.T) {

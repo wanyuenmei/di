@@ -1,9 +1,6 @@
 package dsl
 
-import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/google/go-github/github"
-)
+import "github.com/google/go-github/github"
 
 type Key interface {
 	keys() ([]string, error)
@@ -39,7 +36,8 @@ func (plaintextKey PlaintextKey) keys() ([]string, error) {
 	return []string{plaintextKey.key}, nil
 }
 
-func getGithubKeys(username string) ([]string, error) {
+// Stored in a variable so we can mock it out for the unit tests.
+var getGithubKeys = func(username string) ([]string, error) {
 	usersService := github.NewClient(nil).Users
 	opt := &github.ListOptions{}
 	keys, _, err := usersService.ListKeys(username, opt)
@@ -54,20 +52,4 @@ func getGithubKeys(username string) ([]string, error) {
 	}
 
 	return keyStrings, nil
-}
-
-func ParseKeys(keys []Key) []string {
-	var parsed []string
-	for _, key := range keys {
-		parsedKeys, err := key.keys()
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-				"key":   key,
-			}).Warning("Failed to retrieve key.")
-			continue
-		}
-		parsed = append(parsed, parsedKeys...)
-	}
-	return parsed
 }
