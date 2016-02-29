@@ -1,10 +1,8 @@
-//go:generate stringer -type=Provider
-
 package db
 
 //The Role within the cluster each machine assumes.
 import (
-	"fmt"
+	"errors"
 
 	"github.com/NetSys/di/minion/pb"
 )
@@ -58,28 +56,22 @@ func PBToRole(p pb.MinionConfig_Role) Role {
 }
 
 // A Provider implements a cloud interface on which machines may be instantiated.
-type Provider int
+type Provider string
 
 const (
 	// AmazonSpot runs spot requests on Amazon EC2.
-	AmazonSpot Provider = iota
-	Google
-	Vagrant
-	Azure
+	AmazonSpot Provider = "AmazonSpot"
+	Google              = "Google"
+	Vagrant             = "Vagrant"
+	Azure               = "Azure"
 )
 
 // ParseProvider returns the Provider represented by 'name' or an error.
 func ParseProvider(name string) (Provider, error) {
 	switch name {
-	case "AmazonSpot":
-		return AmazonSpot, nil
-	case "Google":
-		return Google, nil
-	case "Vagrant":
-		return Vagrant, nil
-	case "Azure":
-		return Azure, nil
+	case "AmazonSpot", "Google", "Vagrant", "Azure":
+		return Provider(name), nil
 	default:
-		return 0, fmt.Errorf("Unknown provider: %s", name)
+		return "", errors.New("unknown provider")
 	}
 }

@@ -68,7 +68,6 @@ Vagrant.configure(2) do |config|
 
     go get -u github.com/golang/protobuf/proto
     go get -u github.com/golang/protobuf/protoc-gen-go
-    go get golang.org/x/tools/cmd/stringer
 
     echo "Done!"
     echo "Don't forget to update your \\$GOPATH and \\$PATH in your dotfiles"
