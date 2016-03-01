@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/NetSys/di.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/di)
+[![Docker Repository on Quay](https://quay.io/repository/netsys/di/status?token=9793d07b-1924-469c-b23e-ef1aa0f14e7d "Docker Repository on Quay")](https://quay.io/repository/netsys/di)
 
 # Development Instructions.
 
