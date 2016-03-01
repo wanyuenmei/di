@@ -5,27 +5,21 @@ import string
 def sh(cmd):
     return subprocess.check_output(cmd, shell=True)
 
-def title(t):
+def log(container):
     header = string.join(["=" for _ in range(50)], "")
-    print "%s %s %s" % (header, t, header)
+    print "%s %s %s" % (header, container, header)
 
-title("Minion")
-print sh("docker logs minion")
+    try:
+        output = sh("docker logs %s" % container)
+    except subprocess.CalledProcessError as e:
+        output = "%s" % e
 
-title("Etcd")
-print sh("docker logs etcd")
+    print "%s\n" % output
 
-title("Swarm")
-print sh("docker logs swarm")
-
-title("ovs-vswitchd")
-print sh("docker logs ovs-vswitchd")
-
-title("ovsdb-server")
-print sh("docker logs ovsdb-server")
-
-title("ovn-controller")
-print sh("docker logs ovn-controller")
-
-title("ovn-northd")
-print sh("docker logs ovn-northd")
+log("minion")
+log("etcd")
+log("swarm")
+log("ovs-vswitchd")
+log("ovsdb-server")
+log("ovn-controller")
+log("ovn-northd")
