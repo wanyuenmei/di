@@ -31,3 +31,6 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 	go test -coverprofile=$@.out ./$*
 	go tool cover -html=$@.out -o $@.html
 	rm $@.out
+
+# Include all .mk files so you can have your own local configurations
+include $(wildcard *.mk)
