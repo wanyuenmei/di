@@ -37,5 +37,8 @@ status_line "Pushing minion..."
 docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" quay.io
 status_line "Successfully logged into docker."
 
+docker push quay.io/netsys/di
+status_line "Successfully pushed di."
+
 docker push quay.io/netsys/di-minion
 status_line "Successfully pushed minion."
