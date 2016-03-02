@@ -40,29 +40,34 @@ func (ovsdb Ovsdb) Close() {
 	ovsdb.Disconnect()
 }
 
+type condition struct {
+	field string
+	op    string
+	arg   string
+}
+
 /* Helpers */
-func (ovsdb Ovsdb) selectRows(db string, table string, field string, args []string,
-	op string) []map[string]interface{} {
-	var cond []interface{}
-	for _, arg := range args {
-		if field == "_uuid" {
-			cond = libovsdb.NewCondition(field, op,
-				libovsdb.UUID{GoUuid: arg})
+func (ovsdb Ovsdb) selectRows(db string, table string,
+	conditions ...condition) ([]map[string]interface{}, error) {
+	var conds []interface{}
+	for _, c := range conditions {
+		if c.field == "_uuid" {
+			conds = append(conds, libovsdb.NewCondition(c.field, c.op,
+				libovsdb.UUID{GoUuid: c.arg}))
 		} else {
-			cond = libovsdb.NewCondition(field, op, arg)
-		}
-		selectOp := libovsdb.Operation{
-			Op:    "select",
-			Table: table,
-			Where: []interface{}{cond},
-		}
-		ops := []libovsdb.Operation{selectOp}
-		results, _ := ovsdb.Transact(db, ops...)
-		if len(results) == 1 {
-			return results[0].Rows
+			conds = append(conds, libovsdb.NewCondition(c.field, c.op, c.arg))
 		}
 	}
-	return make([]map[string]interface{}, 0)
+	selectOp := libovsdb.Operation{
+		Op:    "select",
+		Table: table,
+		Where: conds,
+	}
+	results, err := ovsdb.Transact(db, selectOp)
+	if err != nil {
+		return nil, err
+	}
+	return results[0].Rows, nil
 }
 
 func rwMutateOp(table string, column string, op string, condCol string,
@@ -128,11 +133,14 @@ func errorCheck(results []libovsdb.OperationResult, expectedResponses int,
 // ListSwitches queries the database for the logical switches in OVN.
 func (ovsdb Ovsdb) ListSwitches() ([]string, error) {
 	var switches []string
-	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "_uuid",
-		[]string{"_"}, "!=")
+	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
+		condition{"_uuid", "!=", "_"})
+	if err != nil {
+		return nil, err
+	}
 	for _, result := range results {
-		/* Only return names, because they are effectively UUIDs as OVSDB
-		 * enforces their uniqueness. */
+		// Only return names, because they are effectively UUIDs as OVSDB
+		// enforces their uniqueness.
 		switches = append(switches, result["name"].(string))
 	}
 	return switches, nil
@@ -140,8 +148,11 @@ func (ovsdb Ovsdb) ListSwitches() ([]string, error) {
 
 // CreateSwitch creates a new logical switch in OVN.
 func (ovsdb Ovsdb) CreateSwitch(lswitch string) error {
-	check := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "name",
-		[]string{lswitch}, "==")
+	check, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
+		condition{"name", "==", lswitch})
+	if err != nil {
+		return err
+	}
 	if len(check) > 0 {
 		return fmt.Errorf("logical switch %s already exists", lswitch)
 	}
@@ -183,16 +194,22 @@ func (ovsdb Ovsdb) DeleteSwitch(lswitch string) error {
 // ListPorts lists the logical ports in OVN.
 func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 	var lports []LPort
-	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		"name", []string{lswitch}, "==")
+	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
+		condition{"name", "==", lswitch})
+	if err != nil {
+		return nil, err
+	}
 	if len(results) <= 0 {
 		return lports, nil
 	}
 	ports := ovsUUIDSetToSlice(results[0]["ports"])
 	for _, result := range ports {
 		pid := result.GoUuid
-		results = ovsdb.selectRows("OVN_Northbound", "Logical_Port",
-			"_uuid", []string{pid}, "==")
+		results, err = ovsdb.selectRows("OVN_Northbound", "Logical_Port",
+			condition{"_uuid", "==", pid})
+		if err != nil {
+			return nil, err
+		}
 		if len(results) <= 0 {
 			continue
 		}
@@ -208,11 +225,14 @@ func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 
 // CreatePort creates a new logical port in OVN.
 func (ovsdb Ovsdb) CreatePort(lswitch, name, mac, ip string) error {
-	/* OVN Uses name an index into the Logical_Port table so, we need to check
-	 * no port called name already exists. This isn't strictly necessary, but it
-	 * makes our lives easier. */
-	rows := ovsdb.selectRows("OVN_Northbound", "Logical_Port", "name",
-		[]string{name}, "==")
+	// OVN Uses name an index into the Logical_Port table so, we need to check
+	// no port called name already exists. This isn't strictly necessary, but it
+	// makes our lives easier.
+	rows, err := ovsdb.selectRows("OVN_Northbound", "Logical_Port",
+		condition{"name", "==", name})
+	if err != nil {
+		return err
+	}
 	if len(rows) > 0 {
 		return fmt.Errorf("port %s already exists", name)
 	}
@@ -245,8 +265,11 @@ func (ovsdb Ovsdb) CreatePort(lswitch, name, mac, ip string) error {
 
 // DeletePort removes a logical port from OVN.
 func (ovsdb Ovsdb) DeletePort(lswitch, name string) error {
-	rows := ovsdb.selectRows("OVN_Northbound", "Logical_Port", "name",
-		[]string{name}, "==")
+	rows, err := ovsdb.selectRows("OVN_Northbound", "Logical_Port",
+		condition{"name", "==", name})
+	if err != nil {
+		return err
+	}
 	if len(rows) == 0 {
 		return nil
 	}
@@ -274,16 +297,22 @@ func (ovsdb Ovsdb) DeletePort(lswitch, name string) error {
 // ListACLs lists the access control rules in OVN.
 func (ovsdb Ovsdb) ListACLs(lswitch string) ([]Acl, error) {
 	var acls []Acl
-	results := ovsdb.selectRows("OVN_Northbound", "Logical_Switch", "name",
-		[]string{lswitch}, "==")
+	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
+		condition{"name", "==", lswitch})
+	if err != nil {
+		return nil, err
+	}
 	if len(results) <= 0 {
 		return acls, nil
 	}
 	aids := ovsUUIDSetToSlice(results[0]["acls"])
 	for _, aid := range aids {
 		aid := aid.GoUuid
-		results := ovsdb.selectRows("OVN_Northbound", "ACL", "_uuid",
-			[]string{aid}, "==")
+		results, err := ovsdb.selectRows("OVN_Northbound", "ACL",
+			condition{"_uuid", "==", aid})
+		if err != nil {
+			return nil, err
+		}
 		for _, result := range results {
 			acl := Acl{
 				uuid:      libovsdb.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
@@ -394,8 +423,11 @@ func (ovsdb Ovsdb) DeleteACL(lswitch string, dir string, priority int, match str
 
 // GetOFPort retreives the OpenFlow port number of 'name' from OVS.
 func (ovsdb Ovsdb) GetOFPort(name string) (int, error) {
-	results := ovsdb.selectRows("Open_vSwitch", "Interface", "name", []string{name},
-		"==")
+	results, err := ovsdb.selectRows("Open_vSwitch", "Interface",
+		condition{"name", "==", name})
+	if err != nil {
+		return 0, err
+	}
 	if len(results) == 0 {
 		return 0, fmt.Errorf("no interfaces with name %s", name)
 	}
