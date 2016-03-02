@@ -1,12 +1,19 @@
+export GO15VENDOREXPERIMENT=1
+
 all: format
 	# A Go build bug causes it to behave badly with symlinks.
 	cd -P . && go build . && go build -o ./minion/minion ./minion
 
 install:
-	cd -P . && go install ./...
+	cd -P . && go install .
+
+deps:
+	cd -P . && glide up --update-vendored
 
 generate:
-	go generate ./...
+	for package in `go list ./... | grep -v vendor`; do \
+		go generate $$package ; \
+	done
 
 format:
 	gofmt -w -s .
@@ -19,12 +26,17 @@ docker:
 	docker build -t quay.io/netsys/di-minion .
 
 check:
-	go test ./...
+	for package in `go list ./... | grep -v vendor`; do \
+		go test $$package ; \
+	done
 
 lint:
-	cd -P . && go vet ./...
-	for package in `go list ./... | grep -v minion/pb`; do \
-	    golint -min_confidence .25 $$package ; \
+	cd -P .
+	for package in `go list ./... | grep -v vendor`; do \
+		go vet $$package ; \
+	done
+	for package in `go list ./... | grep -v minion/pb | grep -v vendor`; do \
+		golint -min_confidence .25 $$package ; \
 	done
 
 coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov

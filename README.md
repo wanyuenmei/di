@@ -39,6 +39,19 @@ To generate the protobufs simply call:
 
         make generate
 
+## Dependencies
+We use [Glide](https://github.com/Masterminds/glide) as dependency vendoring tool.
+The dependencies for a project are listed in a `glide.yaml` file. This can include
+a version, VCS or repository location. Once Glide has downloaded and figured out
+versions to use in the dependency tree it creates a `glide.lock` file containing the
+complete dependency tree pinned to specific versions.
+
+	go get -u github.com/Masterminds/glide
+
+To generate or update dependencies, simply call:
+
+	make deps
+
 ## Containers
 Some of the functionality that isn't captured in this repo is packaged into
 containers that can be found in the following repos:
