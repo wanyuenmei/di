@@ -1,4 +1,4 @@
-(define Namespace "")
+(define Namespace "CHANGE_ME")
 (define Provider "Vagrant")
 (define MasterCount 1)
 (define WorkerCount (+ 1 MasterCount))
