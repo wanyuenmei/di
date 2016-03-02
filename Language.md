@@ -43,6 +43,10 @@ directly implemented in the dataplane.  Administrators for example:
 As DI supports more functionality, atoms will naturally expand to implement
 more concepts.
 
+### SSH Keys
+SSH keys are represented as atoms. Specifically, there's `(plaintextKey <key>)` and
+`(githubKey <username>)`.
+
 ## Labels
 ```
 (label <name> <member list>)
