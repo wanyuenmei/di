@@ -54,7 +54,7 @@ To do that, follow these steps:
 1. Create a new empty repository on your favorite registry -
 [docker hub](https://hub.docker.com/) or [quay.io](https://quay.io/) for
 example.
-2. Modify `minionImage` in [util.go](util/util.go) to point to your repo.
+2. Modify `minionImage` in [cloud_config.go](cluster/cloud_config.go) to point to your repo.
 3. Modify the repo [Makefile](Makefile) so it builds your image.
 4. Create the docker image: `make docker`
    * Since Docker requires certain Linux features, you can't run Docker
