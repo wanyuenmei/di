@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"strings"
 )
 
@@ -14,12 +15,10 @@ var vagrantPublicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTky
 var vagrantCmd = "vagrant"
 var shCmd = "sh"
 
-type vagrantAPI struct {
-	cwd string
-}
+type vagrantAPI struct{}
 
-func newVagrantAPI(cwd string) vagrantAPI {
-	vagrant := vagrantAPI{cwd}
+func newVagrantAPI() vagrantAPI {
+	vagrant := vagrantAPI{}
 	return vagrant
 }
 
@@ -50,12 +49,6 @@ func (api *vagrantAPI) Init(cloudConfig string, id string) error {
 		return err
 	}
 
-	configRB := configRB()
-	err = ioutil.WriteFile(path+"/config.rb", []byte(configRB), 0644)
-	if err != nil {
-		api.Destroy(id)
-		return err
-	}
 	return nil
 }
 
@@ -149,15 +142,17 @@ func (api *vagrantAPI) ContainsBox(name string) (bool, error) {
 }
 
 func (api *vagrantAPI) Shell(id string, commands string) ([]byte, error) {
-	chdir := `(cd %s/vagrant/%s; `
-	chdir = fmt.Sprintf(chdir, api.cwd, id)
+	chdir := `(cd %s; `
+	chdir = fmt.Sprintf(chdir, api.VagrantDir()+id)
 	shellCommand := chdir + strings.Replace(commands, "%s", id, -1)
 	output, err := exec.Command(shCmd, []string{"-c", shellCommand}...).Output()
 	return output, err
 }
 
 func (api *vagrantAPI) VagrantDir() string {
-	return api.cwd + "/vagrant/"
+	current, _ := user.Current()
+	vagrantDir := current.HomeDir + "/.vagrant/"
+	return vagrantDir
 }
 
 func vagrantFile() string {

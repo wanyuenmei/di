@@ -23,7 +23,7 @@ func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string,
 	if err != nil {
 		return err
 	}
-	vagrant := newVagrantAPI(cwd)
+	vagrant := newVagrantAPI()
 	err = vagrant.AddBox(boxName, boxLink)
 	if err != nil {
 		return err
