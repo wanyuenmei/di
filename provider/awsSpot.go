@@ -35,7 +35,7 @@ func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string,
 	clst.EC2 = ec2.New(session)
 	clst.namespace = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
-	clst.cloudConfig = cloudConfigUbuntu(keys)
+	clst.cloudConfig = cloudConfigUbuntu(keys, "ubuntu", "wily")
 
 	go clst.watchACLs(conn, clusterID)
 

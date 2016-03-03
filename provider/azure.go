@@ -59,7 +59,7 @@ func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string, k
 	clst.hsClient = hostedservice.NewClient(azureClient)
 	clst.vmClient = virtualmachine.NewClient(azureClient)
 	clst.namespace = namespace
-	clst.cloudConfig = cloudConfigUbuntu(keys)
+	clst.cloudConfig = cloudConfigUbuntu(keys, "ubuntu", "wily")
 	clst.storageAccount = storageAccount
 	clst.location = clusterLocation
 	clst.vmSize = vmSize

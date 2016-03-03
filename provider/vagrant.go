@@ -1,36 +1,27 @@
 package provider
 
 import (
-	"os"
 	"sync"
 
 	"github.com/NetSys/di/db"
+	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
 )
-
-const boxName string = "coreos-beta"
-const boxLink string = "http://beta.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
 
 type vagrantCluster struct {
 	cloudConfig string
 	namespace   string
-	cwd         string
 	vagrant     vagrantAPI
 }
 
 func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
 	vagrant := newVagrantAPI()
-	err = vagrant.AddBox(boxName, boxLink)
+	err := vagrant.AddBox("boxcutter/ubuntu1504", "virtualbox")
 	if err != nil {
 		return err
 	}
 	clst.namespace = namespace
-	clst.cloudConfig = cloudConfigCoreOS(append(keys, vagrantPublicKey))
-	clst.cwd = cwd
+	clst.cloudConfig = cloudConfigUbuntu(append(keys, vagrantPublicKey), "vagrant", "vivid")
 	clst.vagrant = vagrant
 	return nil
 }
@@ -72,20 +63,17 @@ func (clst vagrantCluster) Get() ([]Machine, error) {
 
 	for _, instanceID := range instanceIDs {
 		ip, err := vagrant.PublicIP(instanceID)
-		if err == nil {
-			instance := Machine{
-				ID:        instanceID,
-				PublicIP:  ip,
-				PrivateIP: ip,
-				Provider:  db.Vagrant,
-			}
-			machines = append(machines, instance)
-		} else {
-			/* Boot blocks, so if the VM isn't up, something is wrong. */
-			vagrant.Destroy(instanceID)
+		if err != nil {
+			log.WithError(err).Infof("Failed to retrieve IP address for %s.", instanceID)
 		}
+		instance := Machine{
+			ID:        instanceID,
+			PublicIP:  ip,
+			PrivateIP: ip,
+			Provider:  db.Vagrant,
+		}
+		machines = append(machines, instance)
 	}
-
 	return machines, nil
 }
 

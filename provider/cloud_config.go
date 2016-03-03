@@ -6,7 +6,7 @@ const (
 	minionImage = "quay.io/netsys/di-minion:latest"
 )
 
-func cloudConfigUbuntu(keys []string) string {
+func cloudConfigUbuntu(keys []string, user string, ubuntuVersion string) string {
 	cloudConfig := `#!/bin/bash
 
 initialize_ovs() {
@@ -53,10 +53,10 @@ initialize_minion() {
 	ExecStartPre=-/usr/bin/mkdir -p /var/run/netns
 	ExecStartPre=-/usr/bin/docker kill minion
 	ExecStartPre=-/usr/bin/docker rm minion
-	ExecStartPre=/usr/bin/docker pull %s
+	ExecStartPre=/usr/bin/docker pull %[1]s
 	ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
 	-v /var/run/docker.sock:/var/run/docker.sock \
-	-v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw %s
+	-v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw %[1]s
 
 	[Install]
 	WantedBy=multi-user.target
@@ -67,16 +67,16 @@ install_docker() {
 	# Disable default sources list since we don't use them anyways
 	mv /etc/apt/sources.list /etc/apt/sources.list.bak
 
-	echo "deb https://apt.dockerproject.org/repo ubuntu-wily main" > /etc/apt/sources.list.d/docker.list
+	echo "deb https://apt.dockerproject.org/repo ubuntu-%[3]s main" > /etc/apt/sources.list.d/docker.list
 	apt-get update
-	apt-get install docker-engine=1.9.1-0~wily -y --force-yes
+	apt-get install docker-engine=1.9.1-0~%[3]s -y --force-yes
 	systemctl stop docker.service
 }
 
 echo -n "Start Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
 
-USER_DIR=/home/ubuntu
+USER_DIR=/home/%[2]s
 export DEBIAN_FRONTEND=noninteractive
 
 install_docker
@@ -94,16 +94,16 @@ systemctl enable {ovs,docker,minion}.service
 systemctl restart {ovs,docker,minion}.service
 
 # Create dirs and files with correct users and permissions
-install -d -o ubuntu -m 700 $USER_DIR/.ssh
-install -o ubuntu -m 600 /dev/null $USER_DIR/.ssh/authorized_keys
+install -d -o %[2]s -m 700 $USER_DIR/.ssh
+install -o %[2]s -m 600 /dev/null $USER_DIR/.ssh/authorized_keys
 
-# allow the ubuntu user to use docker without sudo
-usermod -aG docker ubuntu
+# allow the user to use docker without sudo
+usermod -aG docker %[2]s
 
 echo -n "Completed Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
     `
-	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, minionImage)
+	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, user, ubuntuVersion)
 
 	if len(keys) > 0 {
 		for _, key := range keys {
