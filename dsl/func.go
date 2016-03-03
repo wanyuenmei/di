@@ -31,6 +31,8 @@ var funcImplMap = map[astIdent]funcImpl{
 	"provider":         {providerImpl, 1},
 	"machine":          {machineImpl, 0},
 	"machineAttribute": {machineAttributeImpl, 2},
+	"ram":              {rangeImpl("ram"), 1},
+	"cpu":              {rangeImpl("cpu"), 1},
 }
 
 // XXX: support float operators?
@@ -170,12 +172,23 @@ func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 }
 
 func setMachineAttributes(machine *Machine, args []ast) error {
-	for _, arg := range args {
+	for _, arg := range flatten(args) {
 		switch arg.(type) {
 		case astProvider:
 			machine.Provider = string(arg.(astProvider))
 		case astSize:
 			machine.Size = string(arg.(astSize))
+		case astRange:
+			r := arg.(astRange)
+			dslr := Range{Min: float64(r.min), Max: float64(r.max)}
+			switch string(r.ident) {
+			case "ram":
+				machine.RAM = dslr
+			case "cpu":
+				machine.CPU = dslr
+			default:
+				return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
+			}
 		default:
 			return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
 		}
@@ -246,6 +259,40 @@ func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return astSize((evalArgs[0].(astString))), nil
+}
+
+func toFloat(x ast) (astFloat, error) {
+	switch x.(type) {
+	case astInt:
+		return astFloat(x.(astInt)), nil
+	case astFloat:
+		return x.(astFloat), nil
+	default:
+		return astFloat(0), fmt.Errorf("%v is not convertable to a float", x)
+	}
+
+}
+
+func rangeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
+	return func(ctx *evalCtx, args__ []ast) (ast, error) {
+		evalArgs, err := evalArgs(ctx, args__)
+		if err != nil {
+			return nil, err
+		}
+
+		var max astFloat
+		var maxErr error
+		if len(evalArgs) > 1 {
+			max, maxErr = toFloat(evalArgs[1])
+		}
+		min, minErr := toFloat(evalArgs[0])
+
+		if minErr != nil || maxErr != nil {
+			return nil, fmt.Errorf("range arguments must be convertable to floats: %v", evalArgs)
+		}
+
+		return astRange{ident: astIdent(rangeType), min: min, max: max}, nil
+	}
 }
 
 func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {

@@ -6,6 +6,7 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/join"
+	"github.com/NetSys/di/provider"
 	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -70,32 +71,43 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 // Specifically, it sets the role of the db.Machine, the size (which may depend
 // on RAM and CPU constraints), and the provider.
 // Additionally, it skips machines with invalid sizes or providers
-func toDBMachine(machines []dsl.Machine, role db.Role) []db.Machine {
+func toDBMachine(machines []dsl.Machine, role db.Role, maxPrice float64) []db.Machine {
 	var dbMachines []db.Machine
 	for _, dslm := range machines {
 		var m db.Machine
 		m.Role = role
-		m.Size = dslm.Size
-		provider, err := db.ParseProvider(dslm.Provider)
+		p, err := db.ParseProvider(dslm.Provider)
 		if err != nil {
-			log.WithError(err).Warn("Error parsing provider.")
+			log.WithError(err).Error("Error parsing provider.")
 			continue
 		}
-		m.Provider = provider
+		m.Provider = p
+		if dslm.Size != "" {
+			m.Size = dslm.Size
+		} else {
+			providerInst := provider.New(p)
+			m.Size = providerInst.PickBestSize(dslm.RAM, dslm.CPU, maxPrice)
+		}
+		if m.Size == "" {
+			log.Errorf("No valid size for %v, skipping.", m)
+			continue
+		}
 		dbMachines = append(dbMachines, m)
 	}
 	return dbMachines
 }
 
 func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+	// XXX: How best to deal with machines that don't specify enough information?
 	dslMasters := dsl.QueryMachineSlice("masters")
 	dslWorkers := dsl.QueryMachineSlice("workers")
+	maxPrice, _ := dsl.QueryFloat("MaxPrice")
 
 	var dslMachines []db.Machine
 	if len(dslMasters) == 0 || len(dslWorkers) == 0 {
 		dslMachines = []db.Machine{}
 	} else {
-		dslMachines = append(toDBMachine(dslMasters, db.Master), toDBMachine(dslWorkers, db.Worker)...)
+		dslMachines = append(toDBMachine(dslMasters, db.Master, maxPrice), toDBMachine(dslWorkers, db.Worker, maxPrice)...)
 	}
 
 	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {

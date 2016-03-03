@@ -151,3 +151,7 @@ func (size astSize) eval(ctx *evalCtx) (ast, error) {
 func (p astProvider) eval(ctx *evalCtx) (ast, error) {
 	return p, nil
 }
+
+func (r astRange) eval(ctx *evalCtx) (ast, error) {
+	return r, nil
+}

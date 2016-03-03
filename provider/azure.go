@@ -14,11 +14,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
+
 	"github.com/Azure/azure-sdk-for-go/management"
 	"github.com/Azure/azure-sdk-for-go/management/hostedservice"
 	"github.com/Azure/azure-sdk-for-go/management/virtualmachine"
 	"github.com/Azure/azure-sdk-for-go/management/vmutils"
-	"github.com/NetSys/di/db"
 	"github.com/satori/go.uuid"
 )
 
@@ -146,6 +148,10 @@ func (clst *azureCluster) Stop(ids []string) error {
 // Disconnect.
 func (clst *azureCluster) Disconnect() {
 	// nothing
+}
+
+func (clst *azureCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+	return ""
 }
 
 // Create one Azure instance (blocking).

@@ -64,6 +64,30 @@ The attributes of labeled machines can be later modified with
 If the attribute is already defined, it is replaced. `machineAttributes` works
 both for a list of machines and a single instance.
 
+The `attributes` for both `machine` and `machineAttribute` are both flattened
+before being applied. This allows you to do `define` settings as lists and then
+apply them.
+```
+(define large (list (ram 16) (cpu 8)))
+(label "machines" (machine (provider "AmazonSpot") large))
+```
+
+##### Ranges
+Some attributes (`ram` and `cpu`) can be defined as ranges. Ranges are converted
+by the engine into a provider-specific instance size. The `size` attribute
+has precedence over ranges.
+```
+(define MaxPrice 1)
+(machine (ram 4 8))
+(machine (ram 4))
+```
+A range can be one or two values:  if it's two, then the range represents a min
+and max, and if it's one, then it represents just a min.
+
+If `MaxPrice` is defined, then a size is only selected based on the range if the
+selection for a single machine is less than `MaxPrice`.
+
+
 ## Labels
 ```
 (label <name> <member list>)

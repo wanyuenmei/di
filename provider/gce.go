@@ -29,6 +29,8 @@ import (
 	"time"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
+
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -187,6 +189,10 @@ func (clst *gceCluster) Disconnect() {
 	// should cancel the ACL watch
 	// should delete the instances
 	// should delete the network
+}
+
+func (clst *gceCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+	return ""
 }
 
 // Blocking wait with a hardcoded timeout.

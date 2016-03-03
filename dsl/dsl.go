@@ -40,8 +40,22 @@ type Connection struct {
 type Machine struct {
 	Provider string
 	Size     string
+	CPU      Range
+	RAM      Range
 
 	atomImpl
+}
+
+// A Range defines a range of acceptable values for a Machine attribute
+type Range struct {
+	Min float64
+	Max float64
+}
+
+// Accepts returns true if `x` is within the range specified by `dslr` (include),
+// or if no max is specified and `x` is larger than `dslr.min`.
+func (dslr Range) Accepts(x float64) bool {
+	return dslr.Min <= x && (dslr.Max == 0 || x <= dslr.Max)
 }
 
 // New parses and executes a dsl (in text form), and returns an abstract Dsl handle.

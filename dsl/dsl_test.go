@@ -141,7 +141,7 @@ func TestMachines(t *testing.T) {
 		ctx := parseTest(t, code, expectedCode)
 		machineResult := Dsl{nil, ctx}.QueryMachineSlice("machines")
 		if !reflect.DeepEqual(machineResult, expected) {
-			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
 		}
 	}
@@ -180,6 +180,39 @@ func TestMachines(t *testing.T) {
 	expMachine2.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine, expMachine2)
 
+	// Test cpu range (two args)
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (cpu 4 8))))`
+	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4, Max: 8}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test cpu range (one arg)
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (cpu 4))))`
+	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test ram range
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (ram 8 12))))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 8, Max: 12}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test float range
+	code = `(label "machines" (list (machine (provider "AmazonSpot") (ram 0.5 2))))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 0.5, Max: 2}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test named attribute
+	code = `(define large (list (ram 16) (cpu 8)))
+(label "machines" (machine (provider "AmazonSpot") large))`
+	expCode = `(define large (list (ram 16) (cpu 8)))
+(label "machines" (machine (provider "AmazonSpot") (list (ram 16) (cpu 8))))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, expCode, expMachine)
+
 	// Test invalid attribute type
 	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `unrecognized argument to machine definition: "foo"`)
 }
@@ -189,7 +222,7 @@ func TestMachineAttribute(t *testing.T) {
 		ctx := parseTest(t, code, expectedCode)
 		machineResult := Dsl{nil, ctx}.QueryMachineSlice("machines")
 		if !reflect.DeepEqual(machineResult, expected) {
-			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
 		}
 	}
@@ -243,6 +276,24 @@ func TestMachineAttribute(t *testing.T) {
 	badKey := plaintextKey{key: "key"}
 	badKey.SetLabels([]string{"badlabel"})
 	runtimeErr(t, code, fmt.Sprintf(`bad type, cannot change machine attributes: %s`, &badKey))
+
+	// Test setting range attributes
+	code = `(label "machines" (machine (provider "AmazonSpot")))
+(machineAttribute "machines" (ram 1))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
+	// Test setting using a named attribute
+	code = `(define large (list (ram 16) (cpu 8)))
+(label "machines" (machine (provider "AmazonSpot")))
+(machineAttribute "machines" large)`
+	expCode := `(define large (list (ram 16) (cpu 8)))
+(label "machines" (machine (provider "AmazonSpot")))
+(machineAttribute "machines" (list (ram 16) (cpu 8)))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, expCode, expMachine)
 }
 
 func TestKeys(t *testing.T) {

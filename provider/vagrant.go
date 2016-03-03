@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
 	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
 )
@@ -93,4 +94,8 @@ func (clst vagrantCluster) Stop(ids []string) error {
 
 func (clst vagrantCluster) Disconnect() {
 
+}
+
+func (clst vagrantCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+	return ""
 }

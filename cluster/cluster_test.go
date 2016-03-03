@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/provider"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -77,6 +78,10 @@ func (p *fakeProvider) Stop(ids []string) error {
 func (p *fakeProvider) Disconnect() {}
 
 func (p *fakeProvider) Start(conn db.Conn, id int, namespace string, keys []string) error { return nil }
+
+func (p *fakeProvider) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+	return ""
+}
 
 func newTestCluster() cluster {
 	id := 0

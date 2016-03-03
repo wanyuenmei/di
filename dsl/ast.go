@@ -33,6 +33,13 @@ type astAtom struct {
 	index int
 }
 
+type astRange struct {
+	ident astIdent
+
+	min astFloat
+	max astFloat
+}
+
 type astList []ast /* A data list after evaluation. */
 
 /* The top level is a list of abstract syntax trees, typically populated by define
@@ -119,6 +126,15 @@ func (lt astLet) String() string {
 	}
 	bindStr := strings.Join(bindSlice, " ")
 	return fmt.Sprintf("(let (%s) %s)", bindStr, lt.ast)
+}
+
+func (r astRange) String() string {
+	args := []ast{r.min}
+	if r.max != 0 {
+		args = append(args, r.max)
+	}
+
+	return fmt.Sprintf("(%s)", sliceStr(append([]ast{r.ident}, args...), " "))
 }
 
 func sliceStr(asts []ast, sep string) string {

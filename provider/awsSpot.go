@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -217,6 +219,10 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 	}
 
 	return machines, nil
+}
+
+func (clst *awsSpotCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 
 func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {

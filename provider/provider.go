@@ -1,6 +1,9 @@
 package provider
 
-import "github.com/NetSys/di/db"
+import (
+	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
+)
 
 // Machine represents an instance of a machine booted by a Provider.
 type Machine struct {
@@ -22,6 +25,8 @@ type Provider interface {
 	Stop(ids []string) error
 
 	Disconnect()
+
+	PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string
 }
 
 // New returns an empty instance of the Provider represented by `dbp`

@@ -23,8 +23,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 2)
 (define WorkerCount 3)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list "1.2.3.4/32"))
 (label "sshkeys" (list (plaintextKey "foo")))`
 
@@ -61,8 +61,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 4)
 (define WorkerCount 5)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list "1.2.3.4/32"))
 (label "sshkeys" (list (plaintextKey "foo")))`
 
@@ -119,8 +119,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list "1.2.3.4/32"))
 (label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
@@ -151,8 +151,8 @@ func TestEngine(t *testing.T) {
 	code = `
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list "1.2.3.4/32"))
 (label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
@@ -184,8 +184,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 0)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list "1.2.3.4/32"))
 (label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
@@ -226,8 +226,8 @@ func TestEngine(t *testing.T) {
 	/* Test mixed providers. */
 	code = `
 	(define Namespace "Namespace")
-	(label "masters" (list (machine (provider "AmazonSpot")) (machine (provider "Vagrant"))))
-	(label "workers" (list (machine (provider "Azure")) (machine (provider "Google"))))
+	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant") (size "v.large"))))
+	(label "workers" (list (machine (provider "Azure") (size "a.large")) (machine (provider "Google") (size "g.large"))))
 	(define AdminACL (list "1.2.3.4/32"))
 	(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
@@ -255,8 +255,8 @@ func TestEngine(t *testing.T) {
 	/* Test that machines with different providers don't match. */
 	code = `
 	(define Namespace "Namespace")
-	(label "masters" (list (machine (provider "AmazonSpot")) (machine (provider "Azure"))))
-	(label "workers" (list (machine (provider "AmazonSpot"))))
+	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Azure") (size "a.large"))))
+	(label "workers" (list (machine (provider "AmazonSpot") (size "m4.large"))))
 	(define AdminACL (list "1.2.3.4/32"))
 	(label "sshkeys" (list (plaintextKey "foo")))`
 	UpdatePolicy(conn, prog(t, code))
@@ -375,8 +375,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 3)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list))
 (label "sshkeys" (list))`))
 	err := conn.Transact(func(view db.Database) error {
@@ -405,8 +405,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 2)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list))
 (label "sshkeys" (list))`))
 	err = conn.Transact(func(view db.Database) error {
@@ -435,8 +435,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (define AdminACL (list))
 (label "sshkeys" (list))`))
 	err = conn.Transact(func(view db.Database) error {
