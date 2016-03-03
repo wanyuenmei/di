@@ -50,11 +50,10 @@ var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
 
 type gceCluster struct {
-	projID   string // gce project ID
-	zone     string // gce zone
-	imgURL   string // gce url to the VM image
-	machType string // gce machine type
-	baseURL  string // gce project specific url prefix
+	projID  string // gce project ID
+	zone    string // gce zone
+	imgURL  string // gce url to the VM image
+	baseURL string // gce project specific url prefix
 
 	ns          string // cluster namespace
 	cloudConfig string
@@ -80,7 +79,6 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, key
 
 	clst.projID = "declarative-infrastructure"
 	clst.zone = "us-central1-a"
-	clst.machType = "f1-micro"
 	clst.id = clusterID
 	clst.ns = namespace
 	clst.cloudConfig = cloudConfigCoreOS(keys)
@@ -122,6 +120,7 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 			ID:        item.Name,
 			PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
 			PrivateIP: item.NetworkInterfaces[0].NetworkIP,
+			Size:      item.MachineType,
 			Provider:  db.Google,
 		})
 	}
@@ -133,15 +132,14 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 // XXX: currently ignores cloudConfig
 // XXX: should probably have a better clean up routine if an error is encountered
 func (clst *gceCluster) Boot(bootSet []Machine) error {
-	count := len(bootSet)
-	if count < 0 {
+	if len(bootSet) < 0 {
 		return errors.New("count must be >= 0")
 	}
 	var ops []*compute.Operation
 	var urls []*compute.InstanceReference
-	for i := 0; i < count; i++ {
+	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		op, err := clst.instanceNew(name, clst.cloudConfig)
+		op, err := clst.instanceNew(name, m.Size, clst.cloudConfig)
 		if err != nil {
 			return err
 		}
@@ -254,14 +252,14 @@ func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
 //
 // XXX: all kinds of hardcoded junk in here
 // XXX: currently only defines the bare minimum
-func (clst *gceCluster) instanceNew(name string, cloudConfig string) (*compute.Operation, error) {
+func (clst *gceCluster) instanceNew(name string, size string, cloudConfig string) (*compute.Operation, error) {
 	instance := &compute.Instance{
 		Name:        name,
 		Description: clst.ns,
 		MachineType: fmt.Sprintf("%s/zones/%s/machineTypes/%s",
 			clst.baseURL,
 			clst.zone,
-			clst.machType),
+			size),
 		Disks: []*compute.AttachedDisk{
 			{
 				Boot:       true,
