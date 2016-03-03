@@ -1,4 +1,4 @@
-package cluster
+package provider
 
 // First, download Publish Settings using the following link:
 // https://manage.windowsazure.com/PublishSettings/
@@ -33,6 +33,7 @@ type azureCluster struct {
 	hsClient       hostedservice.HostedServiceClient
 	vmClient       virtualmachine.VirtualMachineClient
 	namespace      string
+	cloudConfig    string
 	storageAccount string
 	location       string
 	vmSize         string
@@ -41,38 +42,37 @@ type azureCluster struct {
 	userPassword   string // Required password is a randomly generated UUID.
 }
 
-// Create an Azure clister.
-func newAzure(conn db.Conn, clusterID int, namespace string) (provider, error) {
+// Create an Azure cluster.
+func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
 	if namespace == "" {
-		return nil, errors.New("namespace cannot be empty")
+		return errors.New("namespace cannot be empty")
 	}
 
 	keyfile := filepath.Join(os.Getenv("HOME"), ".azure", "azure.publishsettings")
 
 	azureClient, err := management.ClientFromPublishSettingsFile(keyfile, "")
 	if err != nil {
-		return nil, errors.New("error retrieving azure client from publishsettings")
+		return errors.New("error retrieving azure client from publishsettings")
 	}
 
-	clst := &azureCluster{
-		azureClient:    azureClient,
-		hsClient:       hostedservice.NewClient(azureClient),
-		vmClient:       virtualmachine.NewClient(azureClient),
-		namespace:      namespace,
-		storageAccount: storageAccount,
-		location:       clusterLocation,
-		vmSize:         vmSize,
-		vmImage:        vmImage,
-		username:       username,
-		userPassword:   uuid.NewV4().String(), // Randomly generate pwd
-	}
+	clst.azureClient = azureClient
+	clst.hsClient = hostedservice.NewClient(azureClient)
+	clst.vmClient = virtualmachine.NewClient(azureClient)
+	clst.namespace = namespace
+	clst.cloudConfig = cloudConfigUbuntu(keys)
+	clst.storageAccount = storageAccount
+	clst.location = clusterLocation
+	clst.vmSize = vmSize
+	clst.vmImage = vmImage
+	clst.username = username
+	clst.userPassword = uuid.NewV4().String() // Randomly generate pwd
 
-	return clst, nil
+	return nil
 }
 
 // Retrieve list of instances.
-func (clst *azureCluster) get() ([]machine, error) {
-	var mList []machine
+func (clst *azureCluster) Get() ([]Machine, error) {
+	var mList []Machine
 
 	hsResponse, err := clst.hsClient.ListHostedServices()
 	if err != nil {
@@ -105,10 +105,10 @@ func (clst *azureCluster) get() ([]machine, error) {
 		privateIP := roleInstance.IPAddress
 		publicIP := roleInstance.InstanceEndpoints[0].Vip
 
-		mList = append(mList, machine{
-			id:        id,
-			publicIP:  publicIP,
-			privateIP: privateIP,
+		mList = append(mList, Machine{
+			ID:        id,
+			PublicIP:  publicIP,
+			PrivateIP: privateIP,
 		})
 	}
 
@@ -116,14 +116,14 @@ func (clst *azureCluster) get() ([]machine, error) {
 }
 
 // Boot Azure instances (blocking by calling instanceNew).
-func (clst *azureCluster) boot(count int, cloudConfig string) error {
+func (clst *azureCluster) Boot(count int) error {
 	if count < 0 {
 		panic("boot count cannot be negative")
 	}
 
 	for i := 0; i < count; i++ {
 		name := "di-" + uuid.NewV4().String()
-		if err := clst.instanceNew(name, cloudConfig); err != nil {
+		if err := clst.instanceNew(name, clst.cloudConfig); err != nil {
 			return err
 		}
 	}
@@ -132,7 +132,7 @@ func (clst *azureCluster) boot(count int, cloudConfig string) error {
 }
 
 // Delete Azure instances (blocking by calling instanceDel).
-func (clst *azureCluster) stop(ids []string) error {
+func (clst *azureCluster) Stop(ids []string) error {
 	for _, id := range ids {
 		if err := clst.instanceDel(id); err != nil {
 			return err
@@ -142,7 +142,7 @@ func (clst *azureCluster) stop(ids []string) error {
 }
 
 // Disconnect.
-func (clst *azureCluster) disconnect() {
+func (clst *azureCluster) Disconnect() {
 	// nothing
 }
 

@@ -1,4 +1,4 @@
-package cluster
+package provider
 
 import (
 	"encoding/base64"
@@ -23,36 +23,38 @@ const awsRegion = "us-west-2"
 type awsSpotCluster struct {
 	*ec2.EC2
 
-	namespace  string
-	aclTrigger db.Trigger
+	cloudConfig string
+	namespace   string
+	aclTrigger  db.Trigger
 }
 
-func newAWS(conn db.Conn, clusterID int, namespace string) provider {
+func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
 	session := session.New()
 	session.Config.Region = aws.String(awsRegion)
-	clst := &awsSpotCluster{
-		ec2.New(session),
-		namespace,
-		conn.TriggerTick(60, db.ClusterTable),
-	}
+
+	clst.EC2 = ec2.New(session)
+	clst.namespace = namespace
+	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
+	clst.cloudConfig = cloudConfigUbuntu(keys)
 
 	go clst.watchACLs(conn, clusterID)
-	return clst
+
+	return nil
 }
 
-func (clst *awsSpotCluster) disconnect() {
+func (clst *awsSpotCluster) Disconnect() {
 	/* Ideally we'd close clst.ec2 as well, but the API doesn't export that ability
 	* apparently. */
 	clst.aclTrigger.Stop()
 }
 
-func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
+func (clst awsSpotCluster) Boot(count int) error {
 	if count <= 0 {
 		return nil
 	}
 
 	count64 := int64(count)
-	cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(cloudConfig))
+	cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(clst.cloudConfig))
 	resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 		SpotPrice: aws.String(spotPrice),
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
@@ -83,7 +85,7 @@ func (clst awsSpotCluster) boot(count int, cloudConfig string) error {
 	return nil
 }
 
-func (clst awsSpotCluster) stop(ids []string) error {
+func (clst awsSpotCluster) Stop(ids []string) error {
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: aws.StringSlice(ids),
@@ -122,7 +124,7 @@ func (clst awsSpotCluster) stop(ids []string) error {
 	return nil
 }
 
-func (clst awsSpotCluster) get() ([]machine, error) {
+func (clst awsSpotCluster) Get() ([]Machine, error) {
 	spots, err := clst.DescribeSpotInstanceRequests(nil)
 	if err != nil {
 		return nil, err
@@ -147,7 +149,7 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 		}
 	}
 
-	machines := []machine{}
+	machines := []Machine{}
 	for _, spot := range spots.SpotInstanceRequests {
 		if *spot.State != ec2.SpotInstanceStateActive &&
 			*spot.State != ec2.SpotInstanceStateOpen {
@@ -184,8 +186,8 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 			}
 		}
 
-		machine := machine{
-			id: *spot.SpotInstanceRequestId,
+		machine := Machine{
+			ID: *spot.SpotInstanceRequestId,
 		}
 
 		if inst != nil {
@@ -195,11 +197,11 @@ func (clst awsSpotCluster) get() ([]machine, error) {
 			}
 
 			if inst.PublicIpAddress != nil {
-				machine.publicIP = *inst.PublicIpAddress
+				machine.PublicIP = *inst.PublicIpAddress
 			}
 
 			if inst.PrivateIpAddress != nil {
-				machine.privateIP = *inst.PrivateIpAddress
+				machine.PrivateIP = *inst.PrivateIpAddress
 			}
 		}
 
@@ -238,16 +240,16 @@ func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
 func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
 OuterLoop:
 	for i := 0; i < 100; i++ {
-		machines, err := clst.get()
+		machines, err := clst.Get()
 		if err != nil {
-			log.WithError(err).Warn("Failed to get Machines.")
+			log.WithError(err).Warn("Failed to get machines.")
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
 		exists := make(map[string]struct{})
 		for _, inst := range machines {
-			exists[inst.id] = struct{}{}
+			exists[inst.ID] = struct{}{}
 		}
 
 		for _, id := range ids {

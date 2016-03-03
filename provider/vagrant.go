@@ -1,9 +1,10 @@
-package cluster
+package provider
 
 import (
 	"os"
 	"sync"
 
+	"github.com/NetSys/di/db"
 	"github.com/satori/go.uuid"
 )
 
@@ -11,32 +12,36 @@ const boxName string = "coreos-beta"
 const boxLink string = "http://beta.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
 
 type vagrantCluster struct {
-	namespace string
-	cwd       string
-	vagrant   vagrantAPI
+	cloudConfig string
+	namespace   string
+	cwd         string
+	vagrant     vagrantAPI
 }
 
-func newVagrant(namespace string) (provider, error) {
+func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	vagrant := newVagrantAPI(cwd)
 	err = vagrant.AddBox(boxName, boxLink)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	clst := &vagrantCluster{namespace, cwd, vagrant}
-	return clst, nil
+	clst.namespace = namespace
+	clst.cloudConfig = cloudConfigCoreOS(append(keys, vagrantPublicKey))
+	clst.cwd = cwd
+	clst.vagrant = vagrant
+	return nil
 }
 
-func (clst vagrantCluster) boot(count int, cloudConfig string) error {
+func (clst vagrantCluster) Boot(count int) error {
 	vagrant := clst.vagrant
 	var wg sync.WaitGroup
 	wg.Add(count)
 	for booted := 0; booted < count; booted++ {
 		id := uuid.NewV4().String()
-		err := vagrant.Init(cloudConfig, id)
+		err := vagrant.Init(clst.cloudConfig, id)
 		if err != nil {
 			vagrant.Destroy(id)
 			return err
@@ -53,9 +58,9 @@ func (clst vagrantCluster) boot(count int, cloudConfig string) error {
 	return nil
 }
 
-func (clst vagrantCluster) get() ([]machine, error) {
+func (clst vagrantCluster) Get() ([]Machine, error) {
 	vagrant := clst.vagrant
-	machines := []machine{}
+	machines := []Machine{}
 	instanceIDs, err := vagrant.List()
 
 	if err != nil {
@@ -67,10 +72,10 @@ func (clst vagrantCluster) get() ([]machine, error) {
 	for _, instanceID := range instanceIDs {
 		ip, err := vagrant.PublicIP(instanceID)
 		if err == nil {
-			instance := machine{
-				id:        instanceID,
-				publicIP:  ip,
-				privateIP: ip,
+			instance := Machine{
+				ID:        instanceID,
+				PublicIP:  ip,
+				PrivateIP: ip,
 			}
 			machines = append(machines, instance)
 		} else {
@@ -82,7 +87,7 @@ func (clst vagrantCluster) get() ([]machine, error) {
 	return machines, nil
 }
 
-func (clst vagrantCluster) stop(ids []string) error {
+func (clst vagrantCluster) Stop(ids []string) error {
 	vagrant := clst.vagrant
 	if ids == nil {
 		return nil
@@ -96,6 +101,6 @@ func (clst vagrantCluster) stop(ids []string) error {
 	return nil
 }
 
-func (clst vagrantCluster) disconnect() {
+func (clst vagrantCluster) Disconnect() {
 
 }

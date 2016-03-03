@@ -27,7 +27,7 @@ lint:
 	    golint -min_confidence .25 $$package ; \
 	done
 
-coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov
+coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov
 
 %.cov:
 	go test -coverprofile=$@.out ./$*

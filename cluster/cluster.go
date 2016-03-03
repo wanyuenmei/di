@@ -3,32 +3,16 @@ package cluster
 import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/join"
+	"github.com/NetSys/di/provider"
 	log "github.com/Sirupsen/logrus"
 )
 
-type machine struct {
-	id        string
-	publicIP  string
-	privateIP string
-}
-
-type provider interface {
-	get() ([]machine, error)
-
-	boot(count int, cloudConfig string) error
-
-	stop(ids []string) error
-
-	disconnect()
-}
-
 type cluster struct {
-	provider
-	id          int
-	conn        db.Conn
-	cloudConfig string
-	trigger     db.Trigger
-	fm          foreman
+	cloud   provider.Provider
+	id      int
+	conn    db.Conn
+	trigger db.Trigger
+	fm      foreman
 
 	mark bool /* For mark and sweep garbage collection. */
 }
@@ -78,42 +62,24 @@ func Run(conn db.Conn) {
 func newCluster(conn db.Conn, id int, dbp db.Provider, namespace string,
 	keys []string) (cluster, error) {
 
-	var cloud provider
-	var err error
-	var cloudConfig string
+	cloud := provider.New(dbp)
 
-	switch dbp {
-	case db.AmazonSpot:
-		cloud = newAWS(conn, id, namespace)
-		cloudConfig = cloudConfigUbuntu(keys)
-	case db.Google:
-		cloud, err = newGCE(conn, id, namespace)
-		cloudConfig = cloudConfigCoreOS(keys)
-	case db.Azure:
-		cloud, err = newAzure(conn, id, namespace)
-		cloudConfig = cloudConfigUbuntu(keys)
-	case db.Vagrant:
-		cloud, err = newVagrant(namespace)
-		cloudConfig = cloudConfigCoreOS(append(keys, vagrantPublicKey))
-	default:
-		panic("Unimplemented")
-	}
+	err := cloud.Start(conn, id, namespace, keys)
 
 	if err != nil {
 		return cluster{}, err
 	}
 
 	clst := cluster{
-		provider:    cloud,
-		id:          id,
-		conn:        conn,
-		cloudConfig: cloudConfig,
-		trigger:     conn.TriggerTick(30, db.MachineTable),
-		fm:          newForeman(conn, id),
+		cloud:   cloud,
+		id:      id,
+		conn:    conn,
+		trigger: conn.TriggerTick(30, db.MachineTable),
+		fm:      newForeman(conn, id),
 	}
 
 	go func() {
-		defer clst.provider.disconnect()
+		defer clst.cloud.Disconnect()
 		for range clst.trigger.C {
 			clst.sync()
 		}
@@ -134,7 +100,7 @@ func (clst cluster) sync() {
 	 * are necessary the code loops so that database can be updated before
 	 * the next sync() call. */
 	for i := 0; i < 8; i++ {
-		cloudMachines, err := clst.get()
+		cloudMachines, err := clst.cloud.Get()
 		if err != nil {
 			log.WithError(err).Error("Failed to list machines.")
 			return
@@ -147,7 +113,7 @@ func (clst cluster) sync() {
 
 		if nBoot > 0 {
 			log.WithField("count", nBoot).Info("Attempt to boot machines.")
-			err := clst.boot(nBoot, clst.cloudConfig)
+			err := clst.cloud.Boot(nBoot)
 			if err != nil {
 				log.WithError(err).Warn("Failed to boot machines.")
 			} else {
@@ -157,7 +123,7 @@ func (clst cluster) sync() {
 
 		if len(terminateSet) > 0 {
 			log.WithField("machines", terminateSet).Info("Attempt to stop.")
-			if err := clst.stop(terminateSet); err != nil {
+			if err := clst.cloud.Stop(terminateSet); err != nil {
 				log.WithError(err).Error("Failed to stop machines.")
 			} else {
 				log.Info("Successfully stopped machines.")
@@ -166,7 +132,7 @@ func (clst cluster) sync() {
 	}
 }
 
-func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
+func (clst cluster) syncDB(cloudMachines []provider.Machine) (int, []string) {
 	var nBoot int
 	var terminateSet []string
 	clst.conn.Transact(func(view db.Database) error {
@@ -176,14 +142,14 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 
 		scoreFun := func(left, right interface{}) int {
 			dbm := left.(db.Machine)
-			m := right.(machine)
+			m := right.(provider.Machine)
 
 			switch {
-			case dbm.CloudID == m.id:
+			case dbm.CloudID == m.ID:
 				return 0
-			case dbm.PublicIP == m.publicIP:
+			case dbm.PublicIP == m.PublicIP:
 				return 1
-			case dbm.PrivateIP == m.privateIP:
+			case dbm.PrivateIP == m.PrivateIP:
 				return 2
 			default:
 				return 3
@@ -194,17 +160,17 @@ func (clst cluster) syncDB(cloudMachines []machine) (int, []string) {
 
 		for _, pair := range pairs {
 			dbm := pair.L.(db.Machine)
-			m := pair.R.(machine)
+			m := pair.R.(provider.Machine)
 
-			dbm.CloudID = m.id
-			dbm.PublicIP = m.publicIP
-			dbm.PrivateIP = m.privateIP
+			dbm.CloudID = m.ID
+			dbm.PublicIP = m.PublicIP
+			dbm.PrivateIP = m.PrivateIP
 			view.Commit(dbm)
 		}
 
 		for _, cm := range cmIface {
-			m := cm.(machine)
-			terminateSet = append(terminateSet, m.id)
+			m := cm.(provider.Machine)
+			terminateSet = append(terminateSet, m.ID)
 		}
 
 		nBoot = len(dbmIface)

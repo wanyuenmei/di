@@ -1,4 +1,4 @@
-package cluster
+package provider
 
 ////// ADD YOUR SSH KEY:
 //
@@ -54,9 +54,10 @@ type gceCluster struct {
 	machType string // gce machine type
 	baseURL  string // gce project specific url prefix
 
-	ns         string     // cluster namespace
-	id         int        // the id of the cluster, used externally
-	aclTrigger db.Trigger // for watching the acls
+	ns          string // cluster namespace
+	cloudConfig string
+	id          int        // the id of the cluster, used externally
+	aclTrigger  db.Trigger // for watching the acls
 }
 
 // Create a GCE cluster.
@@ -65,61 +66,60 @@ type gceCluster struct {
 // filtering off of that.
 //
 // XXX: A lot of the fields are hardcoded.
-func newGCE(conn db.Conn, clusterID int, namespace string) (provider, error) {
+func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
 	if namespace == "" {
 		panic("newGCE(): namespace CANNOT be empty")
 	}
 
 	err := gceInit()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	clst := &gceCluster{
-		projID:     "declarative-infrastructure",
-		zone:       "us-central1-a",
-		machType:   "f1-micro",
-		id:         clusterID,
-		ns:         namespace,
-		aclTrigger: conn.TriggerTick(60, db.ClusterTable),
-		imgURL: fmt.Sprintf(
-			"%s/%s",
-			computeBaseURL,
-			"coreos-cloud/global/images/coreos-beta-899-3-0-v20160115"),
-	}
+	clst.projID = "declarative-infrastructure"
+	clst.zone = "us-central1-a"
+	clst.machType = "f1-micro"
+	clst.id = clusterID
+	clst.ns = namespace
+	clst.cloudConfig = cloudConfigCoreOS(keys)
+	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
+	clst.imgURL = fmt.Sprintf(
+		"%s/%s",
+		computeBaseURL,
+		"coreos-cloud/global/images/coreos-beta-899-3-0-v20160115")
 	clst.baseURL = fmt.Sprintf("%s/%s", computeBaseURL, clst.projID)
 
 	err = clst.netInit()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = clst.fwInit()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	go clst.watchACLs(conn, clusterID)
-	return clst, nil
+	return nil
 }
 
 // Get a list of machines from the cluster
 //
 // XXX: This doesn't use the instance group listing functionality because
 // listing that way doesn't get you information about the instances
-func (clst *gceCluster) get() ([]machine, error) {
+func (clst *gceCluster) Get() ([]Machine, error) {
 	list, err := gceService.Instances.List(clst.projID, clst.zone).
 		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
 	if err != nil {
 		return nil, err
 	}
-	var mList []machine
+	var mList []Machine
 	for _, item := range list.Items {
 		// XXX: This make some iffy assumptions about NetworkInterfaces
-		mList = append(mList, machine{
-			id:        item.Name,
-			publicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
-			privateIP: item.NetworkInterfaces[0].NetworkIP,
+		mList = append(mList, Machine{
+			ID:        item.Name,
+			PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
+			PrivateIP: item.NetworkInterfaces[0].NetworkIP,
 		})
 	}
 	return mList, nil
@@ -129,7 +129,7 @@ func (clst *gceCluster) get() ([]machine, error) {
 //
 // XXX: currently ignores cloudConfig
 // XXX: should probably have a better clean up routine if an error is encountered
-func (clst *gceCluster) boot(count int, cloudConfig string) error {
+func (clst *gceCluster) Boot(count int) error {
 	if count < 0 {
 		return errors.New("count must be >= 0")
 	}
@@ -137,7 +137,7 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 	var urls []*compute.InstanceReference
 	for i := 0; i < count; i++ {
 		name := "di-" + uuid.NewV4().String()
-		op, err := clst.instanceNew(name, cloudConfig)
+		op, err := clst.instanceNew(name, clst.cloudConfig)
 		if err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (clst *gceCluster) boot(count int, cloudConfig string) error {
 // successfully started before returning.
 //
 // XXX: should probably have a better clean up routine if an error is encountered
-func (clst *gceCluster) stop(ids []string) error {
+func (clst *gceCluster) Stop(ids []string) error {
 	var ops []*compute.Operation
 	for _, id := range ids {
 		op, err := clst.instanceDel(id)
@@ -180,7 +180,7 @@ func (clst *gceCluster) stop(ids []string) error {
 }
 
 // Disconnect
-func (clst *gceCluster) disconnect() {
+func (clst *gceCluster) Disconnect() {
 	panic("disconnect(): unimplemented! Check the comments on what this should actually do")
 	// should cancel the ACL watch
 	// should delete the instances
