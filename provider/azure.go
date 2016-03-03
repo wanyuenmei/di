@@ -38,7 +38,6 @@ type azureCluster struct {
 	cloudConfig    string
 	storageAccount string
 	location       string
-	vmSize         string
 	vmImage        string
 	username       string
 	userPassword   string // Required password is a randomly generated UUID.
@@ -64,7 +63,6 @@ func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string, k
 	clst.cloudConfig = cloudConfigUbuntu(keys, "ubuntu", "wily")
 	clst.storageAccount = storageAccount
 	clst.location = clusterLocation
-	clst.vmSize = vmSize
 	clst.vmImage = vmImage
 	clst.username = username
 	clst.userPassword = uuid.NewV4().String() // Randomly generate pwd
@@ -106,12 +104,14 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 		roleInstance := deploymentResponse.RoleInstanceList[0]
 		privateIP := roleInstance.IPAddress
 		publicIP := roleInstance.InstanceEndpoints[0].Vip
+		size := roleInstance.RoleName
 
 		mList = append(mList, Machine{
 			ID:        id,
 			PublicIP:  publicIP,
 			PrivateIP: privateIP,
 			Provider:  db.Azure,
+			Size:      size,
 		})
 	}
 
@@ -120,14 +120,13 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 
 // Boot Azure instances (blocking by calling instanceNew).
 func (clst *azureCluster) Boot(bootSet []Machine) error {
-	count := len(bootSet)
-	if count < 0 {
+	if len(bootSet) < 0 {
 		panic("boot count cannot be negative")
 	}
 
-	for i := 0; i < count; i++ {
+	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		if err := clst.instanceNew(name, clst.cloudConfig); err != nil {
+		if err := clst.instanceNew(name, m.Size, clst.cloudConfig); err != nil {
 			return err
 		}
 	}
@@ -155,7 +154,7 @@ func (clst *azureCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice fl
 }
 
 // Create one Azure instance (blocking).
-func (clst *azureCluster) instanceNew(name string, cloudConfig string) error {
+func (clst *azureCluster) instanceNew(name string, vmSize string, cloudConfig string) error {
 	// create hostedservice
 	err := clst.hsClient.CreateHostedService(
 		hostedservice.CreateHostedServiceParameters{
@@ -168,7 +167,7 @@ func (clst *azureCluster) instanceNew(name string, cloudConfig string) error {
 		return err
 	}
 
-	role := vmutils.NewVMConfiguration(name, clst.vmSize)
+	role := vmutils.NewVMConfiguration(name, vmSize)
 	mediaLink := fmt.Sprintf(
 		"http://%s.blob.core.windows.net/vhds/%s.vhd",
 		clst.storageAccount,
