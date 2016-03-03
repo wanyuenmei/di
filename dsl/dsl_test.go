@@ -376,7 +376,6 @@ func TestParseErrors(t *testing.T) {
 
 	bindErr := "error parsing bindings"
 	parseErr(t, "()", "bad element: []")
-	parseErr(t, "4.3", "bad element: 4.3")
 	parseErr(t, "(let)", "not enough arguments: [let]")
 	parseErr(t, "(let 3 a)", bindErr)
 	parseErr(t, "(let (a) a)", bindErr)
@@ -386,7 +385,6 @@ func TestParseErrors(t *testing.T) {
 	parseErr(t, "(let ((a 3)) (+))", args)
 
 	parseErr(t, "(define a (+))", args)
-	parseErr(t, "(define a 5.3)", "bad element: 5.3")
 
 	parseErr(t, "(badFun)", "unknown function: badFun")
 }
@@ -425,6 +423,7 @@ func TestQuery(t *testing.T) {
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
 		(define d (list "1" 2 "3"))
+		(define e 1.5)
 		(label "sshkeys" (list (plaintextKey "key") (githubKey "github")))
 		(docker b)
 		(docker b)`))
@@ -443,6 +442,10 @@ func TestQuery(t *testing.T) {
 
 	if val := dsl.QueryInt("b"); val != 0 {
 		t.Error(val, "!=", 3)
+	}
+
+	if val, _ := dsl.QueryFloat("e"); val != 1.5 {
+		t.Error(val, "!=", 1.5)
 	}
 
 	if val := dsl.QueryString("b"); val != "This is b" {

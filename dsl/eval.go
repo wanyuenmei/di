@@ -128,6 +128,10 @@ func (str astString) eval(ctx *evalCtx) (ast, error) {
 	return str, nil
 }
 
+func (x astFloat) eval(ctx *evalCtx) (ast, error) {
+	return x, nil
+}
+
 func (x astInt) eval(ctx *evalCtx) (ast, error) {
 	return x, nil
 }

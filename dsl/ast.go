@@ -47,6 +47,7 @@ type astIdent string /* Identities, i.e. key words, variable names etc. */
 
 /* Atoms. */
 type astString string
+type astFloat float64
 type astInt int
 
 type astGithubKey astString
@@ -79,6 +80,10 @@ func (ident astIdent) String() string {
 func (str astString) String() string {
 	/* Must cast str to string otherwise fmt recurses infinitely. */
 	return fmt.Sprintf("\"%s\"", string(str))
+}
+
+func (x astFloat) String() string {
+	return fmt.Sprintf("%g", x)
 }
 
 func (x astInt) String() string {

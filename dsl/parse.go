@@ -46,7 +46,9 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 		switch s.Scan() {
 		case '+', '-', '/', '%', '*', scanner.Ident:
 			slice = append(slice, astIdent(s.TokenText()))
-
+		case scanner.Float:
+			x, _ := strconv.ParseFloat(s.TokenText(), 64)
+			slice = append(slice, astFloat(x))
 		case scanner.Int:
 			x, _ := strconv.Atoi(s.TokenText())
 			slice = append(slice, astInt(x))
@@ -83,6 +85,8 @@ func parseInterface(p1 interface{}) (ast, error) {
 	switch elem := p1.(type) {
 	case []interface{}:
 		list = elem
+	case astFloat:
+		return elem, nil
 	case astInt:
 		return elem, nil
 	case astIdent:

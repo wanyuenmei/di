@@ -29,6 +29,7 @@ var funcImplMap = map[astIdent]funcImpl{
 	"plaintextKey": {plaintextKeyImpl, 1},
 }
 
+// XXX: support float operators?
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
 		args, err := evalArgs(ctx, argsAst)

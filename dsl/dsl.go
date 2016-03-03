@@ -1,6 +1,7 @@
 package dsl
 
 import (
+	"fmt"
 	"io"
 
 	log "github.com/Sirupsen/logrus"
@@ -99,6 +100,21 @@ func (dsl Dsl) QueryConnections() []Connection {
 		connections = append(connections, c)
 	}
 	return connections
+}
+
+// QueryFloat returns a float value defined in the dsl.
+func (dsl Dsl) QueryFloat(key string) (float64, error) {
+	result, ok := dsl.ctx.defines[astIdent(key)]
+	if !ok {
+		return 0, fmt.Errorf("%s undefined", key)
+	}
+
+	val, ok := result.(astFloat)
+	if !ok {
+		return 0, fmt.Errorf("%s: Requested float, found %s", key, val)
+	}
+
+	return float64(val), nil
 }
 
 // QueryInt returns an integer value defined in the dsl.
