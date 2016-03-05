@@ -2,12 +2,14 @@ package provider
 
 import "github.com/NetSys/di/db"
 
+// Machine represents an instance of a machine booted by a Provider.
 type Machine struct {
 	ID        string
 	PublicIP  string
 	PrivateIP string
 }
 
+// Provider defines an interface for interacting with cloud providers.
 type Provider interface {
 	Start(conn db.Conn, id int, namespace string, keys []string) error
 
