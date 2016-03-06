@@ -184,6 +184,11 @@ di_verbose "$(go get -v github.com/NetSys/di/... 2>&1)"
 # Build the di controller
 di_verbose "$(go install -v github.com/NetSys/di 2>&1)"
 
+di_info "Getting the most updated tests.."
+pushd $TESTER_ROOT > /dev/null
+di_verbose "$(git pull -f origin master)"
+popd > /dev/null
+
 di_info "Booting di.."
 SPEC="$GOPATH/config.spec"
 cp "$TESTER_ROOT/config/config.spec" "$SPEC" > /dev/null
@@ -209,11 +214,6 @@ done
 sleep $BOOT_SLEEP
 
 di_info "Starting tests.."
-
-di_info "Getting the most updated tests.."
-pushd $TESTER_ROOT > /dev/null
-di_verbose "$(git pull -f origin master)"
-popd > /dev/null
 
 num_failed=0
 num_passed=0
