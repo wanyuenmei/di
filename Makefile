@@ -1,19 +1,19 @@
-export GO15VENDOREXPERIMENT=1
+PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 
 all: format
 	# A Go build bug causes it to behave badly with symlinks.
-	cd -P . && go build . && go build -o ./minion/minion ./minion
+	cd -P . && \
+	GO15VENDOREXPERIMENT=1 go build . && \
+	GO15VENDOREXPERIMENT=1 go build -o ./minion/minion ./minion
 
 install:
-	cd -P . && go install .
+	cd -P . && GO15VENDOREXPERIMENT=1 go install .
 
 deps:
-	cd -P . && glide up --update-vendored
+	cd -P . && GO15VENDOREXPERIMENT=1 glide up --update-vendored
 
 generate:
-	for package in `go list ./... | grep -v vendor`; do \
-		go generate $$package ; \
-	done
+	GO15VENDOREXPERIMENT=1 go generate $(PACKAGES)
 
 format:
 	gofmt -w -s .
@@ -24,28 +24,23 @@ docker: build-linux
 	cd -P di-tester && docker build -t quay.io/netsys/di-tester .
 
 build-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO15VENDOREXPERIMENT=1 go build .
+	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO15VENDOREXPERIMENT=1 go build .
 
 check:
-	for package in `go list ./... | grep -v vendor`; do \
-		go test $$package ; \
-	done
+	GO15VENDOREXPERIMENT=1 go test $(PACKAGES)
 
 lint:
-	cd -P .
-	for package in `go list ./... | grep -v vendor`; do \
-		go vet $$package ; \
-	done
-	for package in `go list ./... | grep -v minion/pb | grep -v vendor`; do \
+	cd -P . && GO15VENDOREXPERIMENT=1 go vet $(PACKAGES)
+	for package in `GO15VENDOREXPERIMENT=1 go list ./... | grep -v minion/pb | grep -v vendor`; do \
 		golint -min_confidence .25 $$package ; \
 	done
 
 coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov
 
 %.cov:
-	go test -coverprofile=$@.out ./$*
-	go tool cover -html=$@.out -o $@.html
+	GO15VENDOREXPERIMENT=1 go test -coverprofile=$@.out ./$*
+	GO15VENDOREXPERIMENT=1 go tool cover -html=$@.out -o $@.html
 	rm $@.out
 
 # Include all .mk files so you can have your own local configurations
