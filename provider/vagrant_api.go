@@ -20,7 +20,7 @@ func newVagrantAPI() vagrantAPI {
 	return vagrant
 }
 
-func (api vagrantAPI) Init(cloudConfig string, id string) error {
+func (api vagrantAPI) Init(cloudConfig string, size string, id string) error {
 	_, err := os.Stat(api.VagrantDir())
 	if os.IsNotExist(err) {
 		os.Mkdir(api.VagrantDir(), os.ModeDir|os.ModePerm)
@@ -159,14 +159,31 @@ func (api vagrantAPI) VagrantDir() string {
 	return vagrantDir
 }
 
+func (api vagrantAPI) Size(id string) string {
+	size, err := api.Shell(id, "cat size")
+	if err != nil {
+		return ""
+	}
+	return string(size)
+}
+
 func vagrantFile() string {
 	vagrantfile := `CLOUD_CONFIG_PATH = File.join(File.dirname(__FILE__), "user-data")
+SIZE_PATH = File.join(File.dirname(__FILE__), "size")
 Vagrant.require_version ">= 1.6.0"
 
+size = File.open(SIZE_PATH).read.strip.split(",")
 Vagrant.configure(2) do |config|
   config.vm.box = "boxcutter/ubuntu1504"
 
   config.vm.network "private_network", type: "dhcp"
+
+  ram=(size[0].to_f*1024).to_i
+  cpus=size[1]
+  config.vm.provider "virtualbox" do |v|
+    v.memory = ram
+    v.cpus = cpus
+  end
 
   if File.exist?(CLOUD_CONFIG_PATH)
     config.vm.provision "shell", path: "#{CLOUD_CONFIG_PATH}"
@@ -174,4 +191,10 @@ Vagrant.configure(2) do |config|
 end
 `
 	return vagrantfile
+}
+
+// VagrantCreateSize creates an encoded string representing the amount of RAM
+// and number of CPUs for an instance.
+func (api vagrantAPI) CreateSize(ram, cpu float64) string {
+	return fmt.Sprintf("%g,%g", ram, cpu)
 }

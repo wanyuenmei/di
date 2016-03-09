@@ -28,13 +28,12 @@ func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string,
 }
 
 func (clst vagrantCluster) Boot(bootSet []Machine) error {
-	count := len(bootSet)
 	vagrant := clst.vagrant
 	var wg sync.WaitGroup
-	wg.Add(count)
-	for booted := 0; booted < count; booted++ {
+	wg.Add(len(bootSet))
+	for _, m := range bootSet {
 		id := uuid.NewV4().String()
-		err := vagrant.Init(clst.cloudConfig, id)
+		err := vagrant.Init(clst.cloudConfig, m.Size, id)
 		if err != nil {
 			vagrant.Destroy(id)
 			return err
@@ -72,6 +71,7 @@ func (clst vagrantCluster) Get() ([]Machine, error) {
 			PublicIP:  ip,
 			PrivateIP: ip,
 			Provider:  db.Vagrant,
+			Size:      vagrant.Size(instanceID),
 		}
 		machines = append(machines, instance)
 	}
@@ -97,5 +97,5 @@ func (clst vagrantCluster) Disconnect() {
 }
 
 func (clst vagrantCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
-	return ""
+	return clst.vagrant.CreateSize(ram.Min, cpu.Min)
 }

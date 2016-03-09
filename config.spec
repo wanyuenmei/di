@@ -6,7 +6,7 @@
 (label "masters" (makeList MasterCount (machine)))
 (label "workers" (makeList WorkerCount (machine)))
 (label "allmachines" "masters" "workers")
-(machineAttribute "allmachines" (provider Provider))
+(machineAttribute "allmachines" (provider Provider) (ram 1) (cpu 1))
 
 (define AdminACL (list "local"))
 (label "sshkeys" (list
