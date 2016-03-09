@@ -30,7 +30,7 @@ func (api vagrantAPI) Init(cloudConfig string, id string) error {
 	path := api.VagrantDir() + id
 	os.Mkdir(path, os.ModeDir|os.ModePerm)
 
-	_, err = api.Shell(id, `vagrant --machine-readable init coreos-beta)`)
+	_, err = api.Shell(id, `vagrant --machine-readable init coreos-beta`)
 	if err != nil {
 		api.Destroy(id)
 		return err
@@ -49,11 +49,17 @@ func (api vagrantAPI) Init(cloudConfig string, id string) error {
 		return err
 	}
 
+	err = ioutil.WriteFile(path+"/size", []byte(size), 0644)
+	if err != nil {
+		api.Destroy(id)
+		return err
+	}
+
 	return nil
 }
 
 func (api vagrantAPI) Up(id string) error {
-	_, err := api.Shell(id, `vagrant --machine-readable up)`)
+	_, err := api.Shell(id, `vagrant --machine-readable up`)
 	if err != nil {
 		return err
 	}
@@ -61,7 +67,7 @@ func (api vagrantAPI) Up(id string) error {
 }
 
 func (api vagrantAPI) Destroy(id string) error {
-	_, err := api.Shell(id, `vagrant --machine-readable destroy -f; cd ../; rm -rf %s)`)
+	_, err := api.Shell(id, `vagrant --machine-readable destroy -f; cd ../; rm -rf %s`)
 	if err != nil {
 		return err
 	}
@@ -69,7 +75,7 @@ func (api vagrantAPI) Destroy(id string) error {
 }
 
 func (api vagrantAPI) PublicIP(id string) (string, error) {
-	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'")`)
+	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'"`)
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +83,7 @@ func (api vagrantAPI) PublicIP(id string) (string, error) {
 }
 
 func (api vagrantAPI) Status(id string) (string, error) {
-	output, err := api.Shell(id, `vagrant --machine-readable status)`)
+	output, err := api.Shell(id, `vagrant --machine-readable status`)
 	if err != nil {
 		return "", err
 	}
@@ -144,7 +150,7 @@ func (api vagrantAPI) ContainsBox(name string) (bool, error) {
 func (api vagrantAPI) Shell(id string, commands string) ([]byte, error) {
 	chdir := `(cd %s; `
 	chdir = fmt.Sprintf(chdir, api.VagrantDir()+id)
-	shellCommand := chdir + strings.Replace(commands, "%s", id, -1)
+	shellCommand := chdir + strings.Replace(commands, "%s", id, -1) + ")"
 	output, err := exec.Command(shCmd, []string{"-c", shellCommand}...).Output()
 	return output, err
 }
