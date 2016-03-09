@@ -24,7 +24,13 @@ initialize_ovs() {
 }
 
 initialize_docker() {
-	PRIVATE_IPv4="$(curl http://instance-data/latest/meta-data/local-ipv4)"
+	# If getting the AWS internal IP works, then use that; otherwise, manually
+	# parse it ourselves.
+	PRIVATE_IPv4="$(curl -s --connect-timeout 5 http://instance-data/latest/meta-data/local-ipv4)"
+	if [ $? -ne 0 ] ; then
+		PRIVATE_IPv4="$(ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n')"
+	fi
+
 	mkdir -p /etc/systemd/system/docker.service.d
 
 	cat <<- EOF > /etc/systemd/system/docker.service.d/override.conf
