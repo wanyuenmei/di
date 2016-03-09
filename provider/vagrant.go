@@ -22,7 +22,7 @@ func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string,
 		return err
 	}
 	clst.namespace = namespace
-	clst.cloudConfig = cloudConfigUbuntu(append(keys, vagrantPublicKey), "vagrant", "vivid")
+	clst.cloudConfig = cloudConfigUbuntu(keys, "vivid")
 	clst.vagrant = vagrant
 	return nil
 }

@@ -52,7 +52,7 @@ function di_set() {
 function di_ssh() {
     host="$1"
     cmd="$2"
-    output=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ubuntu@$host "$cmd" 2>&1)
+    output=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no di@$host "$cmd" 2>&1)
     res=$?
     # We can't grep and return in the same line because the grep will pollute the exit code
     echo "$output" | grep -v 'Warning: Permanently added'
@@ -63,7 +63,7 @@ function di_scp() {
     host="$1"
     src="$2"
     tgt="$3"
-    scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "$src" "ubuntu@$host:$tgt" &> /dev/null
+    scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "$src" "di@$host:$tgt" &> /dev/null
 }
 
 function run_test() {

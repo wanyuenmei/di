@@ -1,12 +1,15 @@
 package provider
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	minionImage = "quay.io/netsys/di-minion:latest"
 )
 
-func cloudConfigUbuntu(keys []string, user string, ubuntuVersion string) string {
+func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {
 	cloudConfig := `#!/bin/bash
 
 initialize_ovs() {
@@ -79,16 +82,35 @@ install_docker() {
 	systemctl stop docker.service
 }
 
+setup_user() {
+	user=$1
+	ssh_keys=$2
+	sudo groupadd $user
+	sudo useradd $user -s /bin/bash -g $user
+	sudo usermod -aG sudo $user
+	# Allow the user to use docker without sudo
+	sudo usermod -aG docker $user
+
+	user_dir=/home/$user
+
+	# Create dirs and files with correct users and permissions
+	install -d -o $user -m 700 $user_dir/.ssh
+	install -o $user -m 600 /dev/null $user_dir/.ssh/authorized_keys
+	printf "$ssh_keys" >> $user_dir/.ssh/authorized_keys
+}
+
 echo -n "Start Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
 
-USER_DIR=/home/%[2]s
 export DEBIAN_FRONTEND=noninteractive
 
 install_docker
 initialize_ovs
 initialize_docker
 initialize_minion
+
+ssh_keys="%[2]s"
+setup_user di "$ssh_keys"
 
 # Reload because we replaced the docker.service provided by the package
 systemctl daemon-reload
@@ -99,23 +121,10 @@ systemctl enable {ovs,docker,minion}.service
 # Start our services
 systemctl restart {ovs,docker,minion}.service
 
-# Create dirs and files with correct users and permissions
-install -d -o %[2]s -m 700 $USER_DIR/.ssh
-install -o %[2]s -m 600 /dev/null $USER_DIR/.ssh/authorized_keys
-
-# allow the user to use docker without sudo
-usermod -aG docker %[2]s
-
 echo -n "Completed Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
     `
-	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, user, ubuntuVersion)
-
-	if len(keys) > 0 {
-		for _, key := range keys {
-			cloudConfig += fmt.Sprintf("echo %s >> $USER_DIR/.ssh/authorized_keys \n", key)
-		}
-	}
+	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, strings.Join(keys, "\n"), ubuntuVersion)
 
 	return cloudConfig
 }
