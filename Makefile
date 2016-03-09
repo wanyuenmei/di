@@ -18,12 +18,14 @@ generate:
 format:
 	gofmt -w -s .
 
-docker:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . && \
-	docker build -t quay.io/netsys/di . \
-	&& cd -P minion && \
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . && \
-	docker build -t quay.io/netsys/di-minion .
+docker: build-linux
+	docker build -t quay.io/netsys/di .
+	cd -P minion && docker build -t quay.io/netsys/di-minion .
+	cd -P di-tester && docker build -t quay.io/netsys/di-tester .
+
+build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
+	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
 
 check:
 	for package in `go list ./... | grep -v vendor`; do \

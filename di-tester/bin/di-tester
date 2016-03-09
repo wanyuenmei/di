@@ -35,7 +35,6 @@ ln -s $WEB_OUT $WEB_ROOT/latest
 LOG_DIR="$WEB_OUT/log"
 LOG_FILE="$LOG_DIR/di-tester.log"
 RUN_OUT="$LOG_DIR/run_out.log"
-GIT_LOG="$LOG_DIR/git.log"
 
 function di_namespace() {
   sed -i 's/(define Namespace .*/(define Namespace "'"$2"'")/' $1
@@ -114,6 +113,7 @@ function slack() {
 
 function di_verbose() {
     echo "$1" >> $LOG_FILE
+    echo "$1"
 }
 
 function di_info() {
@@ -133,7 +133,6 @@ function kill_aws() {
 
 function cleanup() {
     pkill -P $$
-    rm -rf $GOPATH
     kill_aws
 }
 
@@ -150,48 +149,10 @@ function abort() {
     exit 1
 }
 
-export GOPATH="$(mktemp -d -t di-tester.XXXXXXXXXX)"
 trap "cleanup" INT
 
-BRANCH="master"
-if [ -n "$1" ] ; then
-    BRANCH="$1"
-fi
-
-
-di_info "Cloning the di repo.."
-di_info "Going to test $REPO on branch $BRANCH"
-di_verbose "$(git clone $REPO $GOPATH/src/github.com/NetSys/di 2>&1)"
-pushd $GOPATH/src/github.com/NetSys/di > /dev/null
-di_verbose "$(git checkout $BRANCH 2>&1)"
-
-# Log exactly what we're testing
-cat <<EOF > $GIT_LOG
----git remote show origin---
-
-$(git remote show origin)
-
----git log---
-
-$(git log --pretty=format:"%h - %an, %ar : %s" | head -n 10)
-EOF
-
-popd > /dev/null
-
-di_info "Building the code.."
-# Install dependencies
-di_verbose "$(go get -v github.com/NetSys/di/... 2>&1)"
-# Build the di controller
-di_verbose "$(go install -v github.com/NetSys/di 2>&1)"
-
-di_info "Getting the most updated tests.."
-pushd $TESTER_ROOT > /dev/null
-di_verbose "$(git pull -f origin master)"
-popd > /dev/null
-
 di_info "Booting di.."
-SPEC="$GOPATH/config.spec"
-cp "$TESTER_ROOT/config/config.spec" "$SPEC" > /dev/null
+SPEC="/config/config.spec"
 
 di_namespace "$SPEC" "tester-$$-$(echo $MY_IP | tr '.' '_')"
 di_set "$SPEC" 2 3
@@ -200,7 +161,7 @@ di_verbose ""
 di_verbose "$(cat "$SPEC")"
 di_verbose ""
 di_verbose "---End boot spec---"
-$GOPATH/bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
+/bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
 
 # Wait until the minion connects before we start running our tests
 endtime=$((`date +%s` + (8 * 60)))

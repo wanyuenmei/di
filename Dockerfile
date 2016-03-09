@@ -1,5 +1,6 @@
 From alpine:3.3
 Maintainer Ethan J. Jackson
 
-Copy ./di /usr/bin/di
+RUN apk add --no-cache ca-certificates
+Copy ./di /bin/di
 Entrypoint ["di"]

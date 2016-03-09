@@ -7,11 +7,10 @@
 
 TEST_USER="di-tester"
 TESTER_HOME="/home/$TEST_USER"
-DI_TEST_PATH="$TESTER_HOME/di/di-tester"
 
 function setup_conf() {
     SLACK_GUESS="#di-testing"
-    REPO_GUESS="NetSys/di"
+    CONTAINER_GUESS="quay.io/netsys/di-tester"
 
     # Assume we're on aws, and fallback to vagrant if query times out
     IP_GUESS="$(curl --connect-timeout 10 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)"
@@ -25,8 +24,8 @@ function setup_conf() {
     echo -n "Enter the slack channel to post to: [$SLACK_GUESS] "
     read slack_channel
 
-    echo -n "Enter the di repo to test: [$REPO_GUESS] "
-    read repo
+    echo -n "Enter the di container to test: [$CONTAINER_GUESS] "
+    read container
 
     if [ -z $ip ] ; then
         ip=$IP_GUESS
@@ -36,15 +35,9 @@ function setup_conf() {
         slack_channel=$SLACK_GUESS
     fi
 
-    if [ -z $repo ] ; then
-        repo=$REPO_GUESS
+    if [ -z $container ] ; then
+        container=$CONTAINER_GUESS
     fi
-
-    sudo cat <<EOF > "$TESTER_HOME/.di-tester.conf"
-MY_IP="$ip"
-SLACK_CHANNEL="$slack_channel"
-REPO="git@github.com:$repo"
-EOF
 
     #XXX: Allow the user to review settings, and reconfigure if they want to
 }
@@ -62,97 +55,67 @@ sudo useradd $TEST_USER -g $TEST_USER
 sudo usermod -aG www-data $TEST_USER
 sudo install -d $TESTER_HOME -g $TEST_USER -o $TEST_USER -m 755
 
-echo "Installing git.."
-sudo apt-get update > /dev/null && sudo apt-get install -y git > /dev/null
-
-echo
 echo "=== Begin user input section ==="
-setup_conf && sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/.di-tester.conf
+setup_conf
 
 echo "Setting up cron jobs.."
-my_crontab="0 * * * *	$DI_TEST_PATH/bin/di-tester"
-
-read -p "Do you want to install the aws credentials cron? [y/N] " yn
-case $yn in
-    # XXX: fix me
-    [Yy]* ) my_crontab="$my_crontab\n0 1 * * *	  $DI_TEST_PATH/bin/update-aws-creds"
-esac
-echo "$my_crontab" | sudo -u $TEST_USER crontab
-
-echo "Cloning the di-tester framework.."
-sudo git clone https://github.com/NetSys/di $TESTER_HOME/di &> /dev/null && sudo chown -R $TEST_USER:www-data $TESTER_HOME/di
-pushd $TESTER_HOME/di > /dev/null
-sudo -u $TEST_USER git remote rm origin
-sudo -u $TEST_USER git remote add origin git@github.com:NetSys/di
-popd > /dev/null
+my_crontab="0 * * * *	wget http://127.0.0.1/cgi-bin/trigger_run"
 
 echo "=== End user input section. You can leave now :) ==="
 echo
 
 echo "Installing dependencies.. (This takes a couple minutes)"
-sudo apt-get install -y apache2 awscli > /dev/null
-
-# We have to install go1.5 this way on older versions of Ubuntu
-wget https://storage.googleapis.com/golang/go1.5.linux-amd64.tar.gz &> /dev/null
-sudo tar -C /usr/local -xzf go1.5.linux-amd64.tar.gz
-mv /usr/local/go/bin/* /usr/bin
-
-
-echo "Installing ssh keys.."
-sudo install -d $TESTER_HOME/.ssh -g $TEST_USER -o $TEST_USER -m 700
-sudo install $DI_TEST_PATH/config/id_rsa $TESTER_HOME/.ssh/id_rsa -g $TEST_USER -o $TEST_USER -m 600
-sudo ssh-keyscan -H github.com 2>/dev/null >> $TESTER_HOME/.ssh/known_hosts && sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/.ssh/known_hosts
-
+sudo apt-get install -y apache2 docker.io > /dev/null
+sudo usermod -aG docker $TEST_USER
 
 echo "Configuring apache.."
 sudo install -d /var/www/di-tester -g www-data -o $TEST_USER -m 775
 
-# Setup web hooks
-sudo cat << EOF > /usr/lib/cgi-bin/update_tests
-#!/bin/bash
-
-echo "Content-type: text/plain"
-echo ""
-cd $DI_TEST_PATH && git fetch --all &> /dev/null && git reset --hard origin/master &> /dev/null
-echo ""
-echo "Updated tests."
-EOF
-
 sudo cat << EOF > /usr/lib/cgi-bin/trigger_run
 #!/bin/bash
-
 echo "Content-type: text/plain"
 echo ""
 
-IFS='&'
-set -- \$QUERY_STRING
+docker pull $container
+docker run -d -v $TESTER_HOME:/root -v /var/www:/var/www -e MY_IP=$ip \
+-e SLACK_CHANNEL="$slack_channel" --name=tester --net=host $container
 
-array=(\$@)
-
-declare -A hash
-for i in "\${array[@]}"; do IFS="=" ; set -- \$i; hash[\$1]=\$2; done
-
-branch="\${hash["branch"]}"
-
-source $TESTER_HOME/.di-tester.conf
-HOME="/home/di-tester" nohup $DI_TEST_PATH/bin/di-tester \$branch &> /dev/null &
-echo "Started new test run for \$REPO on branch \$branch."
-echo "Logs at: http://\$MY_IP/latest/log"
+echo "Logs at: http://$ip/latest/log"
 exit 0
 EOF
 
 chmod +x /usr/lib/cgi-bin/*
 sudo a2enmod cgi &> /dev/null
 
-sudo cp $DI_TEST_PATH/config/apache/000-default.conf /etc/apache2/sites-enabled
-# Run apache as the di-tester user
-sudo cp $DI_TEST_PATH/config/apache/envvars /etc/apache2/envvars
+sudo cat << EOF > /etc/apache2/sites-enabled/000-default.conf
+<VirtualHost *:80>
+	ServerAdmin webmaster@localhost
+	DocumentRoot /var/www/di-tester
+	ErrorLog \${APACHE_LOG_DIR}/error.log
+	CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+EOF
+
+sudo cat << EOF > /etc/apache2/envvars
+unset HOME
+
+if [ "\${APACHE_CONFDIR##/etc/apache2-}" != "\${APACHE_CONFDIR}" ] ; then
+	SUFFIX="-\${APACHE_CONFDIR##/etc/apache2-}"
+else
+	SUFFIX=
+fi
+
+export APACHE_RUN_USER=di-tester
+export APACHE_RUN_GROUP=www-data
+export APACHE_PID_FILE=/var/run/apache2/apache2\$SUFFIX.pid
+export APACHE_RUN_DIR=/var/run/apache2\$SUFFIX
+export APACHE_LOCK_DIR=/var/lock/apache2\$SUFFIX
+export APACHE_LOG_DIR=/var/log/apache2\$SUFFIX
+export LANG=C
+export LANG
+EOF
+
 sudo service apache2 restart &> /dev/null
-
-
-# Symlink the tester to the homedir for convenience
-sudo ln -s $DI_TEST_PATH/bin/di-tester $TESTER_HOME &> /dev/null
-sudo chown $TEST_USER:$TEST_USER $TESTER_HOME/di-tester
 
 # Try to setup aws keys
 echo "Trying to copy your aws credentials.."
@@ -163,6 +126,5 @@ if [ $? -ne 0 ] ; then
 else
     echo -e "\e[32mSuccessfully copied aws credentials.\e[0m"
 fi
-
 
 echo "Done."

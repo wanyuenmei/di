@@ -44,16 +44,6 @@ so other than answering the initial questions, you shouldn't have to setup anyth
 You can trigger a new test run by sending a GET or POST request to `http://$IP/cgi-bin/trigger_run`,
 or manually SSHing in and running the `di-tester` script.
 
-You can update the tests to run by sending a GET or POST to `http://$IP/cgi-bin/update_tests`.
-
-## Hooks
-There's a pre-push hook at [pre-push](config/hooks/pre-push). Once you fill in the IP, it triggers a
-testing run for your current branch.
-
-To install it, simply copy the file into `.git/hooks/pre-push`
-
-If you want to make a push without triggering the hook, you can do `git push --no-verify`
-
 ## Adding tests
 To add a test, simply place it in the [tests](tests) directory. Exit with a
 non-zero value if the test failed. Any output to stdout will be saved and
@@ -64,7 +54,6 @@ When things break, you can take a look at the `di-tester` log. Each run saves lo
 `/var/www/di-tester/$RUN/logs`.
 
 A quick way to watch the logs is `tail -f "$(\ls -1dt /var/www/di-tester/*/ | head -n 1)/logs/run_out.log"`
-
 
 ## Security
 `~/.ssh` must contain a private key associated with a GitHub account for the
