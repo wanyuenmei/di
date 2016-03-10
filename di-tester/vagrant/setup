@@ -60,6 +60,7 @@ setup_conf
 
 echo "Setting up cron jobs.."
 my_crontab="0 * * * *	wget http://127.0.0.1/cgi-bin/trigger_run"
+echo "$my_crontab" | sudo -u $TEST_USER crontab
 
 echo "=== End user input section. You can leave now :) ==="
 echo
