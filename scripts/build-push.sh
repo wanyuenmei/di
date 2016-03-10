@@ -42,3 +42,6 @@ status_line "Successfully pushed di."
 
 docker push quay.io/netsys/di-minion
 status_line "Successfully pushed minion."
+
+docker push quay.io/netsys/di-tester
+status_line "Successfully pushed tester."
