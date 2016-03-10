@@ -74,9 +74,13 @@ sudo install -d /var/www/di-tester -g www-data -o $TEST_USER -m 775
 
 sudo cat << EOF > /usr/lib/cgi-bin/trigger_run
 #!/bin/bash
+set -e
 echo "Content-type: text/plain"
 echo ""
 
+if docker inspect tester > /dev/null ; then
+        docker rm tester 2>&1
+fi
 docker pull $container
 docker run -d -v $TESTER_HOME/.aws:/root/.aws -v /var/www:/var/www -e \
 MY_IP=$ip -e SLACK_CHANNEL="$slack_channel" --name=tester --net=host $container
