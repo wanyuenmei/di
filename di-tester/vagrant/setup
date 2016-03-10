@@ -78,8 +78,8 @@ echo "Content-type: text/plain"
 echo ""
 
 docker pull $container
-docker run -d -v $TESTER_HOME:/root -v /var/www:/var/www -e MY_IP=$ip \
--e SLACK_CHANNEL="$slack_channel" --name=tester --net=host $container
+docker run -d -v $TESTER_HOME/.aws:/root/.aws -v /var/www:/var/www -e \
+MY_IP=$ip -e SLACK_CHANNEL="$slack_channel" --name=tester --net=host $container
 
 echo "Logs at: http://$ip/latest/log"
 exit 0
