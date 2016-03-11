@@ -9,6 +9,7 @@ import (
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/ovsdb"
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -105,7 +106,7 @@ func runMaster(conn db.Conn) {
 		}
 
 		log.WithFields(log.Fields{
-			"name": dbc.SchedID,
+			"name": util.ShortUUID(dbc.SchedID),
 			"IP":   dbc.IP,
 		}).Info("New logical port.")
 		err := ovsdb.CreatePort("di", dbc.SchedID, dbc.Mac, dbc.IP)

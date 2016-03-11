@@ -3,6 +3,8 @@ package db
 import (
 	"fmt"
 	"strings"
+
+	"github.com/NetSys/di/util"
 )
 
 // A Container row is created for each container specified by the policy.  Each row will
@@ -61,7 +63,8 @@ func (c Container) String() string {
 	tags := []string{cmdStr}
 
 	if c.SchedID != "" {
-		tags = append(tags, fmt.Sprintf("SchedID: %s", c.SchedID))
+		id := util.ShortUUID(c.SchedID)
+		tags = append(tags, fmt.Sprintf("SchedID: %s", id))
 	}
 
 	if len(c.Labels) > 0 {

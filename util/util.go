@@ -55,3 +55,10 @@ func ToTar(name string, permissions int, content string) (io.Reader, error) {
 func MyIP() (string, error) {
 	return httpRequest("http://checkip.amazonaws.com/")
 }
+
+func ShortUUID(uuid string) string {
+	if len(uuid) < 12 {
+		return uuid
+	}
+	return uuid[:12]
+}
