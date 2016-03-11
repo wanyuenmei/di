@@ -94,6 +94,7 @@ setup_user() {
 	user_dir=/home/$user
 
 	# Create dirs and files with correct users and permissions
+	install -d -o $user -m 744 $user_dir
 	install -d -o $user -m 700 $user_dir/.ssh
 	install -o $user -m 600 /dev/null $user_dir/.ssh/authorized_keys
 	printf "$ssh_keys" >> $user_dir/.ssh/authorized_keys
