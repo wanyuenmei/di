@@ -302,10 +302,7 @@ func syncLabels(store consensus.Store, dir directory, path string,
 	for id, children := range dir {
 		labels := idLabelMap[id]
 		if labels == nil {
-			// This means that there was a container in Dir that was missing
-			// from the DB.  This violates an invariant of the code and is
-			// therfore a bug.
-			panic("Not Reached")
+			labels = []string{}
 		}
 		sort.Sort(sort.StringSlice(labels))
 

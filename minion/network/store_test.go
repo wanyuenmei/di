@@ -120,11 +120,13 @@ func TestSyncLabels(t *testing.T) {
 	store := consensus.NewMock()
 	store.Mkdir("/test/a")
 	store.Mkdir("/test/b")
+	store.Mkdir("/test/c")
 	dir, _ := getDirectory(store, "/test")
 
 	containers := []db.Container{
 		{SchedID: "a", Labels: []string{"d", "c"}},
 		{SchedID: "b", Labels: []string{}},
+		{SchedID: "c", Labels: nil},
 	}
 
 	syncLabels(store, dir, "/test", containers)
@@ -137,6 +139,7 @@ func TestSyncLabels(t *testing.T) {
 	expDir := directory(map[string]map[string]string{
 		"a": {"Labels": `["c","d"]`},
 		"b": {"Labels": "[]"},
+		"c": {"Labels": "[]"},
 	})
 	if !eq(dir, expDir) {
 		t.Error(spew.Sprintf("syncLabels Found %s\nExpected %s", dir, expDir))
@@ -144,7 +147,6 @@ func TestSyncLabels(t *testing.T) {
 
 	containers = []db.Container{
 		{SchedID: "a", Labels: []string{"d", "c"}},
-		{SchedID: "b", Labels: []string{"f"}},
 	}
 
 	syncLabels(store, dir, "/test", containers)
@@ -156,7 +158,8 @@ func TestSyncLabels(t *testing.T) {
 
 	expDir = directory(map[string]map[string]string{
 		"a": {"Labels": `["c","d"]`},
-		"b": {"Labels": `["f"]`},
+		"b": {"Labels": `[]`},
+		"c": {"Labels": `[]`},
 	})
 	if !eq(dir, expDir) {
 		t.Error(spew.Sprintf("syncLabels Found %s\nExpected %s", dir, expDir))
