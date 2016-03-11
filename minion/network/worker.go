@@ -13,6 +13,7 @@ import (
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/NetSys/di/ovsdb"
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -396,32 +397,40 @@ func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Lab
 func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 	conns map[string][]string) string {
 
-	newHosts := make(map[string]struct{})
-	newHosts["127.0.0.1\tlocalhost"] = struct{}{}
+	type entry struct {
+		ip, host string
+	}
 
-	if dbc.IP != "" {
-		newHosts[fmt.Sprintf("%s\tlocalhost", dbc.IP)] = struct{}{}
+	localhosts := []entry{
+		{"127.0.0.1", "localhost"},
+		{"::1", "localhost ip6-localhost ip6-loopback"},
+		{"fe00::0", "ip6-localnet"},
+		{"ff00::0", "ip6-mcastprefix"},
+		{"ff02::1", "ip6-allnodes"},
+		{"ff02::2", "ip6-allrouters"},
+	}
+
+	if dbc.IP != "" && dbc.SchedID != "" {
+		entry := entry{dbc.IP, util.ShortUUID(dbc.SchedID)}
+		localhosts = append(localhosts, entry)
+	}
+
+	newHosts := make(map[entry]struct{})
+	for _, entry := range localhosts {
+		newHosts[entry] = struct{}{}
 	}
 
 	for _, l := range dbc.Labels {
 		for _, toLabel := range conns[l] {
-			ip := labelIP[toLabel]
-			if ip == "" {
-				continue
-			}
-
-			host := fmt.Sprintf("%s\t%s.di", ip, toLabel)
-			// If a container implements multiple labels that connect
-			// to the same label, only register the connection once.
-			if _, ok := newHosts[host]; !ok {
-				newHosts[host] = struct{}{}
+			if ip := labelIP[toLabel]; ip != "" {
+				newHosts[entry{ip, toLabel + ".di"}] = struct{}{}
 			}
 		}
 	}
 
 	var hosts []string
 	for h := range newHosts {
-		hosts = append(hosts, h)
+		hosts = append(hosts, fmt.Sprintf("%-15s %s", h.ip, h.host))
 	}
 
 	sort.Strings(hosts)

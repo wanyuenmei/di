@@ -10,50 +10,59 @@ import (
 func TestNoConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:     1,
-		IP:     "10.1.1.1",
-		Labels: []string{"green"},
+		ID:      1,
+		SchedID: "abcdefghijklmnopqrstuvwxyz",
+		IP:      "1.1.1.1",
+		Labels:  []string{"green"},
 	}
 
-	exp := fmt.Sprintf("10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
+	exp := "1.1.1.1         abcdefghijkl" + localhosts()
 
 	if exp != actual {
-		t.Error("Generated wrong basic /etc/hosts.")
+		t.Error(fmt.Sprintf("Generated wrong basic /etc/hosts."+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
 	}
 }
 
 func TestImplementsSingleLabel(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:     2,
-		IP:     "10.1.1.1",
-		Labels: []string{"red"},
+		ID:      2,
+		SchedID: "abcdefghijklmnopqrstuvwxyz",
+		IP:      "1.1.1.1",
+		Labels:  []string{"red"},
 	}
 
-	exp := fmt.Sprintf("10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
-		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
+	exp := `1.1.1.1         abcdefghijkl
+10.0.0.2        blue.di
+10.0.0.3        green.di` + localhosts()
 
 	if exp != actual {
-		t.Error("Generated wrong single label /etc/hosts.")
+		t.Error(fmt.Sprintf("Generated wrong single label /etc/hosts."+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
 	}
 }
 
 func TestImplementsMultipleLabels(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:     3,
-		IP:     "10.1.1.1",
-		Labels: []string{"red", "blue"},
+		ID:      3,
+		SchedID: "abcdefghijklmnopqrstuvwxyz",
+		IP:      "1.1.1.1",
+		Labels:  []string{"red", "blue"},
 	}
 
-	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
-		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
+	exp := `1.1.1.1         abcdefghijkl
+10.0.0.1        red.di
+10.0.0.2        blue.di
+10.0.0.3        green.di` + localhosts()
 
 	if exp != actual {
-		t.Error("Generated wrong multi-label /etc/hosts")
+		t.Error(fmt.Sprintf("Generated wrong multi-label /etc/hosts"+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
 	}
 }
 
@@ -61,19 +70,24 @@ func TestImplementsMultipleLabels(t *testing.T) {
 func TestDuplicateConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:     4,
-		IP:     "10.1.1.1",
-		Labels: []string{"red", "blue"},
+		ID:      4,
+		SchedID: "abcdefghijklmnopqrstuvwxyz",
+		IP:      "1.1.1.1",
+		Labels:  []string{"red", "blue"},
 	}
 
 	connections["blue"] = append(connections["blue"], "green")
 
-	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
-		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
+	exp := `1.1.1.1         abcdefghijkl
+10.0.0.1        red.di
+10.0.0.2        blue.di
+10.0.0.3        green.di` + localhosts()
 
 	if exp != actual {
-		t.Error("Generated wrong /etc/hosts for duplicate connections.")
+		t.Error(fmt.Sprintf(
+			"Generated wrong /etc/hosts for duplicate connections."+
+				"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
 	}
 }
 
@@ -91,4 +105,15 @@ func defaultLabelsConnections() (map[string]string, map[string][]string) {
 	}
 
 	return labels, connections
+}
+
+func localhosts() string {
+	return `
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+fe00::0         ip6-localnet
+ff00::0         ip6-mcastprefix
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+`
 }
