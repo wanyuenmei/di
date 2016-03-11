@@ -2,18 +2,20 @@ package network
 
 import (
 	"fmt"
-	"github.com/NetSys/di/db"
 	"testing"
+
+	"github.com/NetSys/di/db"
 )
 
 func TestNoConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
 		ID:     1,
+		IP:     "10.1.1.1",
 		Labels: []string{"green"},
 	}
 
-	exp := fmt.Sprintf("127.0.0.1\tlocalhost\n")
+	exp := fmt.Sprintf("10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
 
 	if exp != actual {
@@ -25,10 +27,12 @@ func TestImplementsSingleLabel(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
 		ID:     2,
+		IP:     "10.1.1.1",
 		Labels: []string{"red"},
 	}
 
-	exp := fmt.Sprintf("10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n127.0.0.1\tlocalhost\n")
+	exp := fmt.Sprintf("10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
+		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
 
 	if exp != actual {
@@ -40,10 +44,12 @@ func TestImplementsMultipleLabels(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
 		ID:     3,
+		IP:     "10.1.1.1",
 		Labels: []string{"red", "blue"},
 	}
 
-	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n127.0.0.1\tlocalhost\n")
+	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
+		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
 
 	if exp != actual {
@@ -56,12 +62,14 @@ func TestDuplicateConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
 		ID:     4,
+		IP:     "10.1.1.1",
 		Labels: []string{"red", "blue"},
 	}
 
 	connections["blue"] = append(connections["blue"], "green")
 
-	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n127.0.0.1\tlocalhost\n")
+	exp := fmt.Sprintf("10.0.0.1\tred.di\n10.0.0.2\tblue.di\n10.0.0.3\tgreen.di\n" +
+		"10.1.1.1\tlocalhost\n127.0.0.1\tlocalhost\n")
 	actual := generateEtcHosts(dbc, labels, connections)
 
 	if exp != actual {

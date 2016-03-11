@@ -399,6 +399,10 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 	newHosts := make(map[string]struct{})
 	newHosts["127.0.0.1\tlocalhost"] = struct{}{}
 
+	if dbc.IP != "" {
+		newHosts[fmt.Sprintf("%s\tlocalhost", dbc.IP)] = struct{}{}
+	}
+
 	for _, l := range dbc.Labels {
 		for _, toLabel := range conns[l] {
 			ip := labelIP[toLabel]
