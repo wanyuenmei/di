@@ -1,19 +1,19 @@
+export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 
-all: format
-	# A Go build bug causes it to behave badly with symlinks.
+all:
 	cd -P . && \
-	GO15VENDOREXPERIMENT=1 go build . && \
-	GO15VENDOREXPERIMENT=1 go build -o ./minion/minion ./minion
+	go build . && \
+	go build -o ./minion/minion ./minion
 
 install:
-	cd -P . && GO15VENDOREXPERIMENT=1 go install .
+	cd -P . && go install .
 
 deps:
-	cd -P . && GO15VENDOREXPERIMENT=1 glide up --update-vendored
+	cd -P . && glide up --update-vendored
 
 generate:
-	GO15VENDOREXPERIMENT=1 go generate $(PACKAGES)
+	go generate $(PACKAGES)
 
 format:
 	gofmt -w -s .
@@ -24,23 +24,23 @@ docker: build-linux
 	cd -P di-tester && docker build -t quay.io/netsys/di-tester .
 
 build-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO15VENDOREXPERIMENT=1 go build .
-	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO15VENDOREXPERIMENT=1 go build .
+	export CGO_ENABLED=0 GOOS=linux GOARCH=amd64 && \
+		    go build . && cd -P minion && go build .
 
 check:
-	GO15VENDOREXPERIMENT=1 go test $(PACKAGES)
+	go test $(PACKAGES)
 
-lint:
-	cd -P . && GO15VENDOREXPERIMENT=1 go vet $(PACKAGES)
-	for package in `GO15VENDOREXPERIMENT=1 go list ./... | grep -v minion/pb | grep -v vendor`; do \
+lint: format
+	cd -P . && go vet $(PACKAGES)
+	for package in `echo $(PACKAGES) | grep -v minion/pb`; do \
 		golint -min_confidence .25 $$package ; \
 	done
 
 coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov
 
 %.cov:
-	GO15VENDOREXPERIMENT=1 go test -coverprofile=$@.out ./$*
-	GO15VENDOREXPERIMENT=1 go tool cover -html=$@.out -o $@.html
+	go test -coverprofile=$@.out ./$*
+	go tool cover -html=$@.out -o $@.html
 	rm $@.out
 
 # Include all .mk files so you can have your own local configurations
