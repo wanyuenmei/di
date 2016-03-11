@@ -18,7 +18,7 @@ import (
 const spotPrice = "0.1"
 
 // Ubuntu 15.10, us-west-2, 64-bit hvm-ssd
-const ami = "ami-b7cc2ed7"
+const ami = "ami-acd63bcc"
 const instanceType = "m4.large"
 const awsRegion = "us-west-2"
 
