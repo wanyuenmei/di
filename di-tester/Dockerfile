@@ -7,5 +7,6 @@ Copy bin/* /bin/
 Copy config/config.spec /config/
 Copy tests /tests
 Copy config/id_rsa /root/.ssh/id_rsa
+RUN chmod 0600 /root/.ssh/id_rsa
 
 Entrypoint ["di-tester"]
