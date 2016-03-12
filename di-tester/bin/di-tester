@@ -18,7 +18,7 @@ if [ -z $WEB_ROOT ] ; then
     WEB_ROOT="/var/www/di-tester"
 fi
 if [ -z $BOOT_SLEEP ] ; then
-    BOOT_SLEEP="240" # XXX: tuning is necessary for this: it definitely needs to be higher
+    BOOT_SLEEP="500" # XXX: tuning is necessary for this: it definitely needs to be higher
 fi
 
 # Setup output directory
