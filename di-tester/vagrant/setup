@@ -66,6 +66,7 @@ echo "=== End user input section. You can leave now :) ==="
 echo
 
 echo "Installing dependencies.. (This takes a couple minutes)"
+sudo apt-get update
 sudo apt-get install -y apache2 docker.io > /dev/null
 sudo usermod -aG docker $TEST_USER
 
