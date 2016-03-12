@@ -1,82 +1,74 @@
 [![Build Status](https://travis-ci.com/NetSys/di.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/di)
 [![Docker Repository on Quay](https://quay.io/repository/netsys/di/status?token=9793d07b-1924-469c-b23e-ef1aa0f14e7d "Docker Repository on Quay")](https://quay.io/repository/netsys/di)
+# DI
 
-# Development Instructions.
+DI is a simple, declarative language to configure, boot and connect containers within your local infrastructure and across public clouds. DI enables you to create a complex distributed system of containers by working only with a simplified abstract view of your system and not worrying about the low-level implementation.
 
-The project is written in Go and therefore follows the standard Go
-workspaces project style.  The first step is to create a go workspace as
-suggested in the [documentation](https://golang.org/doc/code.html).
+If you have ever managed a distributed system, you know that as the system grows, it becomes increasingly difficult to build, configure, and maintain. For a distributed system to function well, it needs consistency among its individual components, as well as flexible and reliable composition to combine its individual components into a whole. Additionally, the system requires comprehensive configuration to control things like data flow, placement and access control.
 
-We currently require go version 1.3 or later.  Ubuntu 15.10 uses this version
-by default, so you should just be able to apt-get install golang to get
-started.
+Ensuring all of the above requirements is difficult, and in recognition of this fact, several companies and open source projects have made good contributions towards simpler system administration. However, even with these tools at hand, it still requires carefully executed API calls and detailed understanding of a system's underlying infrastructure to sucessfully build and maintain it.
 
-Since the repository is private, you can't use "go get" to checkout the source
-code, so you'll have to do so manually:
+With DI, you can leave these low-level details aside and instead focus on the high-level structure and configuration of your system. For instance, for a simple web deployment, we might want a database, some number of web servers connected to the public internet, and some batch processing servers connected to the web servers and the database. Even though this overall structure seems simple, the actual implementation quickly becomes complicated.
 
-    git clone git@github.com:NetSys/di.git $GOPATH/src/github.com/NetSys/di
+DI enables you to bypass these complications and build your distributed system from the top down, maintaining only an abstract view of your infrastructure and a set of explicit policies it follows. You never have to worry about firewall configurations, server placement or other implicit security enforcements; your high-level view and explicit policies make it easy to monitor and verify the state of your system. Regardless of whether your application is hosted on a single or multiple cloud providers, DI ensures that your system is correctly booted and that it always follows your configuration.
 
-Once this is done you can install the AWS API and various other dependencies
-automatically:
+## The DI Language
 
-    go get github.com/NetSys/di/...
+As described above, DI allows you to forget about low-level specifics and detailed API calls. With DI, you simply describe the desired state of your system, and DI then handles the rest. To describe your configuration, you will use two main building blocks: `atom`s and `label`s.
 
-And finally to build the project run:
+#### Atoms
+An `atom` is the smallest unit of the DI language. Each `atom` is either an administrative user, a public hostname or IP address, a container, or a virtual machine. Simply creating an atom in your DI config file is enough to boot and register the entity in your system. Similarly, if you want to shut down or unregister a component of your system, you just remove the corresponding atom in your config file.
 
-    go install github.com/NetSys/di
+By default, `atom`s in DI cannot communicate with each other due to an implicit "deny all" firewall. Communication between `atom`s must therefore be explicitly permitted by the `connect` keyword. This setup makes it easy to monitor and manage data access in your system.
 
-Or alternatively just "go install" if you're in the repo.
+#### Labels
+`label`s are logical groups of `atom`s and/or other `label`s. With `label`s you can create named logical units within your system that you can then connect and manage. For instance, after allowing connections from `label1` to `label2`, any container in `label1` can connect to `atom`s in `label2` by opening a socket to the hostname `label2.di`. If multiple atoms implement `label2`, DI will automatically load balance new connections across all available `atom`s.
 
-## Protobufs
-If you change any of the proto files, you'll need to regenerate the protobuf
-code.  This requres you to install the protobuf compiler found
-[here](https://developers.google.com/protocol-buffers/).  And alls
-proto-gen-go.
+## Building a simple system
 
-    go get -u github.com/golang/protobuf/{proto,protoc-gen-go}
+Before you start DI, you must specify the structure and requirements for your distributed system in the config file. This file is written in the declarative DI domain-specific language (`dsl`) that allows you to describe your system in an clear and abstract manner. You might for instance specify the cloud provider(s), the number of VMs, how many containers you want, what kind of containers, logical groups (`label`s), as well as connections between `label`s and/or the public internet.
 
-To generate the protobufs simply call:
+As an example, to boot 3 docker containers with the latest Ubuntu image and a postgres database, you put the following commands in your config file.
 
-        make generate
+<!-- BEGIN CODE -->
+    (label "containers" (makeList 3 (docker "ubuntu")))
+    (label "database" (docker "postgres"))
+<!-- END CODE -->
 
-## Dependencies
-We use [Glide](https://github.com/Masterminds/glide) as dependency vendoring tool.
-The dependencies for a project are listed in a `glide.yaml` file. This can include
-a version, VCS or repository location. Once Glide has downloaded and figured out
-versions to use in the dependency tree it creates a `glide.lock` file containing the
-complete dependency tree pinned to specific versions.
+After this you will have a simple network:
 
-	go get -u github.com/Masterminds/glide
+<img src="https://github.com/LuiseV/di/blob/didoc/doc-images/diSimple.png">
 
-To generate or update dependencies, simply call:
+We can easily expand our network to a basic deployment structure with the above database, a batch processing system and 5 Apache containers. As noted above, none of the containers can communicate by default, so we will furthermore open a few meaningful connections.
 
-	make deps
+<!-- BEGIN CODE -->
+    // Create 5 Apache containers, and label them "webTier"
+    (label "webTier" (makeList 5 (docker "httpd")))
 
-## Containers
-Some of the functionality that isn't captured in this repo is packaged into
-containers that can be found in the following repos:
+    // Create 2 Spark containers, and label them "batch"
+    (label "batch" (makeList 2 (docker "spark")))
 
-* [ovs-containers](https://github.com/NetSys/ovs-containers)
-* [kubelet](https://github.com/NetSys/di-kubelet)
+    // A deployment consists of a database, a webTier, and a batch processing
+    (label "deployment" (list "database" "webTier" "batch"))
 
-## Developing the Minion
-Whenever you develop code in `minion`, make sure you run your personal minion
-image, and not the default DI minion image.
-To do that, follow these steps:
+    // Allow the public internet to connect to the webTier over port 80
+    (connect 80 "publicWeb" "webTier")
 
-1. Create a new empty repository on your favorite registry -
-[docker hub](https://hub.docker.com/) or [quay.io](https://quay.io/) for
-example.
-2. Modify `minionImage` in [cloud_config.go](cluster/cloud_config.go) to point to your repo.
-3. Modify the repo [Makefile](Makefile) so it builds your image.
-4. Create the docker image: `make docker`
-   * Since Docker requires certain Linux features, you can't run Docker
-   natively on OS X or other non-Linux boxes. A simple workaround is Docker's
-   [Docker Quickstart Terminal](https://docs.docker.com/mac/step_one/) which
-   provides you with a simple way to set up an appropriate environment.
-5. Sign in to your image registry using `docker login`.
-6. Push your image: `docker push $YOUR_REPO`. You can consider adding this to
-your Makefile as well.
+    // Allow the webTier to connect to the database on port 1433
+    (connect 1433 "webTier" "database")
 
-After the above setup, you're good to go - just remember to build and push your
-image first, whenever you want to run the `minion` with your latest changes.
+    // Allow the batch processer to connect to the database on and the webTier via SSH
+    (connect 22 "batch" (list "webTier" "database"))
+
+    // Allow all containers in the webTier to connect to each other on any port
+    (connect (list 0 65535) "webTier" "webTier")
+<!-- END CODE -->
+
+After the above commands, our network looks a lot more interesting:
+
+<img src="https://github.com/LuiseV/di/blob/didoc/doc-images/diAbstractWebTierConnect.png">
+
+With the config file in place, DI will now boot your system. If you modify the configuration after the system booted, DI will make the corresponding changes to your system in the least distruptive way possible.
+
+## Contributing
+If you are interested in contributing to DI, check out [dev.md](dev.md) for development instructions, details about the code structure, and more.q
