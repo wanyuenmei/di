@@ -16,7 +16,7 @@ generate:
 	go generate $(PACKAGES)
 
 format:
-	gofmt -w -s .
+	gofmt -w -s `find . -name '*.go' | grep -v '^\./vendor/'`
 
 docker: build-linux
 	docker build -t quay.io/netsys/di .
