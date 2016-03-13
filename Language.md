@@ -125,6 +125,29 @@ refers to the function to be invoked, and the remaining items are the arguments.
 ) // => 4
 ```
 
+## Modules
+`module` is a way of creating a namespace. It evalutes its body, and then makes
+exportable binds and labels available as `<module_name>.ident`.
+Only binds and labels that start with a capital letter are exported.
+```
+(module "math" (define Square (lambda (x) (* x x))))
+(math.Square 5) // => 25
+```
+
+`import` is a way of importing code in other files. It evaluates to a `module`
+where the module name is the filename (minus the .spec extension), and the module
+body is the contents of the body.
+
+```
+// math.spec
+(define Square (lambda (x) (* x x)))
+
+
+// main.spec
+(import "math")
+(math.Square 5) // => 25
+```
+
 ## Labels
 ```
 (label <name> <member list>)

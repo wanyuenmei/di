@@ -112,7 +112,7 @@ func testContainerTxn(conn db.Conn, spec string) string {
 	})
 
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		return err.Error()
 	}
@@ -230,7 +230,7 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 	})
 
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		return err.Error()
 	}

@@ -528,7 +528,7 @@ func TestLocal(t *testing.T) {
 
 func prog(t *testing.T, code string) dsl.Dsl {
 	var sc scanner.Scanner
-	result, err := dsl.New(*sc.Init(strings.NewReader(code)))
+	result, err := dsl.New(*sc.Init(strings.NewReader(code)), []string{})
 	if err != nil {
 		t.Error(err.Error())
 		return dsl.Dsl{}

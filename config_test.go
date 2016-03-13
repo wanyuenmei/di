@@ -19,7 +19,7 @@ func configRunOnce(configPath string) error {
 	defer f.Close()
 
 	var sc scanner.Scanner
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)))
+	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), []string{})
 	if err != nil {
 		return err
 	}

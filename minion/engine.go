@@ -14,7 +14,7 @@ import (
 
 func updatePolicy(view db.Database, role db.Role, spec string) {
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		log.WithError(err).Warn("Invalid spec.")
 		return

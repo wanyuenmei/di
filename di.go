@@ -5,6 +5,8 @@ import (
 	"flag"
 	"io/ioutil"
 	l_mod "log"
+	"os"
+	"strings"
 	"text/scanner"
 	"time"
 
@@ -52,6 +54,8 @@ func main() {
 	cluster.Run(conn)
 }
 
+const diPathKey = "DI_PATH"
+
 func updateConfig(conn db.Conn, configPath string) error {
 	f, err := util.Open(configPath)
 	if err != nil {
@@ -64,7 +68,9 @@ func updateConfig(conn db.Conn, configPath string) error {
 			Filename: configPath,
 		},
 	}
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)))
+	pathStr, _ := os.LookupEnv(diPathKey)
+	pathSlice := strings.Split(pathStr, ":")
+	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), pathSlice)
 	if err != nil {
 		return err
 	}

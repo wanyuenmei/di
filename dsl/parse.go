@@ -41,8 +41,20 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 	var slice []ast
 	for {
 		switch s.Scan() {
-		case '+', '-', '/', '%', '*', '=', '<', '>', '!', scanner.Ident:
+		case '+', '-', '/', '%', '*', '=', '<', '>', '!':
 			slice = append(slice, parseIdent(s.TokenText()))
+		case scanner.Ident:
+			ident := s.TokenText()
+			// Periods are allowed in package names.
+			for s.Peek() == '.' {
+				s.Next()
+				ident += "."
+				if s.Scan() != scanner.Ident {
+					return nil, dslError{pos: s.Pos(), err: fmt.Sprintf("bad ident name: %s", ident)}
+				}
+				ident += s.TokenText()
+			}
+			slice = append(slice, parseIdent(ident))
 		case scanner.Float:
 			x, _ := strconv.ParseFloat(s.TokenText(), 64)
 			slice = append(slice, astFloat(x))

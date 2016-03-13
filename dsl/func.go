@@ -1,9 +1,15 @@
 package dsl
 
 import (
+	"bufio"
 	"fmt"
 	"reflect"
 	"strings"
+	"text/scanner"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -51,6 +57,8 @@ func init() {
 		"<":                {compareFun(func(a, b int) bool { return a < b }), 2},
 		"!":                {notImpl, 1},
 		"progn":            {prognImpl, 1},
+		"import":           {importImpl, 1},
+		"module":           {moduleImpl, 2},
 	}
 }
 
@@ -687,6 +695,56 @@ func notImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
 	}
 	return astBool(!pred), nil
+}
+
+func shouldExport(name string) bool {
+	r, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(r)
+}
+
+func importImpl(ctx *evalCtx, args []ast) (ast, error) {
+	astModuleName, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("import name must be a string: %s", args[0])
+	}
+	moduleName := string(astModuleName)
+
+	// Try to find the import in our path.
+	var sc scanner.Scanner
+	for _, path := range ctx.path {
+		modulePath := path + "/" + moduleName + ".spec"
+		f, err := util.Open(modulePath)
+		if err == nil {
+			defer f.Close()
+			sc.Filename = modulePath
+			sc.Init(bufio.NewReader(f))
+			break
+		}
+	}
+	if sc.Filename == "" {
+		return nil, fmt.Errorf("unable to open import %s", moduleName)
+	}
+
+	parsed, err := parse(sc)
+	if err != nil {
+		return nil, err
+	}
+
+	return astModule{body: parsed, moduleName: astModuleName}.eval(ctx)
+}
+
+func moduleImpl(ctx *evalCtx, args []ast) (ast, error) {
+	moduleName, err := args[0].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	moduleNameStr, ok := moduleName.(astString)
+	if !ok {
+		return nil, fmt.Errorf("module name must be a string: %s", moduleName)
+	}
+
+	return astModule{moduleName: moduleNameStr, body: astRoot(args[1:])}.eval(ctx)
 }
 
 func prognImpl(ctx *evalCtx, args []ast) (ast, error) {

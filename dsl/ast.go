@@ -42,6 +42,11 @@ type astSexp struct {
 * statements. */
 type astRoot astList
 
+type astModule struct {
+	moduleName astString
+	body       astRoot
+}
+
 type astIdent string /* Identities, i.e. key words, variable names etc. */
 
 /* Atoms. */
@@ -76,6 +81,10 @@ func (key astPlaintextKey) String() string {
 
 func (root astRoot) String() string {
 	return fmt.Sprintf("%s", sliceStr(root, "\n"))
+}
+
+func (module astModule) String() string {
+	return fmt.Sprintf("(module %s %s)", module.moduleName, module.body)
 }
 
 func (sexp astSexp) String() string {

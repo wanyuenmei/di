@@ -59,13 +59,13 @@ func (dslr Range) Accepts(x float64) bool {
 }
 
 // New parses and executes a dsl (in text form), and returns an abstract Dsl handle.
-func New(sc scanner.Scanner) (Dsl, error) {
+func New(sc scanner.Scanner, path []string) (Dsl, error) {
 	parsed, err := parse(sc)
 	if err != nil {
 		return Dsl{}, err
 	}
 
-	spec, ctx, err := eval(parsed)
+	spec, ctx, err := eval(parsed, path)
 	if err != nil {
 		return Dsl{}, err
 	}
