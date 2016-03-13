@@ -71,4 +71,4 @@ After the above commands, our network looks a lot more interesting:
 With the config file in place, DI will now boot your system. If you modify the configuration after the system booted, DI will make the corresponding changes to your system in the least distruptive way possible.
 
 ## Contributing
-If you are interested in contributing to DI, check out [dev.md](dev.md) for development instructions, details about the code structure, and more.q
+If you are interested in contributing to DI, check out [dev.md](dev.md) for development instructions, details about the code structure, and more.
