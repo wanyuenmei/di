@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package ctxhttp provides helper functions for performing context-aware HTTP requests.
-package ctxhttp // import "golang.org/x/net/context/ctxhttp"
+package ctxhttp
 
 import (
 	"io"
@@ -38,6 +38,11 @@ func Do(ctx context.Context, client *http.Client, req *http.Request) (*http.Resp
 		err  error
 	}
 	result := make(chan responseAndError, 1)
+
+	// Make local copies of test hooks closed over by goroutines below.
+	// Prevents data races in tests.
+	testHookDoReturned := testHookDoReturned
+	testHookDidBodyClose := testHookDidBodyClose
 
 	go func() {
 		resp, err := client.Do(req)

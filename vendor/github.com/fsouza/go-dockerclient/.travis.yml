@@ -13,12 +13,15 @@ env:
   - GOARCH=386   DOCKER_VERSION=1.8.3
   - GOARCH=amd64 DOCKER_VERSION=1.9.1
   - GOARCH=386   DOCKER_VERSION=1.9.1
-  - GOARCH=amd64 DOCKER_VERSION=1.10.2
-  - GOARCH=386   DOCKER_VERSION=1.10.2
+  - GOARCH=amd64 DOCKER_VERSION=1.10.3
+  - GOARCH=386   DOCKER_VERSION=1.10.3
 install:
-  - make prepare_docker
+  - travis_retry make prepare_docker
 script:
   - make test
   - DOCKER_HOST=tcp://127.0.0.1:2375 make integration
 services:
   - docker
+matrix:
+  allow_failures:
+    - go: tip

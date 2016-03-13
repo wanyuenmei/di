@@ -65,17 +65,13 @@ To generate the protobufs simply call:
     make generate
 
 ## Dependencies
-We use [Glide](https://github.com/Masterminds/glide) as dependency vendoring tool.
-The dependencies for a project are listed in a `glide.yaml` file. This can include
-a version, VCS or repository location. Once Glide has downloaded and figured out
-versions to use in the dependency tree it creates a `glide.lock` file containing the
-complete dependency tree pinned to specific versions.
+We use [Godep](https://github.com/tools/godep) as dependency vendoring tool. To add a
+new dependency, make sure `GO15VENDOREXPERIMENT` is set to 1, then run:
 
-	go get -u github.com/Masterminds/glide
-
-To generate or update dependencies, simply call:
-
-	make deps
+1. `godep restore` to install the package versions specified in `Godeps/Godeps.json` to your `$GOPATH`
+2. Run `go get foo/bar`
+3. Edit your code to import foo/bar
+4. Run `godep save`
 
 ## Containers
 Some of the functionality that isn't captured in this repo is packaged into

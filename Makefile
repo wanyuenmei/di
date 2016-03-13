@@ -9,9 +9,6 @@ all:
 install:
 	cd -P . && go install .
 
-deps:
-	cd -P . && glide up --update-vendored
-
 generate:
 	go generate $(PACKAGES)
 
