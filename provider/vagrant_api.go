@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/user"
 	"strings"
+
+	homedir "github.com/mitchellh/go-homedir"
 )
 
 var vagrantCmd = "vagrant"
@@ -21,11 +22,14 @@ func newVagrantAPI() vagrantAPI {
 }
 
 func (api vagrantAPI) Init(cloudConfig string, size string, id string) error {
-	_, err := os.Stat(api.VagrantDir())
-	if os.IsNotExist(err) {
-		os.Mkdir(api.VagrantDir(), os.ModeDir|os.ModePerm)
+	vdir, err := api.VagrantDir()
+	if err != nil {
+		return err
 	}
-	path := api.VagrantDir() + id
+	if _, err := os.Stat(vdir); os.IsNotExist(err) {
+		os.Mkdir(vdir, os.ModeDir|os.ModePerm)
+	}
+	path := vdir + id
 	os.Mkdir(path, os.ModeDir|os.ModePerm)
 
 	_, err = api.Shell(id, `vagrant --machine-readable init coreos-beta`)
@@ -99,12 +103,15 @@ func (api vagrantAPI) Status(id string) (string, error) {
 
 func (api vagrantAPI) List() ([]string, error) {
 	subdirs := []string{}
-	_, err := os.Stat(api.VagrantDir())
-	if os.IsNotExist(err) {
+	vdir, err := api.VagrantDir()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := os.Stat(vdir); os.IsNotExist(err) {
 		return subdirs, nil
 	}
 
-	files, err := ioutil.ReadDir(api.VagrantDir())
+	files, err := ioutil.ReadDir(vdir)
 	if err != nil {
 		return subdirs, err
 	}
@@ -147,16 +154,23 @@ func (api vagrantAPI) ContainsBox(name string) (bool, error) {
 
 func (api vagrantAPI) Shell(id string, commands string) ([]byte, error) {
 	chdir := `(cd %s; `
-	chdir = fmt.Sprintf(chdir, api.VagrantDir()+id)
+	vdir, err := api.VagrantDir()
+	if err != nil {
+		return nil, err
+	}
+	chdir = fmt.Sprintf(chdir, vdir+id)
 	shellCommand := chdir + strings.Replace(commands, "%s", id, -1) + ")"
 	output, err := exec.Command(shCmd, []string{"-c", shellCommand}...).Output()
 	return output, err
 }
 
-func (api vagrantAPI) VagrantDir() string {
-	current, _ := user.Current()
-	vagrantDir := current.HomeDir + "/.vagrant/"
-	return vagrantDir
+func (api vagrantAPI) VagrantDir() (string, error) {
+	dir, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	vagrantDir := dir + "/.vagrant/"
+	return vagrantDir, nil
 }
 
 func (api vagrantAPI) Size(id string) string {
