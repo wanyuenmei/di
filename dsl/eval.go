@@ -95,35 +95,45 @@ func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 	return fn.do.eval(&fnCtx)
 }
 
-func (sexp astSexp) eval(ctx *evalCtx) (ast, error) {
+func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
+	sexp := metaSexp.sexp
 	if len(sexp) == 0 {
-		return nil, fmt.Errorf("S-expressions must start with a function call: %s", sexp)
+		return nil, dslError{metaSexp.pos, fmt.Sprintf("S-expressions must start with a function call: %s", metaSexp)}
 	}
 
 	first, err := sexp[0].eval(ctx)
 	if err != nil {
 		if _, ok := sexp[0].(astIdent); ok {
-			return nil, fmt.Errorf("unknown function: %s", sexp[0])
+			return nil, dslError{metaSexp.pos, fmt.Sprintf("unknown function: %s", sexp[0])}
 		}
 		return nil, err
 	}
 
+	var res ast
 	switch fn := first.(type) {
 	case astIdent:
 		fnImpl := funcImplMap[fn]
 		if len(sexp)-1 < fnImpl.minArgs {
-			return nil, fmt.Errorf("not enough arguments: %s", fn)
+			return nil, dslError{metaSexp.pos, fmt.Sprintf("not enough arguments: %s", fn)}
 		}
-		return fnImpl.do(ctx, sexp[1:])
+		res, err = fnImpl.do(ctx, sexp[1:])
 	case astLambda:
-		args, err := evalArgs(ctx, sexp[1:])
+		var args []ast
+		args, err = evalArgs(ctx, sexp[1:])
 		if err != nil {
-			return nil, err
+			break
 		}
-		return evalLambda(fn, args)
+		res, err = evalLambda(fn, args)
+	default:
+		return nil, dslError{metaSexp.pos, fmt.Sprintf("S-expressions must start with a function call: %s", first)}
 	}
 
-	return nil, fmt.Errorf("S-expressions must start with a function call: %s", first)
+	// Attach the error position if there's an error, and it doesn't already contain
+	// the position information.
+	if _, ok := err.(dslError); err != nil && !ok {
+		err = dslError{metaSexp.pos, err.Error()}
+	}
+	return res, err
 }
 
 func (ident astIdent) eval(ctx *evalCtx) (ast, error) {

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"text/scanner"
 	"time"
 
 	"github.com/NetSys/di/db"
@@ -110,7 +111,8 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		return nil
 	})
 
-	compiled, err := dsl.New(strings.NewReader(spec))
+	var sc scanner.Scanner
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
 	if err != nil {
 		return err.Error()
 	}
@@ -227,7 +229,8 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 		return nil
 	})
 
-	compiled, err := dsl.New(strings.NewReader(spec))
+	var sc scanner.Scanner
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
 	if err != nil {
 		return err.Error()
 	}

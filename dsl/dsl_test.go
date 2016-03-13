@@ -5,8 +5,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"text/scanner"
+
+	"github.com/NetSys/di/util"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/spf13/afero"
 )
 
 func TestArith(t *testing.T) {
@@ -52,8 +56,8 @@ func TestStrings(t *testing.T) {
 	code = `(sprintf "%s %s" "foo" (list 1 2 3))`
 	parseTest(t, code, `"foo (list 1 2 3)"`)
 
-	runtimeErr(t, "(sprintf a)", "unassigned variable: a")
-	runtimeErr(t, "(sprintf 1)", "sprintf format must be a string: 1")
+	runtimeErr(t, "(sprintf a)", "1: unassigned variable: a")
+	runtimeErr(t, "(sprintf 1)", "1: sprintf format must be a string: 1")
 }
 
 func TestLet(t *testing.T) {
@@ -171,8 +175,8 @@ func TestDocker(t *testing.T) {
 	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "bar", Placement: Placement{make(map[[2]string]struct{})}})
 
-	runtimeErr(t, `(docker bar)`, `unassigned variable: bar`)
-	runtimeErr(t, `(docker 1)`, `docker arguments must be strings: 1`)
+	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
+	runtimeErr(t, `(docker 1)`, `1: docker arguments must be strings: 1`)
 }
 
 func TestMachines(t *testing.T) {
@@ -253,7 +257,7 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, expCode, expMachine)
 
 	// Test invalid attribute type
-	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `unrecognized argument to machine definition: "foo"`)
+	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
 }
 
 func TestMachineAttribute(t *testing.T) {
@@ -303,18 +307,18 @@ func TestMachineAttribute(t *testing.T) {
 
 	// Test setting attributes on a bad label argument (non-string)
 	code = `(machineAttribute 1 (machine (provider "AmazonSpot")))`
-	runtimeErr(t, code, `machineAttribute key must be a string: 1`)
+	runtimeErr(t, code, `1: machineAttribute key must be a string: 1`)
 
 	// Test setting attributes on a non-existent label
 	code = `(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
-	runtimeErr(t, code, `machineAttribute key not defined: "badlabel"`)
+	runtimeErr(t, code, `1: machineAttribute key not defined: "badlabel"`)
 
 	// Test setting attribute on a non-machine
 	code = `(label "badlabel" (plaintextKey "key"))
 (machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
 	badKey := plaintextKey{key: "key"}
 	badKey.SetLabels([]string{"badlabel"})
-	runtimeErr(t, code, fmt.Sprintf(`bad type, cannot change machine attributes: %s`, &badKey))
+	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: %s`, &badKey))
 
 	// Test setting range attributes
 	code = `(label "machines" (machine (provider "AmazonSpot")))
@@ -394,12 +398,12 @@ func TestLabel(t *testing.T) {
 			code, containerResult, expected))
 	}
 
-	runtimeErr(t, `(label 1 2)`, "label must be a string, found: 1")
-	runtimeErr(t, `(label "foo" "bar")`, `undefined label: "bar"`)
+	runtimeErr(t, `(label 1 2)`, "1: label must be a string, found: 1")
+	runtimeErr(t, `(label "foo" "bar")`, `1: undefined label: "bar"`)
 	runtimeErr(t, `(label "foo" 1)`,
-		"label must apply to atoms or other labels, found: 1")
+		"1: label must apply to atoms or other labels, found: 1")
 	runtimeErr(t, `(label "foo" (docker "a")) (label "foo" "foo")`,
-		"attempt to redefine label: foo")
+		"1: attempt to redefine label: foo")
 }
 
 func TestPlacement(t *testing.T) {
@@ -537,21 +541,21 @@ func TestConnect(t *testing.T) {
 		t.Error(spew.Sprintf("Unexpected connections: %v", ctx.connections))
 	}
 
-	runtimeErr(t, `(connect a "foo" "bar")`, "unassigned variable: a")
+	runtimeErr(t, `(connect a "foo" "bar")`, "1: unassigned variable: a")
 	runtimeErr(t, `(connect (list 80) "foo" "bar")`,
-		"port range must have two ints: (list 80)")
+		"1: port range must have two ints: (list 80)")
 	runtimeErr(t, `(connect (list 0 70000) "foo" "bar")`,
-		"invalid port range: [0, 70000]")
+		"1: invalid port range: [0, 70000]")
 	runtimeErr(t, `(connect (list (- 0 10) 10) "foo" "bar")`,
-		"invalid port range: [-10, 10]")
+		"1: invalid port range: [-10, 10]")
 	runtimeErr(t, `(connect (list 100 10) "foo" "bar")`,
-		"invalid port range: [100, 10]")
+		"1: invalid port range: [100, 10]")
 	runtimeErr(t, `(connect "80" "foo" "bar")`,
-		"port range must be an int or a list of ints: \"80\"")
+		"1: port range must be an int or a list of ints: \"80\"")
 	runtimeErr(t, `(connect (list "a" "b") "foo" "bar")`,
-		"port range must have two ints: (list \"a\" \"b\")")
-	runtimeErr(t, `(connect 80 4 5)`, "connect applies to labels: 4")
-	runtimeErr(t, `(connect 80 "foo" "foo")`, "connect undefined label: \"foo\"")
+		"1: port range must have two ints: (list \"a\" \"b\")")
+	runtimeErr(t, `(connect 80 4 5)`, "1: connect applies to labels: 4")
+	runtimeErr(t, `(connect 80 "foo" "foo")`, "1: connect undefined label: \"foo\"")
 }
 
 func TestScanError(t *testing.T) {
@@ -559,7 +563,7 @@ func TestScanError(t *testing.T) {
 }
 
 func TestParseErrors(t *testing.T) {
-	unbalanced := "unbalanced Parenthesis"
+	unbalanced := "1: unbalanced Parenthesis"
 	parseErr(t, "(", unbalanced)
 	parseErr(t, ")", unbalanced)
 	parseErr(t, "())", unbalanced)
@@ -568,55 +572,111 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestRuntimeErrors(t *testing.T) {
-	err := `bad arithmetic argument: "a"`
+	err := `1: bad arithmetic argument: "a"`
 	runtimeErr(t, `(+ "a" "a")`, err)
 	runtimeErr(t, `(list (+ "a" "a"))`, err)
 	runtimeErr(t, `(let ((y (+ "a" "a"))) y)`, err)
 	runtimeErr(t, `(let ((y 3)) (+ "a" "a"))`, err)
 
-	runtimeErr(t, "(define a 3) (define a 3)", `attempt to redefine: "a"`)
-	runtimeErr(t, "(define a (+ 3 b ))", "unassigned variable: b")
+	runtimeErr(t, "(define a 3) (define a 3)", `1: attempt to redefine: "a"`)
+	runtimeErr(t, "(define a (+ 3 b ))", "1: unassigned variable: b")
 
-	runtimeErr(t, `(makeList a 3)`, "unassigned variable: a")
-	runtimeErr(t, `(makeList 3 a)`, "unassigned variable: a")
+	runtimeErr(t, `(makeList a 3)`, "1: unassigned variable: a")
+	runtimeErr(t, `(makeList 3 a)`, "1: unassigned variable: a")
 	runtimeErr(t, `(makeList "a" 3)`,
-		`makeList must begin with a positive integer, found: "a"`)
+		`1: makeList must begin with a positive integer, found: "a"`)
 
-	runtimeErr(t, `(label a a)`, "unassigned variable: a")
+	runtimeErr(t, `(label a a)`, "1: unassigned variable: a")
 
-	runtimeErr(t, "(1 2 3)", "S-expressions must start with a function call: 1")
+	runtimeErr(t, "(1 2 3)", "1: S-expressions must start with a function call: 1")
 
-	args := "not enough arguments: +"
+	args := "1: not enough arguments: +"
 	runtimeErr(t, "(+)", args)
 	runtimeErr(t, "(+ 5)", args)
 	runtimeErr(t, "(+ 5 (+ 6))", args)
 
-	runtimeErr(t, "()", "S-expressions must start with a function call: ()")
-	runtimeErr(t, "(let)", "not enough arguments: let")
-	runtimeErr(t, "(let 3 a)", "let binds must be defined in an S-expression")
-	runtimeErr(t, "(let (a) a)", "binds must be exactly 2 arguments: a")
-	runtimeErr(t, "(let ((a)) a)", "binds must be exactly 2 arguments: (a)")
-	runtimeErr(t, "(let ((3 a)) a)", "bind name must be an ident: 3")
+	runtimeErr(t, "()", "1: S-expressions must start with a function call: ()")
+	runtimeErr(t, "(let)", "1: not enough arguments: let")
+	runtimeErr(t, "(let 3 a)", "1: let binds must be defined in an S-expression")
+	runtimeErr(t, "(let (a) a)", "1: binds must be exactly 2 arguments: a")
+	runtimeErr(t, "(let ((a)) a)", "1: binds must be exactly 2 arguments: (a)")
+	runtimeErr(t, "(let ((3 a)) a)", "1: bind name must be an ident: 3")
 	runtimeErr(t, "(let ((a (+))) a)", args)
 	runtimeErr(t, "(let ((a 3)) (+))", args)
 
 	runtimeErr(t, "(define a (+))", args)
 
-	runtimeErr(t, "(badFun)", "unknown function: badFun")
+	runtimeErr(t, "(badFun)", "1: unknown function: badFun")
+}
+
+func TestErrorMetadata(t *testing.T) {
+	var checkParseErr = func(path string, expErr string) {
+		sc := scanner.Scanner{
+			Position: scanner.Position{
+				Filename: path,
+			},
+		}
+		f, err := util.Open(path)
+		if err != nil {
+			t.Errorf("Couldn't open %s", path)
+		}
+		_, err = parse(*sc.Init(f))
+		if err.Error() != expErr {
+			t.Errorf("Expected \"%s\"\ngot \"%s\"", expErr, err)
+			return
+		}
+	}
+	var checkEvalErr = func(path string, expErr string) {
+		sc := scanner.Scanner{
+			Position: scanner.Position{
+				Filename: path,
+			},
+		}
+		f, err := util.Open(path)
+		if err != nil {
+			t.Errorf("Couldn't open %s", path)
+		}
+		parsed, err := parse(*sc.Init(f))
+		if err != nil {
+			t.Errorf("Unexpected parse error: %s", parsed)
+		}
+
+		_, _, err = eval(parsed)
+		if err.Error() != expErr {
+			t.Errorf("Expected \"%s\"\ngot \"%s\"", expErr, err)
+			return
+		}
+	}
+
+	util.AppFs = afero.NewMemMapFs()
+	util.WriteFile("paren.spec", []byte(`
+// This is a comment.
+(define Test "abc"`), 0644)
+	checkParseErr("paren.spec", "paren.spec:3: unbalanced Parenthesis")
+
+	util.WriteFile("undefined.spec", []byte(`
+(+ 1 b)`), 0644)
+	checkEvalErr("undefined.spec", "undefined.spec:2: unassigned variable: b")
+
+	util.WriteFile("bad_type.spec", []byte(`
+(define a "1")
+(+ 1 a)`), 0644)
+	checkEvalErr("bad_type.spec", `bad_type.spec:3: bad arithmetic argument: "1"`)
 }
 
 func TestQuery(t *testing.T) {
-	dsl, err := New(strings.NewReader("("))
+	var sc scanner.Scanner
+	dsl, err := New(*sc.Init(strings.NewReader("(")))
 	if err == nil {
 		t.Error("Expected error")
 	}
 
-	dsl, err = New(strings.NewReader("(+ a a)"))
+	dsl, err = New(*sc.Init(strings.NewReader("(+ a a)")))
 	if err == nil {
 		t.Error("Expected runtime error")
 	}
 
-	dsl, err = New(strings.NewReader(`
+	dsl, err = New(*sc.Init(strings.NewReader(`
 		(define a (+ 1 2))
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
@@ -624,7 +684,7 @@ func TestQuery(t *testing.T) {
 		(define e 1.5)
 		(label "sshkeys" (list (plaintextKey "key") (githubKey "github")))
 		(docker b)
-		(docker b)`))
+		(docker b)`)))
 	if err != nil {
 		t.Error(err)
 		return
@@ -685,7 +745,8 @@ func TestQuery(t *testing.T) {
 }
 
 func parseTest(t *testing.T, code, evalExpected string) evalCtx {
-	parsed, err := parse(strings.NewReader(code))
+	var sc scanner.Scanner
+	parsed, err := parse(*sc.Init(strings.NewReader(code)))
 	if err != nil {
 		t.Errorf("%s: %s", code, err)
 		return evalCtx{}
@@ -724,14 +785,16 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 }
 
 func parseErr(t *testing.T, code, expectedErr string) {
-	_, err := parse(strings.NewReader(code))
+	var sc scanner.Scanner
+	_, err := parse(*sc.Init(strings.NewReader(code)))
 	if fmt.Sprintf("%s", err) != expectedErr {
 		t.Errorf("%s: %s", code, err)
 	}
 }
 
 func runtimeErr(t *testing.T, code, expectedErr string) {
-	prog, err := parse(strings.NewReader(code))
+	var sc scanner.Scanner
+	prog, err := parse(*sc.Init(strings.NewReader(code)))
 	if err != nil {
 		t.Errorf("%s: %s", code, err)
 		return

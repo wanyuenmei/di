@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"strings"
+	"text/scanner"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -12,7 +13,8 @@ import (
 )
 
 func updatePolicy(view db.Database, role db.Role, spec string) {
-	compiled, err := dsl.New(strings.NewReader(spec))
+	var sc scanner.Scanner
+	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)))
 	if err != nil {
 		log.WithError(err).Warn("Invalid spec.")
 		return

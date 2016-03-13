@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io/ioutil"
 	l_mod "log"
+	"text/scanner"
 	"time"
 
 	"github.com/NetSys/di/cluster"
@@ -58,7 +59,12 @@ func updateConfig(conn db.Conn, configPath string) error {
 	}
 	defer f.Close()
 
-	spec, err := dsl.New(bufio.NewReader(f))
+	sc := scanner.Scanner{
+		Position: scanner.Position{
+			Filename: configPath,
+		},
+	}
+	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)))
 	if err != nil {
 		return err
 	}

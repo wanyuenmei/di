@@ -2,7 +2,7 @@ package dsl
 
 import (
 	"fmt"
-	"io"
+	"text/scanner"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -59,8 +59,8 @@ func (dslr Range) Accepts(x float64) bool {
 }
 
 // New parses and executes a dsl (in text form), and returns an abstract Dsl handle.
-func New(reader io.Reader) (Dsl, error) {
-	parsed, err := parse(reader)
+func New(sc scanner.Scanner) (Dsl, error) {
+	parsed, err := parse(sc)
 	if err != nil {
 		return Dsl{}, err
 	}
@@ -224,4 +224,16 @@ func (dsl Dsl) QueryStrSlice(key string) []string {
 // String returns the dsl in its code form.
 func (dsl Dsl) String() string {
 	return dsl.spec.String()
+}
+
+type dslError struct {
+	pos scanner.Position
+	err string
+}
+
+func (err dslError) Error() string {
+	if err.pos.Filename == "" {
+		return fmt.Sprintf("%d: %s", err.pos.Line, err.err)
+	}
+	return fmt.Sprintf("%s:%d: %s", err.pos.Filename, err.pos.Line, err.err)
 }

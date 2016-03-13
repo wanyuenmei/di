@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"testing"
+	"text/scanner"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -17,7 +18,8 @@ func configRunOnce(configPath string) error {
 	}
 	defer f.Close()
 
-	spec, err := dsl.New(bufio.NewReader(f))
+	var sc scanner.Scanner
+	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)))
 	if err != nil {
 		return err
 	}

@@ -508,16 +508,16 @@ type binding struct {
 
 func parseBinding(astBinding ast, ctx *evalCtx) (binding, error) {
 	pair, ok := astBinding.(astSexp)
-	if !ok || len(pair) != 2 {
+	if !ok || len(pair.sexp) != 2 {
 		return binding{}, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
 	}
 
-	key, ok := pair[0].(astIdent)
+	key, ok := pair.sexp[0].(astIdent)
 	if !ok {
-		return binding{}, fmt.Errorf("bind name must be an ident: %s", pair[0])
+		return binding{}, fmt.Errorf("bind name must be an ident: %s", pair.sexp[0])
 	}
 
-	val, err := pair[1].eval(ctx)
+	val, err := pair.sexp[1].eval(ctx)
 	if err != nil {
 		return binding{}, err
 	}
@@ -527,7 +527,7 @@ func parseBinding(astBinding ast, ctx *evalCtx) (binding, error) {
 
 func parseBindings(ctx *evalCtx, bindings astSexp) ([]binding, error) {
 	var binds []binding
-	for _, astBinding := range bindings {
+	for _, astBinding := range bindings.sexp {
 		bind, err := parseBinding(astBinding, ctx)
 		if err != nil {
 			return []binding{}, err
@@ -544,7 +544,7 @@ func lambdaImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	var argNames []astIdent
-	for _, argName := range rawArgNames {
+	for _, argName := range rawArgNames.sexp {
 		ident, ok := argName.(astIdent)
 		if !ok {
 			return nil, fmt.Errorf("lambda argument names must be idents")
@@ -571,7 +571,7 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		names = append(names, pair.key)
 		vals = append(vals, pair.val)
 	}
-	let := astSexp(append([]ast{astLambda{argNames: names, do: args[1], ctx: ctx}}, vals...))
+	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: args[1], ctx: ctx}}, vals...)}
 	return let.eval(ctx)
 }
 
@@ -604,7 +604,7 @@ func flatten(lst []ast) []ast {
 }
 
 func astFunc(ident astIdent, args []ast) astSexp {
-	return astSexp(append([]ast{ident}, args...))
+	return astSexp{sexp: append([]ast{ident}, args...)}
 }
 
 // addAtom adds `a` to the global context. We have to place all atoms into

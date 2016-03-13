@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"text/scanner"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -526,7 +527,8 @@ func TestLocal(t *testing.T) {
 }
 
 func prog(t *testing.T, code string) dsl.Dsl {
-	result, err := dsl.New(strings.NewReader(code))
+	var sc scanner.Scanner
+	result, err := dsl.New(*sc.Init(strings.NewReader(code)))
 	if err != nil {
 		t.Error(err.Error())
 		return dsl.Dsl{}

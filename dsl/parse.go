@@ -3,18 +3,14 @@ package dsl
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"text/scanner"
 )
 
-var errUnbalancedParens = errors.New("unbalanced Parenthesis")
+var errUnbalancedParens = "unbalanced Parenthesis"
 
-func parse(reader io.Reader) (astRoot, error) {
-	var s scanner.Scanner
-	s.Init(reader)
-
+func parse(s scanner.Scanner) (astRoot, error) {
 	scanErrors := []string{}
 	s.Error = func(s *scanner.Scanner, msg string) {
 		scanErrors = append(scanErrors, msg)
@@ -46,26 +42,29 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 			str := strings.Trim(s.TokenText(), "\"")
 			slice = append(slice, astString(str))
 		case '(':
+			// We need to save our position before recursing because the scanner
+			// will have moved on by the time the recursive call returns.
+			pos := s.Pos()
 			sexp, err := parseText(s, depth+1)
 			if err != nil {
 				return nil, err
 			}
 
-			slice = append(slice, astSexp(sexp))
+			slice = append(slice, astSexp{sexp: sexp, pos: pos})
 
 		case ')':
 			if depth == 0 {
-				return nil, errUnbalancedParens
+				return nil, dslError{s.Pos(), errUnbalancedParens}
 			}
 			return slice, nil
 		case scanner.EOF:
 			if depth != 0 {
-				return nil, errUnbalancedParens
+				return nil, dslError{s.Pos(), errUnbalancedParens}
 			}
 			return slice, nil
 
 		default:
-			return nil, fmt.Errorf("bad element: %s", s.TokenText())
+			return nil, dslError{s.Pos(), fmt.Sprintf("bad element: %s", s.TokenText())}
 		}
 	}
 }

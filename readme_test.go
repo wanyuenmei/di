@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"text/scanner"
 
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/util"
@@ -73,7 +74,8 @@ func TestReadme(t *testing.T) {
 func checkConfig(content string) error {
 	reader := strings.NewReader(content)
 
-	_, err := dsl.New(reader)
+	var sc scanner.Scanner
+	_, err := dsl.New(*sc.Init(reader))
 	if err != nil {
 		return err
 	}

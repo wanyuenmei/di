@@ -3,6 +3,7 @@ package dsl
 import (
 	"fmt"
 	"strings"
+	"text/scanner"
 )
 
 /* An abstract syntax tree is the parsed representation of our specification language.
@@ -32,7 +33,10 @@ type astRange struct {
 
 type astList []ast /* A data list after evaluation. */
 
-type astSexp []ast
+type astSexp struct {
+	sexp []ast
+	pos  scanner.Position
+}
 
 /* The top level is a list of abstract syntax trees, typically populated by define
 * statements. */
@@ -74,7 +78,7 @@ func (root astRoot) String() string {
 }
 
 func (sexp astSexp) String() string {
-	return fmt.Sprintf("(%s)", sliceStr(sexp, " "))
+	return fmt.Sprintf("(%s)", sliceStr(sexp.sexp, " "))
 }
 
 func (list astList) String() string {
