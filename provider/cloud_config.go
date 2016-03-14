@@ -98,6 +98,7 @@ setup_user() {
 	install -d -o $user -m 700 $user_dir/.ssh
 	install -o $user -m 600 /dev/null $user_dir/.ssh/authorized_keys
 	printf "$ssh_keys" >> $user_dir/.ssh/authorized_keys
+	printf "$user ALL = (ALL) NOPASSWD: ALL\n" >> /etc/sudoers
 }
 
 echo -n "Start Boot Script: " >> /var/log/bootscript.log
