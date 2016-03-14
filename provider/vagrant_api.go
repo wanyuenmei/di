@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/NetSys/di/util"
 	homedir "github.com/mitchellh/go-homedir"
 )
 
@@ -38,20 +39,20 @@ func (api vagrantAPI) Init(cloudConfig string, size string, id string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path+"/user-data", []byte(cloudConfig), 0644)
+	err = util.WriteFile(path+"/user-data", []byte(cloudConfig), 0644)
 	if err != nil {
 		api.Destroy(id)
 		return err
 	}
 
 	vagrant := vagrantFile()
-	err = ioutil.WriteFile(path+"/vagrantFile", []byte(vagrant), 0644)
+	err = util.WriteFile(path+"/vagrantFile", []byte(vagrant), 0644)
 	if err != nil {
 		api.Destroy(id)
 		return err
 	}
 
-	err = ioutil.WriteFile(path+"/size", []byte(size), 0644)
+	err = util.WriteFile(path+"/size", []byte(size), 0644)
 	if err != nil {
 		api.Destroy(id)
 		return err

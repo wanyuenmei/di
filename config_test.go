@@ -2,16 +2,16 @@ package main
 
 import (
 	"bufio"
-	"os"
 	"testing"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/engine"
+	"github.com/NetSys/di/util"
 )
 
 func configRunOnce(configPath string) error {
-	f, err := os.Open(configPath)
+	f, err := util.Open(configPath)
 	if err != nil {
 		return err
 	}

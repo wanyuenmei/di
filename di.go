@@ -5,7 +5,6 @@ import (
 	"flag"
 	"io/ioutil"
 	l_mod "log"
-	"os"
 	"time"
 
 	"github.com/NetSys/di/cluster"
@@ -53,7 +52,7 @@ func main() {
 }
 
 func updateConfig(conn db.Conn, configPath string) error {
-	f, err := os.Open(configPath)
+	f, err := util.Open(configPath)
 	if err != nil {
 		return err
 	}

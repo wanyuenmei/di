@@ -4,15 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/di/util"
 )
 
 func TestReadme(t *testing.T) {
-	f, err := os.Open("README.md")
+	f, err := util.Open("README.md")
 	if err != nil {
 		t.Errorf("Failed to open README: %s", err.Error())
 		return

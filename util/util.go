@@ -6,7 +6,10 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
+
+	"github.com/spf13/afero"
 )
 
 func httpRequest(url string) (string, error) {
@@ -61,4 +64,18 @@ func ShortUUID(uuid string) string {
 		return uuid
 	}
 	return uuid[:12]
+}
+
+// Stored in a variable so that we can replace it with in-memory filesystems for unit tests.
+var AppFs afero.Fs = afero.NewOsFs()
+
+func Open(path string) (afero.File, error) {
+	return AppFs.Open(path)
+}
+
+func WriteFile(filename string, data []byte, perm os.FileMode) error {
+	a := afero.Afero{
+		Fs: AppFs,
+	}
+	return a.WriteFile(filename, data, perm)
 }
