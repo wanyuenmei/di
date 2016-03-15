@@ -24,14 +24,9 @@ func Run(conn db.Conn, store consensus.Store, dk docker.Client) {
 	go readStoreRun(conn, store)
 	go writeStoreRun(conn, store)
 
-	// XXX: This initialized map is used to keep track of which containers running on
-	// the local system have been set up for networking.  We shouldn't need this map,
-	// instead we should simply check what's undone and do it.
-	var initialized = make(map[string]struct{})
-
 	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable,
 		db.ConnectionTable, db.LabelTable, db.EtcdTable).C {
-		runWorker(conn, dk, initialized)
+		runWorker(conn, dk)
 		runMaster(conn)
 	}
 }

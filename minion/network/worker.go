@@ -3,13 +3,16 @@ package network
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"net"
+	"os"
 	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/minion/supervisor"
 	"github.com/NetSys/di/ovsdb"
@@ -17,6 +20,45 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 )
+
+const (
+	nsPath    string = "/var/run/netns"
+	innerVeth string = "eth0"
+	innerMTU  int    = 1450
+)
+
+const (
+	// ovsPort parameters
+	ifaceTypePatch string = "patch"
+)
+
+// This represents a network namespace
+type nsInfo struct {
+	ns  string
+	pid int
+}
+
+// This represents a network device
+type netdev struct {
+	// These apply to all links
+	name string
+	up   bool
+
+	// These only apply to veths
+	peerNS  string
+	peerMTU int
+}
+
+// This represents a OVS port and its default interface
+type ovsPort struct {
+	name   string
+	bridge string
+
+	patch       bool // Is the interface of type patch?
+	peer        string
+	attachedMAC string
+	ifaceID     string
+}
 
 // Query the database for any running containers and for each container running on this
 // host, do the following: (most of this happens in setupContainer())
@@ -35,7 +77,7 @@ import (
 // XXX: The worker additionally has several basic jobs which are currently unimplemented:
 //    - ACLS should be installed to guarantee only sanctioned communication.
 //    - /etc/hosts in the containers needs to be generated.
-func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) {
+func runWorker(conn db.Conn, dk docker.Client) {
 	minions := conn.SelectFromMinion(nil)
 	if len(minions) != 1 || minions[0].Role != db.Worker {
 		return
@@ -55,44 +97,415 @@ func runWorker(conn db.Conn, dk docker.Client, initialized map[string]struct{}) 
 		return nil
 	})
 
-	// Garbage collect initialized.
-	for cid := range initialized {
-		exists := false
-		for _, c := range containers {
-			if c.SchedID == cid {
-				exists = true
-				break
-			}
-		}
-
-		if !exists {
-			delete(initialized, cid)
-		}
-	}
-
-	// Initialize new containers.
-	var initContainers []db.Container
-	for _, dbc := range containers {
-		if _, ok := initialized[dbc.SchedID]; ok {
-			continue
-		}
-
-		err := setupContainer(dk, dbc.SchedID, dbc.IP, dbc.Mac, dbc.Pid)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"id":    dbc.SchedID,
-				"error": err,
-			}).Error("Failed to setup container.")
-		} else {
-			initialized[dbc.SchedID] = struct{}{}
-			initContainers = append(initContainers, dbc)
-		}
-	}
-	containers = initContainers
-
+	updateNamespaces(containers)
+	updateVeths(containers)
+	updatePorts(containers)
 	updateIPs(containers, labels)
 	updateOpenFlow(dk, containers, labels)
 	updateEtcHosts(dk, containers, labels, connections)
+}
+
+// If a namespace in the path is detected as invalid and conflicts with
+// a namespace that should exist, it's removed and replaced.
+func updateNamespaces(containers []db.Container) {
+	// A symbolic link in the netns path is considered a "namespace".
+	// The actual namespace is elsewhere but we link them all into the
+	// canonical location and manage them there.
+	//
+	// We keep all our namespaces in /var/run/netns/
+
+	var targetNamespaces []nsInfo
+	for _, dbc := range containers {
+		targetNamespaces = append(targetNamespaces,
+			nsInfo{ns: networkNS(dbc.SchedID), pid: dbc.Pid})
+	}
+	currentNamespaces, err := generateCurrentNamespaces()
+	if err != nil {
+		log.WithError(err).Error("failed to get namespaces")
+		return
+	}
+
+	_, lefts, rights := join.Join(currentNamespaces, targetNamespaces, func(
+		left, right interface{}) int {
+		if left.(nsInfo).ns == right.(nsInfo).ns {
+			return 0
+		}
+		return -1
+	})
+
+	for _, l := range lefts {
+		if err := delNS(l.(nsInfo)); err != nil {
+			log.WithError(err).Error("error deleting namespace")
+		}
+	}
+
+	for _, r := range rights {
+		if err := addNS(r.(nsInfo)); err != nil {
+			log.WithError(err).Error("error adding namespace")
+		}
+	}
+}
+
+func generateCurrentNamespaces() ([]nsInfo, error) {
+	files, err := ioutil.ReadDir(nsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var infos []nsInfo
+	for _, file := range files {
+		fi, err := os.Lstat(fmt.Sprintf("%s/%s", nsPath, file.Name()))
+		if err != nil {
+			return nil, err
+		}
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+			infos = append(infos, nsInfo{ns: file.Name()})
+		}
+	}
+	return infos, nil
+}
+
+func delNS(info nsInfo) error {
+	netnsDst := fmt.Sprintf("%s/%s", nsPath, info.ns)
+	if err := os.Remove(netnsDst); err != nil {
+		return fmt.Errorf("failed to remove namespace %s: %s",
+			netnsDst, err)
+	}
+	return nil
+}
+
+func addNS(info nsInfo) error {
+	netnsSrc := fmt.Sprintf("/hostproc/%d/ns/net", info.pid)
+	netnsDst := fmt.Sprintf("%s/%s", nsPath, info.ns)
+	if _, err := os.Stat(netnsDst); err == nil {
+		if err := os.Remove(netnsDst); err != nil {
+			return fmt.Errorf("failed to remove broken namespace %s: %s",
+				netnsDst, err)
+		}
+	} else if !os.IsNotExist(err) && err != nil {
+		return fmt.Errorf("failed to query namespace %s: %s",
+			netnsDst, err)
+	}
+	if err := os.Symlink(netnsSrc, netnsDst); err != nil {
+		return fmt.Errorf("failed to create namespace %s with source %s: %s",
+			netnsDst, netnsSrc, err)
+	}
+	return nil
+}
+
+func updateVeths(containers []db.Container) {
+	// A virtual ethernet link that links the host and container is a "veth".
+	//
+	// The ends of the veth have different config options like mtu, etc.
+	// However if you delete one side, both will be deleted.
+
+	targetVeths := generateTargetVeths(containers)
+	currentVeths, err := generateCurrentVeths(containers)
+	if err != nil {
+		log.WithError(err).Error("failed to get veths")
+		return
+	}
+
+	pairs, lefts, rights := join.Join(currentVeths, targetVeths, func(
+		left, right interface{}) int {
+		if left.(netdev).name == right.(netdev).name {
+			return 0
+		}
+		return -1
+	})
+
+	for _, l := range lefts {
+		if err := delVeth(l.(netdev)); err != nil {
+			log.WithError(err).Error("failed to delete veth")
+			continue
+		}
+	}
+	for _, r := range rights {
+		if err := addVeth(r.(netdev)); err != nil {
+			log.WithError(err).Error("failed to add veth")
+			continue
+		}
+	}
+	for _, p := range pairs {
+		if err := modVeth(p.L.(netdev), p.R.(netdev)); err != nil {
+			log.WithError(err).Error("failed to modify veth")
+			continue
+		}
+	}
+}
+
+func generateTargetVeths(containers []db.Container) []netdev {
+	var configs []netdev
+	for _, dbc := range containers {
+		_, vethOut := veths(dbc.SchedID)
+		cfg := netdev{
+			name:    vethOut,
+			up:      true,
+			peerNS:  networkNS(dbc.SchedID),
+			peerMTU: innerMTU,
+		}
+		configs = append(configs, cfg)
+	}
+	return configs
+}
+
+func generateCurrentVeths(containers []db.Container) ([]netdev, error) {
+	names, err := listVeths()
+	if err != nil {
+		return nil, err
+	}
+
+	var configs []netdev
+	for _, name := range names {
+		cfg := netdev{
+			name: name,
+		}
+
+		iface, err := net.InterfaceByName(name)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"name":  name,
+				"error": err,
+			}).Error("failed to get interface")
+			continue
+		}
+
+		for _, dbc := range containers {
+			_, vethOut := veths(dbc.SchedID)
+			if vethOut == name {
+				cfg.peerNS = networkNS(dbc.SchedID)
+				break
+			}
+		}
+		if cfg.peerNS != "" {
+			if nsExists, err := namespaceExists(cfg.peerNS); err != nil {
+				log.WithFields(log.Fields{
+					"namespace": cfg.peerNS,
+					"error":     err,
+				}).Error("error searching for namespace")
+				continue
+			} else if nsExists {
+				lkExists, err := linkExists(cfg.peerNS, innerVeth)
+				if err != nil {
+					log.WithFields(log.Fields{
+						"namespace": cfg.peerNS,
+						"link":      innerVeth,
+						"error":     err,
+					}).Error("error checking if link exists in namespace")
+					continue
+				} else if lkExists {
+					cfg.peerMTU, err = getLinkMTU(cfg.peerNS, innerVeth)
+					if err != nil {
+						log.WithError(err).Error("failed to get link mtu")
+						continue
+					}
+				}
+			}
+		}
+
+		cfg.up = (iface.Flags&net.FlagUp == net.FlagUp)
+		configs = append(configs, cfg)
+	}
+	return configs, nil
+}
+
+// There certain exceptions, as certain ports will never be deleted.
+func updatePorts(containers []db.Container) {
+	// An Open vSwitch patch port is referred to as a "port".
+
+	odb, err := ovsdb.Open()
+	if err != nil {
+		log.WithError(err).Error("failed to connect to OVSDB")
+		return
+	}
+	defer odb.Close()
+
+	targetPorts := generateTargetPorts(containers)
+	currentPorts, err := generateCurrentPorts(odb)
+	if err != nil {
+		log.WithError(err).Error("failed to generate current openflow ports")
+		return
+	}
+
+	pairs, lefts, rights := join.Join(currentPorts, targetPorts, func(
+		left, right interface{}) int {
+		if left.(ovsPort).name == right.(ovsPort).name &&
+			left.(ovsPort).bridge == right.(ovsPort).bridge {
+			return 0
+		}
+		return -1
+	})
+
+	for _, l := range lefts {
+		if l.(ovsPort).name == l.(ovsPort).bridge {
+			// The "bridge" port for the bridge should never be deleted
+			continue
+		}
+		if err := delPort(odb, l.(ovsPort)); err != nil {
+			log.WithError(err).Error("failed to delete openflow port")
+			continue
+		}
+	}
+	for _, r := range rights {
+		if err := addPort(odb, r.(ovsPort)); err != nil {
+			log.WithError(err).Error("failed to add openflow port")
+			continue
+		}
+	}
+	for _, p := range pairs {
+		if err := modPort(odb, p.L.(ovsPort), p.R.(ovsPort)); err != nil {
+			log.WithError(err).Error("failed to modify openflow port")
+			continue
+		}
+	}
+}
+
+func generateTargetPorts(containers []db.Container) []ovsPort {
+	var configs []ovsPort
+	for _, dbc := range containers {
+		_, vethOut := veths(dbc.SchedID)
+		peerBr, peerDI := patchPorts(dbc.SchedID)
+		configs = append(configs, ovsPort{
+			name:   vethOut,
+			bridge: diBridge,
+		})
+		configs = append(configs, ovsPort{
+			name:   peerDI,
+			bridge: diBridge,
+			patch:  true,
+			peer:   peerBr,
+		})
+		configs = append(configs, ovsPort{
+			name:        peerBr,
+			bridge:      ovnBridge,
+			patch:       true,
+			peer:        peerDI,
+			attachedMAC: dbc.Mac,
+			ifaceID:     dbc.SchedID,
+		})
+	}
+	return configs
+}
+
+func generateCurrentPorts(odb ovsdb.Ovsdb) ([]ovsPort, error) {
+	var configs []ovsPort
+	for _, bridge := range []string{diBridge, ovnBridge} {
+		ports, err := odb.ListOFPorts(bridge)
+		if err != nil {
+			return nil, fmt.Errorf("error listing ports on bridge %s: %s",
+				bridge, err)
+		}
+		for _, port := range ports {
+			cfg, err := populatePortConfig(odb, bridge, port)
+			if err != nil {
+				return nil, fmt.Errorf("error populating port config: %s", err)
+			}
+			configs = append(configs, *cfg)
+		}
+	}
+	return configs, nil
+}
+
+// XXX This should actually be done at the level of the ovsdb wrapper.
+// As in, you should only have to get the row once, and then populate a
+// struct with all necessary fields and have them be picked out into here
+func populatePortConfig(odb ovsdb.Ovsdb, bridge, port string) (
+	*ovsPort, error) {
+	config := &ovsPort{
+		name:   port,
+		bridge: bridge,
+	}
+
+	iface, err := odb.GetDefaultOFInterface(port)
+	if err != nil {
+		return nil, err
+	}
+
+	itype, err := odb.GetOFInterfaceType(iface)
+	if err != nil && !ovsdb.IsExist(err) {
+		return nil, err
+	} else if err == nil {
+		switch itype {
+		case "patch":
+			config.patch = true
+		}
+	}
+
+	peer, err := odb.GetOFInterfacePeer(iface)
+	if err != nil && !ovsdb.IsExist(err) {
+		return nil, err
+	} else if err == nil {
+		config.peer = peer
+	}
+
+	attachedMAC, err := odb.GetOFInterfaceAttachedMAC(iface)
+	if err != nil && !ovsdb.IsExist(err) {
+		return nil, err
+	} else if err == nil {
+		config.attachedMAC = attachedMAC
+	}
+
+	ifaceID, err := odb.GetOFInterfaceIfaceID(iface)
+	if err != nil && !ovsdb.IsExist(err) {
+		return nil, err
+	} else if err == nil {
+		config.ifaceID = ifaceID
+	}
+	return config, nil
+}
+
+func delPort(odb ovsdb.Ovsdb, config ovsPort) error {
+	if err := odb.DeleteOFPort(config.bridge, config.name); err != nil {
+		return fmt.Errorf("error deleting openflow port: %s", err)
+	}
+	return nil
+}
+
+func addPort(odb ovsdb.Ovsdb, config ovsPort) error {
+	if err := odb.CreateOFPort(config.bridge, config.name); err != nil {
+		return fmt.Errorf("error creating openflow port: %s", err)
+	}
+
+	dummyPort := ovsPort{name: config.name, bridge: config.bridge}
+	if err := modPort(odb, dummyPort, config); err != nil {
+		return err
+	}
+	return nil
+}
+
+func modPort(odb ovsdb.Ovsdb, current ovsPort, target ovsPort) error {
+	if current.patch != target.patch && target.patch {
+		err := odb.SetOFInterfaceType(target.name, ifaceTypePatch)
+		if err != nil {
+			return fmt.Errorf("error setting interface %s to type %s: %s",
+				target.name, ifaceTypePatch, err)
+		}
+	}
+
+	if current.peer != target.peer && target.peer != "" {
+		err := odb.SetOFInterfacePeer(target.name, target.peer)
+		if err != nil {
+			return fmt.Errorf("error setting interface %s with peer %s: %s",
+				target.name, target.peer, err)
+		}
+	}
+
+	if current.attachedMAC != target.attachedMAC && target.attachedMAC != "" {
+		err := odb.SetOFInterfaceAttachedMAC(target.name, target.attachedMAC)
+		if err != nil {
+			return fmt.Errorf("error setting interface %s with mac %s: %s",
+				target.name, target.attachedMAC, err)
+		}
+	}
+
+	if current.ifaceID != target.ifaceID && target.ifaceID != "" {
+		err := odb.SetOFInterfaceIfaceID(target.name, target.ifaceID)
+		if err != nil {
+			return fmt.Errorf("error setting interface %s with id %s: %s",
+				target.name, target.ifaceID, err)
+		}
+	}
+	return nil
 }
 
 func updateIPs(containers []db.Container, labels []db.Label) {
@@ -102,7 +515,9 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 	}
 
 	for _, dbc := range containers {
-		pid := strconv.Itoa(dbc.Pid)
+		var err error
+
+		ns := networkNS(dbc.SchedID)
 		ip := dbc.IP
 
 		// XXX: On Each loop we're flushing all of the IP addresses away, and
@@ -110,32 +525,29 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		// instead we should just add or delete addresses that need to change.
 
 		//Flush the exisisting IP addresses.
-		err := sh("/sbin/ip", "netns", "exec", pid,
-			"ip", "addr", "flush", "dev", "eth0")
+		err = sh("ip netns exec %s ip addr flush dev %s", ns, innerVeth)
 		if err != nil {
 			log.WithError(err).Error("Failed to flush IPs.")
 			continue
 		}
 
 		// Set the mac address,
-		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "link", "set", "dev",
-			"eth0", "address", dbc.Mac)
+		err = sh("ip netns exec %s ip link set dev %s address %s",
+			ns, innerVeth, dbc.Mac)
 		if err != nil {
 			log.WithError(err).Error("Failed to set MAC.")
 			continue
 		}
 
 		// Set the ip address.
-		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "addr", "add", ip,
-			"dev", "eth0")
+		err = sh("ip netns exec %s ip addr add %s dev %s", ns, ip, innerVeth)
 		if err != nil {
 			log.WithError(err).Error("Failed to set IP.")
 			continue
 		}
 
 		// Set the default gateway.
-		err = sh("/sbin/ip", "netns", "exec", pid, "ip", "route", "add",
-			"default", "via", ip)
+		err = sh("ip netns exec %s ip route add default via %s", ns, ip)
 		if err != nil {
 			log.WithError(err).Error("Failed to set default gateway.")
 			continue
@@ -143,8 +555,8 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 
 		for _, l := range dbc.Labels {
 			if ip := labelIP[l]; ip != "" {
-				err = sh("/sbin/ip", "netns", "exec", pid, "ip",
-					"addr", "add", ip, "dev", "eth0")
+				err = sh("ip netns exec %s ip addr add %s dev %s",
+					ns, ip, innerVeth)
 				if err != nil {
 					log.WithError(err).Error(
 						"Failed to set label IP.")
@@ -268,98 +680,6 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 }
 
-func setupContainer(dk docker.Client, id, ip, mac string, pidInt int) error {
-	pid := strconv.Itoa(pidInt)
-
-	vethIn, vethOut := veths(id)
-	peerBr, peerDI := patchPorts(id)
-
-	// Bind netns to the host.
-	netnsSrc := "/hostproc/" + pid + "/ns/net"
-	netnsDst := "/var/run/netns/" + pid
-	if err := sh("/bin/ln", "-s", netnsSrc, netnsDst); err != nil {
-		return err
-	}
-
-	// Create the veth pair.
-	err := sh("/sbin/ip", "link", "add", vethOut, "type", "veth", "peer", "name",
-		vethIn)
-	if err != nil {
-		return err
-	}
-
-	// Bring up outer interface.
-	err = sh("/sbin/ip", "link", "set", vethOut, "up")
-	if err != nil {
-		return err
-	}
-
-	// Move the vethIn inside the container.
-	err = sh("/sbin/ip", "link", "set", vethIn, "netns", pid)
-	if err != nil {
-		return err
-	}
-
-	// Change the name of vethIn to eth0.
-	err = sh("/sbin/ip", "netns", "exec", pid, "ip", "link", "set", "dev", vethIn, "name",
-		"eth0")
-	if err != nil {
-		return err
-	}
-
-	// Bring up the inner interface.
-	err = sh("/sbin/ip", "netns", "exec", pid, "ip", "link", "set", "eth0", "up")
-	if err != nil {
-		return err
-	}
-
-	// Set the mtu to for tunnels.
-	err = sh("/sbin/ip", "netns", "exec", pid, "ip", "link", "set", "dev", "eth0",
-		"mtu", strconv.Itoa(1450))
-	if err != nil {
-		return err
-	}
-
-	// Create patch port between br-int and di-int
-	args := "ovs-vsctl add-port %s %s -- add-port %s %s -- set interface %s"
-	args += " type=patch options:peer=%s -- add-port %s %s -- set interface %s"
-	args += " external_ids:attached_mac=%s external_ids:iface-id=%s"
-	args += " type=patch options:peer=%s"
-	args = fmt.Sprintf(args, diBridge, vethOut, diBridge, peerDI, peerDI,
-		peerBr, ovnBridge, peerBr, peerBr, mac, id, peerDI)
-	dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
-
-	return nil
-}
-
-func veths(id string) (in, out string) {
-	return id[0:15], fmt.Sprintf("%s_c", id[0:13])
-}
-
-func patchPorts(id string) (br, di string) {
-	return fmt.Sprintf("%s_br", id[0:12]), fmt.Sprintf("%s_di", id[0:12])
-}
-
-func sh(args ...string) error {
-	cmd := exec.Command(args[0], args[1:]...)
-
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	err := cmd.Run()
-	if err != nil {
-		msg := strings.Join(args, " ")
-		msg += "\t" + string(outBuf.Bytes())
-		msg += "\t" + string(errBuf.Bytes())
-		msg += "\t" + err.Error()
-		log.Error(msg)
-		return fmt.Errorf("%s failed to execute", args[0])
-	}
-
-	return nil
-}
-
 func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Label,
 	connections []db.Connection) {
 
@@ -435,4 +755,103 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 
 	sort.Strings(hosts)
 	return strings.Join(hosts, "\n") + "\n"
+}
+
+func namespaceExists(namespace string) (bool, error) {
+	nsFullPath := fmt.Sprintf("%s/%s", nsPath, namespace)
+	file, err := os.Lstat(nsFullPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("error finding file %s: %s", nsFullPath, err)
+	}
+
+	if file.Mode()&os.ModeSymlink != os.ModeSymlink {
+		return false, nil
+	}
+
+	if dst, err := os.Readlink(nsFullPath); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("error finding destination of symlink %s: %s",
+			nsFullPath, err)
+	} else if dst == fmt.Sprintf("/hostproc/%s/ns/net", namespace) {
+		return true, nil
+	} else {
+	}
+	return false, nil
+}
+
+func networkNS(id string) string {
+	return fmt.Sprintf("%s_ns", id[0:13])
+}
+
+func veths(id string) (in, out string) {
+	return fmt.Sprintf("%s_i", id[0:13]), fmt.Sprintf("%s_c", id[0:13])
+}
+
+// Generate the temporary internal veth name from the name of the
+// external veth
+func tempVethPairName(out string) (in string) {
+	return fmt.Sprintf("%s_i", out[0:13])
+}
+
+func patchPorts(id string) (br, di string) {
+	return fmt.Sprintf("%s_br", id[0:12]), fmt.Sprintf("%s_di", id[0:12])
+}
+
+func ipExec(namespace, format string, args ...interface{}) error {
+	_, _, err := ipExecVerbose(namespace, format, args...)
+	return err
+}
+
+// Use like the `ip` command
+//
+// For example, if you wanted the stats on `eth0` (as in the command
+// `ip link show eth0`) then you would pass in ("", "link show %s", "eth0")
+//
+// If you wanted to run this in namespace `ns1` then you would use
+// ("ns1", "link show %s", "eth0")
+func ipExecVerbose(namespace, format string, args ...interface{}) (
+	stdout, stderr []byte, err error) {
+	cmd := fmt.Sprintf(format, args...)
+	cmd = fmt.Sprintf("ip %s", cmd)
+	if namespace != "" {
+		cmd = fmt.Sprintf("ip netns exec %s %s", namespace, cmd)
+	}
+	return shVerbose(cmd)
+}
+
+func sh(format string, args ...interface{}) error {
+	_, _, err := shVerbose(format, args...)
+	return err
+}
+
+// Returns (Stdout, Stderr, error)
+//
+// It's critical that the error returned here is the exact error
+// from "os/exec" commands
+func shVerbose(format string, args ...interface{}) (
+	stdout, stderr []byte, err error) {
+	command := fmt.Sprintf(format, args...)
+	cmdArgs := strings.Split(command, " ")
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+
+	if err := cmd.Run(); err != nil {
+		return nil, nil, err
+	}
+
+	return outBuf.Bytes(), errBuf.Bytes(), nil
+}
+
+// For debug messages
+func namespaceName(namespace string) string {
+	if namespace == "" {
+		return "root namespace"
+	}
+	return fmt.Sprintf("%s namespace", namespace)
 }

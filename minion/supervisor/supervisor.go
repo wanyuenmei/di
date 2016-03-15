@@ -1,9 +1,7 @@
 package supervisor
 
 import (
-	"bufio"
 	"fmt"
-	"os/exec"
 	"reflect"
 	"strings"
 
@@ -80,17 +78,10 @@ func (sv *supervisor) runApp() {
 			continue
 		}
 
-		var tearDowns []string
 		sv.conn.Transact(func(view db.Database) error {
-			tearDowns = sv.runAppTransact(view, dkcs)
+			sv.runAppTransact(view, dkcs)
 			return nil
 		})
-
-		for _, id := range tearDowns {
-			// XXX: Not the place to call TeardownContainer(). It's a fairly
-			// extreme violation of modularity.
-			TeardownContainer(sv.dk, id)
-		}
 	}
 }
 
@@ -319,30 +310,4 @@ func initialClusterString(etcdIPs []string) string {
 
 func nodeName(IP string) string {
 	return fmt.Sprintf("master-%s", IP)
-}
-
-// TeardownContainer deletes the networking services setup when the container was booted.
-//
-// XXX: This is soooo ugly that outsiders call it.  Very important that we fix this.
-func TeardownContainer(dk docker.Client, id string) {
-	if id == "" {
-		return
-	}
-	vethOutside := id[0:15]
-	peerOvn := fmt.Sprintf("%s_o", id[0:13])
-	peerDi := fmt.Sprintf("%s_d", id[0:13])
-
-	// delete vethOutside
-	c := exec.Command("/sbin/ip", "link", "delete", vethOutside)
-	stderr, _ := c.StderrPipe()
-	c.Start()
-	sc := bufio.NewScanner(stderr)
-	for sc.Scan() {
-		log.Error(sc.Text())
-	}
-	c.Wait()
-
-	// delete patch ports
-	dk.Exec(Ovsvswitchd, "ovs-vsctl", "del-port", vethOutside, "--",
-		"del-port", peerOvn, "--", "del-port", peerDi)
 }
