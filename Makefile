@@ -1,5 +1,6 @@
 export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
+NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 all:
 	cd -P . && \
@@ -13,7 +14,7 @@ generate:
 	go generate $(PACKAGES)
 
 format:
-	gofmt -w -s `find . -name '*.go' | grep -v '^\./vendor/'`
+	gofmt -w -s $(NOVENDOR)
 
 docker: build-linux
 	docker build -t quay.io/netsys/di .
