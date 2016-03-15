@@ -181,13 +181,13 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		}
 		defer ovsdb.Close()
 
-		ofDI, err := ovsdb.GetOFPort(peerDI)
+		ofDI, err := ovsdb.GetOFPortNo(peerDI)
 		if err != nil {
 			log.WithError(err).Error("Failed to get OpenFLow Port.")
 			return
 		}
 
-		ofVeth, err := ovsdb.GetOFPort(vethOut)
+		ofVeth, err := ovsdb.GetOFPortNo(vethOut)
 		if err != nil {
 			log.WithError(err).Error("Failed to get OpenFLow Port")
 			return

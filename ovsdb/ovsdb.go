@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
+	"strings"
 
-	"github.com/socketplane/libovsdb"
+	log "github.com/Sirupsen/logrus"
+	ovs "github.com/socketplane/libovsdb"
 )
 
 // Ovsdb is a connection to the ovsdb-server database.
 type Ovsdb struct {
-	*libovsdb.OvsdbClient
+	*ovs.OvsdbClient
 }
 
 // LPort is a logical port in OVN.
@@ -21,7 +24,7 @@ type LPort struct {
 
 // Acl is a firewall rule in OVN.
 type Acl struct {
-	uuid      libovsdb.UUID
+	uuid      ovs.UUID
 	Priority  int
 	Direction string
 	Match     string
@@ -29,9 +32,20 @@ type Acl struct {
 	Log       bool
 }
 
+// ExistError is returned as a pointer (*ExistError) when what was searched
+// for does not exist
+type ExistError struct {
+	msg string
+}
+
+// Row is an ovsdb row
+type Row map[string]interface{}
+type condition interface{}
+type mutation interface{}
+
 // Open creates a new Ovsdb connection.
 func Open() (Ovsdb, error) {
-	client, err := libovsdb.Connect("127.0.0.1", 6640)
+	client, err := ovs.Connect("127.0.0.1", 6640)
 	return Ovsdb{client}, err
 }
 
@@ -40,48 +54,129 @@ func (ovsdb Ovsdb) Close() {
 	ovsdb.Disconnect()
 }
 
-type condition struct {
-	field string
-	op    string
-	arg   string
-}
-
-/* Helpers */
-func (ovsdb Ovsdb) selectRows(db string, table string,
-	conditions ...condition) ([]map[string]interface{}, error) {
-	var conds []interface{}
-	for _, c := range conditions {
-		if c.field == "_uuid" {
-			conds = append(conds, libovsdb.NewCondition(c.field, c.op,
-				libovsdb.UUID{GoUuid: c.arg}))
-		} else {
-			conds = append(conds, libovsdb.NewCondition(c.field, c.op, c.arg))
+// 'value' is normally a string, except under special conditions, upon which
+// this function should recognize them and deal with it appropriately
+func newCondition(column, function string, value interface{}) condition {
+	if column == "_uuid" {
+		switch t := value.(type) {
+		case ovs.UUID:
+			return ovs.NewCondition(column, function, value)
+		case string:
+			return ovs.NewCondition(column, function,
+				ovs.UUID{GoUuid: value.(string)})
+		default:
+			log.WithFields(log.Fields{
+				"value": value,
+				"type":  t,
+			}).Error("invalid type for value in condition")
+			return nil
 		}
 	}
-	selectOp := libovsdb.Operation{
+	return ovs.NewCondition(column, function, value)
+}
+
+// This does not cover all cases, they should just be added as needed
+func newMutation(column, mutator string, value interface{}) mutation {
+	switch typedValue := value.(type) {
+	case ovs.UUID:
+		uuidSlice := []ovs.UUID{typedValue}
+		mutateValue, err := ovs.NewOvsSet(uuidSlice)
+		if err != nil {
+			// An error can only occur if the input is not a slice
+			panic("newMutation(): an impossible error occurred")
+		}
+		return ovs.NewMutation(column, mutator, mutateValue)
+	default:
+		var mutateValue interface{}
+		var err error
+		switch reflect.ValueOf(typedValue).Kind() {
+		case reflect.Slice:
+			mutateValue, err = ovs.NewOvsSet(typedValue)
+		case reflect.Map:
+			mutateValue, err = ovs.NewOvsMap(typedValue)
+		default:
+			panic(fmt.Sprintf("unhandled value in mutation: value %s, type %s",
+				value, typedValue))
+		}
+		if err != nil {
+			return err
+		}
+		return ovs.NewMutation(column, mutator, mutateValue)
+	}
+}
+
+func (ovsdb Ovsdb) selectRows(db string, table string,
+	conds ...condition) ([]Row, error) {
+	var anonymousConds []interface{}
+	for _, c := range conds {
+		anonymousConds = append(anonymousConds, c)
+	}
+	selectOp := ovs.Operation{
 		Op:    "select",
 		Table: table,
-		Where: conds,
+		Where: anonymousConds,
 	}
 	results, err := ovsdb.Transact(db, selectOp)
 	if err != nil {
 		return nil, err
 	}
-	return results[0].Rows, nil
+	var typedRows []Row
+	for _, r := range results[0].Rows {
+		typedRows = append(typedRows, r)
+	}
+	return typedRows, nil
 }
 
-func rwMutateOp(table string, column string, op string, condCol string,
-	condOp string, condVal interface{}, uuidname string) libovsdb.Operation {
-	mutateUUID := []libovsdb.UUID{{uuidname}}
-	mutateSet, _ := libovsdb.NewOvsSet(mutateUUID)
-	mutation := libovsdb.NewMutation(column, op, mutateSet)
-	condition := libovsdb.NewCondition(condCol, condOp, condVal)
-	return libovsdb.Operation{
-		Op:        "mutate",
-		Table:     table,
-		Mutations: []interface{}{mutation},
-		Where:     []interface{}{condition},
+func (ovsdb Ovsdb) getFromMapInRow(row Row, column, key string) (
+	interface{}, error) {
+	val, ok := row[column]
+	if !ok {
+		msg := fmt.Sprintf("column %s not found in row", column)
+		return nil, &ExistError{msg}
 	}
+	goMap, err := ovsStringMapToMap(val)
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok = goMap[key]
+	if !ok {
+		msg := fmt.Sprintf("key %s not found in column %s", key, column)
+		return "", &ExistError{msg}
+	}
+	return val, nil
+}
+
+func ovsStringMapToMap(oMap interface{}) (map[string]string, error) {
+	var ret = make(map[string]string)
+	wrap, ok := oMap.([]interface{})
+	if !ok {
+		return nil, errors.New("ovs map outermost layer invalid")
+	}
+	if wrap[0] != "map" {
+		return nil, errors.New("ovs map invalid identifier")
+	}
+
+	brokenMap, ok := wrap[1].([]interface{})
+	if !ok {
+		return nil, errors.New("ovs map content invalid")
+	}
+	for _, kvPair := range brokenMap {
+		kvSlice, ok := kvPair.([]interface{})
+		if !ok {
+			return nil, errors.New("ovs map block must be a slice")
+		}
+		key, ok := kvSlice[0].(string)
+		if !ok {
+			return nil, errors.New("ovs map key must be string")
+		}
+		val, ok := kvSlice[1].(string)
+		if !ok {
+			return nil, errors.New("ovs map value must be string")
+		}
+		ret[key] = val
+	}
+	return ret, nil
 }
 
 func ovsStringSetToSlice(oSet interface{}) []string {
@@ -96,31 +191,31 @@ func ovsStringSetToSlice(oSet interface{}) []string {
 	return ret
 }
 
-func ovsUUIDSetToSlice(oSet interface{}) []libovsdb.UUID {
-	var ret []libovsdb.UUID
+func ovsUUIDSetToSlice(oSet interface{}) []ovs.UUID {
+	var ret []ovs.UUID
 	if t, ok := oSet.([]interface{}); ok && t[0] == "set" {
 		for _, v := range t[1].([]interface{}) {
-			ret = append(ret, libovsdb.UUID{
+			ret = append(ret, ovs.UUID{
 				GoUuid: v.([]interface{})[1].(string),
 			})
 		}
 	} else {
-		ret = append(ret, libovsdb.UUID{
+		ret = append(ret, ovs.UUID{
 			GoUuid: oSet.([]interface{})[1].(string),
 		})
 	}
 	return ret
 }
 
-func errorCheck(results []libovsdb.OperationResult, expectedResponses int,
+func errorCheck(results []ovs.OperationResult, expectedResponses int,
 	expectedCount int) error {
 	totalCount := 0
 	if len(results) < expectedResponses {
-		return errors.New("mismatched responses and opeartions")
+		return errors.New("mismatched responses and operations")
 	}
-	for _, result := range results {
+	for i, result := range results {
 		if result.Error != "" {
-			return errors.New(result.Error + ": " + result.Details)
+			return fmt.Errorf("[%d] %s: %s", i, result.Error, result.Details)
 		}
 		totalCount += result.Count
 	}
@@ -134,7 +229,7 @@ func errorCheck(results []libovsdb.OperationResult, expectedResponses int,
 func (ovsdb Ovsdb) ListSwitches() ([]string, error) {
 	var switches []string
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		condition{"_uuid", "!=", "_"})
+		newCondition("_uuid", "!=", "_"))
 	if err != nil {
 		return nil, err
 	}
@@ -149,25 +244,26 @@ func (ovsdb Ovsdb) ListSwitches() ([]string, error) {
 // CreateSwitch creates a new logical switch in OVN.
 func (ovsdb Ovsdb) CreateSwitch(lswitch string) error {
 	check, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		condition{"name", "==", lswitch})
+		newCondition("name", "==", lswitch))
 	if err != nil {
 		return err
 	}
 	if len(check) > 0 {
-		return fmt.Errorf("logical switch %s already exists", lswitch)
+		return &ExistError{
+			fmt.Sprintf("logical switch %s already exists", lswitch),
+		}
 	}
 
 	bridge := make(map[string]interface{})
 	bridge["name"] = lswitch
 
-	insertOp := libovsdb.Operation{
+	insertOp := ovs.Operation{
 		Op:    "insert",
 		Table: "Logical_Switch",
 		Row:   bridge,
 	}
 
-	ops := []libovsdb.Operation{insertOp}
-	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", insertOp)
 	if err != nil {
 		return errors.New("transaction error")
 	}
@@ -176,15 +272,14 @@ func (ovsdb Ovsdb) CreateSwitch(lswitch string) error {
 
 // DeleteSwitch removes a logical switch from OVN.
 func (ovsdb Ovsdb) DeleteSwitch(lswitch string) error {
-	deleteOp := libovsdb.Operation{
+	deleteOp := ovs.Operation{
 		Op:    "delete",
 		Table: "Logical_Switch",
 		Where: []interface{}{
-			libovsdb.NewCondition("name", "==", lswitch),
+			newCondition("name", "==", lswitch),
 		},
 	}
-	ops := []libovsdb.Operation{deleteOp}
-	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", deleteOp)
 	if err != nil {
 		return err
 	}
@@ -195,7 +290,7 @@ func (ovsdb Ovsdb) DeleteSwitch(lswitch string) error {
 func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 	var lports []LPort
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		condition{"name", "==", lswitch})
+		newCondition("name", "==", lswitch))
 	if err != nil {
 		return nil, err
 	}
@@ -204,9 +299,8 @@ func (ovsdb Ovsdb) ListPorts(lswitch string) ([]LPort, error) {
 	}
 	ports := ovsUUIDSetToSlice(results[0]["ports"])
 	for _, result := range ports {
-		pid := result.GoUuid
 		results, err = ovsdb.selectRows("OVN_Northbound", "Logical_Port",
-			condition{"_uuid", "==", pid})
+			newCondition("_uuid", "==", result.GoUuid))
 		if err != nil {
 			return nil, err
 		}
@@ -229,34 +323,39 @@ func (ovsdb Ovsdb) CreatePort(lswitch, name, mac, ip string) error {
 	// no port called name already exists. This isn't strictly necessary, but it
 	// makes our lives easier.
 	rows, err := ovsdb.selectRows("OVN_Northbound", "Logical_Port",
-		condition{"name", "==", name})
+		newCondition("name", "==", name))
 	if err != nil {
 		return err
 	}
 	if len(rows) > 0 {
-		return fmt.Errorf("port %s already exists", name)
+		return &ExistError{fmt.Sprintf("port %s already exists", name)}
 	}
 
 	port := make(map[string]interface{})
 	port["name"] = name
-	addrs, err := libovsdb.NewOvsSet([]string{fmt.Sprintf("%s %s", mac, ip)})
+	addrs, err := ovs.NewOvsSet([]string{fmt.Sprintf("%s %s", mac, ip)})
 	if err != nil {
 		return err
 	}
 	port["addresses"] = addrs
 
-	insertOp := libovsdb.Operation{
+	insertOp := ovs.Operation{
 		Op:       "insert",
 		Table:    "Logical_Port",
 		Row:      port,
 		UUIDName: "dilportadd",
 	}
 
-	mutateOp := rwMutateOp("Logical_Switch", "ports", "insert", "name", "==",
-		lswitch, "dilportadd")
+	mutateOp := ovs.Operation{
+		Op:    "mutate",
+		Table: "Logical_Switch",
+		Mutations: []interface{}{
+			newMutation("ports", "insert", ovs.UUID{GoUuid: "dilportadd"}),
+		},
+		Where: []interface{}{newCondition("name", "==", lswitch)},
+	}
 
-	ops := []libovsdb.Operation{insertOp, mutateOp}
-	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", insertOp, mutateOp)
 	if err != nil {
 		return errors.New("transaction error")
 	}
@@ -266,28 +365,29 @@ func (ovsdb Ovsdb) CreatePort(lswitch, name, mac, ip string) error {
 // DeletePort removes a logical port from OVN.
 func (ovsdb Ovsdb) DeletePort(lswitch, name string) error {
 	rows, err := ovsdb.selectRows("OVN_Northbound", "Logical_Port",
-		condition{"name", "==", name})
+		newCondition("name", "==", name))
 	if err != nil {
 		return err
 	}
 	if len(rows) == 0 {
 		return nil
 	}
-	uuid := libovsdb.UUID{GoUuid: rows[0]["_uuid"].([]interface{})[1].(string)}
+	uuid := ovs.UUID{GoUuid: rows[0]["_uuid"].([]interface{})[1].(string)}
 
-	deleteOp := libovsdb.Operation{
+	deleteOp := ovs.Operation{
 		Op:    "delete",
 		Table: "Logical_Port",
-		Where: []interface{}{
-			libovsdb.NewCondition("_uuid", "==", uuid),
-		},
+		Where: []interface{}{newCondition("_uuid", "==", uuid)},
 	}
 
-	mutateOp := rwMutateOp("Logical_Switch", "ports", "delete", "name", "==",
-		lswitch, uuid.GoUuid)
+	mutateOp := ovs.Operation{
+		Op:        "mutate",
+		Table:     "Logical_Switch",
+		Mutations: []interface{}{newMutation("ports", "delete", uuid)},
+		Where:     []interface{}{newCondition("name", "==", lswitch)},
+	}
 
-	ops := []libovsdb.Operation{deleteOp, mutateOp}
-	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", deleteOp, mutateOp)
 	if err != nil {
 		return errors.New("transaction error")
 	}
@@ -298,7 +398,7 @@ func (ovsdb Ovsdb) DeletePort(lswitch, name string) error {
 func (ovsdb Ovsdb) ListACLs(lswitch string) ([]Acl, error) {
 	var acls []Acl
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		condition{"name", "==", lswitch})
+		newCondition("name", "==", lswitch))
 	if err != nil {
 		return nil, err
 	}
@@ -309,13 +409,13 @@ func (ovsdb Ovsdb) ListACLs(lswitch string) ([]Acl, error) {
 	for _, aid := range aids {
 		aid := aid.GoUuid
 		results, err := ovsdb.selectRows("OVN_Northbound", "ACL",
-			condition{"_uuid", "==", aid})
+			newCondition("_uuid", "==", aid))
 		if err != nil {
 			return nil, err
 		}
 		for _, result := range results {
 			acl := Acl{
-				uuid:      libovsdb.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
+				uuid:      ovs.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
 				Priority:  int(result["priority"].(float64)),
 				Direction: result["direction"].(string),
 				Match:     result["match"].(string),
@@ -362,18 +462,23 @@ func (ovsdb Ovsdb) CreateACL(lswitch string, dir string, priority int, match str
 	acl["action"] = action
 	acl["log"] = doLog
 
-	insertOp := libovsdb.Operation{
+	insertOp := ovs.Operation{
 		Op:       "insert",
 		Table:    "ACL",
 		Row:      acl,
 		UUIDName: "diacladd",
 	}
 
-	mutateOp := rwMutateOp("Logical_Switch", "acls", "insert", "name", "==",
-		lswitch, "diacladd")
+	mutateOp := ovs.Operation{
+		Op:    "mutate",
+		Table: "Logical_Switch",
+		Mutations: []interface{}{
+			newMutation("acls", "insert", ovs.UUID{GoUuid: "diacladd"}),
+		},
+		Where: []interface{}{newCondition("name", "==", lswitch)},
+	}
 
-	ops := []libovsdb.Operation{insertOp, mutateOp}
-	results, err := ovsdb.Transact("OVN_Northbound", ops...)
+	results, err := ovsdb.Transact("OVN_Northbound", insertOp, mutateOp)
 	if err != nil {
 		return errors.New("transaction error")
 	}
@@ -397,19 +502,22 @@ func (ovsdb Ovsdb) DeleteACL(lswitch string, dir string, priority int, match str
 			continue
 		}
 
-		deleteOp := libovsdb.Operation{
+		deleteOp := ovs.Operation{
 			Op:    "delete",
 			Table: "ACL",
-			Where: []interface{}{
-				libovsdb.NewCondition("_uuid", "==", acl.uuid),
-			},
+			Where: []interface{}{newCondition("_uuid", "==", acl.uuid)},
 		}
 
-		mutateOp := rwMutateOp("Logical_Switch", "acls", "delete", "name", "==",
-			lswitch, acl.uuid.GoUuid)
+		mutateOp := ovs.Operation{
+			Op:    "mutate",
+			Table: "Logical_Switch",
+			Mutations: []interface{}{
+				newMutation("acls", "delete", acl.uuid),
+			},
+			Where: []interface{}{newCondition("name", "==", lswitch)},
+		}
 
-		ops := []libovsdb.Operation{deleteOp, mutateOp}
-		results, err := ovsdb.Transact("OVN_Northbound", ops...)
+		results, err := ovsdb.Transact("OVN_Northbound", deleteOp, mutateOp)
 		if err != nil {
 			return errors.New("transaction error")
 		}
@@ -421,21 +529,288 @@ func (ovsdb Ovsdb) DeleteACL(lswitch string, dir string, priority int, match str
 	return nil
 }
 
-// GetOFPort retreives the OpenFlow port number of 'name' from OVS.
-func (ovsdb Ovsdb) GetOFPort(name string) (int, error) {
-	results, err := ovsdb.selectRows("Open_vSwitch", "Interface",
-		condition{"name", "==", name})
+func (ovsdb Ovsdb) getOFGeneric(table, name string) ([]Row, error) {
+	results, err := ovsdb.selectRows("Open_vSwitch", table,
+		newCondition("name", "==", name))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if len(results) == 0 {
-		return 0, fmt.Errorf("no interfaces with name %s", name)
+		return nil, &ExistError{
+			fmt.Sprintf("no %s with name %s", strings.ToLower(table), name),
+		}
+	}
+
+	return results, nil
+}
+
+// DeleteOFPort deletes an openflow port with the corresponding bridge and
+// port names.
+func (ovsdb Ovsdb) DeleteOFPort(bridge, name string) error {
+	rows, err := ovsdb.selectRows("Open_vSwitch", "Port",
+		newCondition("name", "==", name))
+	if err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	deleteOp := ovs.Operation{
+		Op:    "delete",
+		Table: "Port",
+		Where: []interface{}{newCondition("name", "==", name)},
+	}
+
+	uuid := ovs.UUID{GoUuid: rows[0]["_uuid"].([]interface{})[1].(string)}
+	mutateOp := ovs.Operation{
+		Op:        "mutate",
+		Table:     "Bridge",
+		Mutations: []interface{}{newMutation("ports", "delete", uuid)},
+		Where:     []interface{}{newCondition("name", "==", bridge)},
+	}
+
+	results, err := ovsdb.Transact("Open_vSwitch", deleteOp, mutateOp)
+	if err != nil {
+		return errors.New("transaction error")
+	}
+	return errorCheck(results, 2, 2)
+}
+
+// GetOFPortNo retrieves the OpenFlow port number of 'name' from OVS.
+//
+// Returns an error of type *ExistError if the port does not exist
+func (ovsdb Ovsdb) GetOFPortNo(name string) (int, error) {
+	results, err := ovsdb.getOFGeneric("Interface", name)
+	if err != nil {
+		return 0, err
 	}
 
 	port, ok := results[0]["ofport"].(float64)
 	if !ok {
-		return 0, fmt.Errorf("no openflow port")
+		return 0, &ExistError{
+			fmt.Sprintf("interface %s has no openflow port", name),
+		}
 	}
 
 	return int(port), nil
+}
+
+// CreateOFPort creates an openflow port on specified bridge
+//
+// A port cannot be created without an interface, that is why the "default"
+// interface (one with the same name as the port) is created along with it.
+func (ovsdb Ovsdb) CreateOFPort(bridge, name string) error {
+	var ops []ovs.Operation
+
+	ops = append(ops, ovs.Operation{
+		Op:       "insert",
+		Table:    "Interface",
+		Row:      Row{"name": name},
+		UUIDName: "diifaceadd",
+	})
+
+	ifaces, err := ovs.NewOvsSet([]ovs.UUID{{GoUuid: "diifaceadd"}})
+	if err != nil {
+		return err
+	}
+
+	ops = append(ops, ovs.Operation{
+		Op:       "insert",
+		Table:    "Port",
+		Row:      Row{"name": name, "interfaces": ifaces},
+		UUIDName: "diportadd",
+	})
+
+	ops = append(ops, ovs.Operation{
+		Op:    "mutate",
+		Table: "Bridge",
+		Mutations: []interface{}{
+			newMutation("ports", "insert", ovs.UUID{GoUuid: "diportadd"}),
+		},
+		Where: []interface{}{newCondition("name", "==", bridge)},
+	})
+
+	results, err := ovsdb.Transact("Open_vSwitch", ops...)
+	if err != nil {
+		return fmt.Errorf(
+			"transaction error creating openflow port %s within %s: %s",
+			name, bridge, err)
+	}
+	if err := errorCheck(results, 2, 1); err != nil {
+		return fmt.Errorf("error creating openflow port %s within %s: %s",
+			name, bridge, err)
+	}
+	return nil
+}
+
+// ListOFPorts lists all openflow ports on specified bridge
+func (ovsdb Ovsdb) ListOFPorts(bridge string) ([]string, error) {
+	var ports []string
+	results, err := ovsdb.selectRows("Open_vSwitch", "Bridge",
+		newCondition("name", "==", bridge))
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return []string{}, nil
+	}
+	portUUIDs := ovsUUIDSetToSlice(results[0]["ports"])
+	for _, uuid := range portUUIDs {
+		results, err = ovsdb.selectRows("Open_vSwitch", "Port",
+			newCondition("_uuid", "==", uuid.GoUuid))
+		if err != nil {
+			return nil, err
+		}
+		ports = append(ports, results[0]["name"].(string))
+	}
+	return ports, nil
+}
+
+// GetDefaultOFInterface gets the default interface of the specified port,
+// which is the interface with the same name
+func (ovsdb Ovsdb) GetDefaultOFInterface(port string) (Row, error) {
+	results, err := ovsdb.selectRows("Open_vSwitch", "Port",
+		newCondition("name", "==", port))
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, fmt.Errorf("could not find openflow port %s", port)
+	}
+	ifaceUUIDs := ovsUUIDSetToSlice(results[0]["interfaces"])
+	for _, uuid := range ifaceUUIDs {
+		results, err = ovsdb.selectRows("Open_vSwitch", "Interface",
+			newCondition("_uuid", "==", uuid.GoUuid))
+		if err != nil {
+			return nil, err
+		}
+		row := results[0]
+		if row["name"].(string) == port {
+			return row, nil
+		}
+	}
+	err = fmt.Errorf("could not find default openflow interface for port %s",
+		port)
+	return nil, err
+}
+
+// GetOFInterfaceType gets the type of the interface given a Row
+func (ovsdb Ovsdb) GetOFInterfaceType(iface Row) (string, error) {
+	val, ok := iface["type"]
+	if !ok {
+		return "", &ExistError{"column type not found in interface row"}
+	}
+	return val.(string), nil
+}
+
+// GetOFInterfacePeer gets the peer of the interface given a Row
+func (ovsdb Ovsdb) GetOFInterfacePeer(iface Row) (string, error) {
+	val, err := ovsdb.getFromMapInRow(iface, "options", "peer")
+	if err != nil {
+		return "", err
+	}
+	return val.(string), nil
+}
+
+// GetOFInterfaceAttachedMAC gets the attached-mac of the interface given a Row
+func (ovsdb Ovsdb) GetOFInterfaceAttachedMAC(iface Row) (string, error) {
+	val, err := ovsdb.getFromMapInRow(iface, "external_ids", "attached-mac")
+	if err != nil {
+		return "", err
+	}
+	return val.(string), nil
+}
+
+// GetOFInterfaceIfaceID gets the iface-id of the interface given a Row
+func (ovsdb Ovsdb) GetOFInterfaceIfaceID(iface Row) (string, error) {
+	val, err := ovsdb.getFromMapInRow(iface, "external_ids", "iface-id")
+	if err != nil {
+		return "", err
+	}
+	return val.(string), nil
+}
+
+func (ovsdb Ovsdb) addToOFInterface(name string, mut mutation) error {
+	mutateOp := ovs.Operation{
+		Op:        "mutate",
+		Table:     "Interface",
+		Mutations: []interface{}{mut},
+		Where:     []interface{}{newCondition("name", "==", name)},
+	}
+
+	results, err := ovsdb.Transact("Open_vSwitch", mutateOp)
+	if err != nil {
+		return fmt.Errorf("transaction error inserting into interface %s: %s",
+			name, err)
+	}
+	return errorCheck(results, 1, 1)
+}
+
+func (ovsdb Ovsdb) updateOFInterface(name string, update Row) error {
+	updateOp := ovs.Operation{
+		Op:    "update",
+		Table: "Interface",
+		Where: []interface{}{newCondition("name", "==", name)},
+		Row:   update,
+	}
+
+	results, err := ovsdb.Transact("Open_vSwitch", updateOp)
+	if err != nil {
+		return fmt.Errorf("transaction error updating interface %s: %s",
+			name, err)
+	}
+	return errorCheck(results, 1, 1)
+}
+
+// SetOFInterfacePeer sets the peer of the interface
+func (ovsdb Ovsdb) SetOFInterfacePeer(name, peer string) error {
+	mut := newMutation("options", "insert", map[string]string{"peer": peer})
+	if err := ovsdb.addToOFInterface(name, mut); err != nil {
+		return fmt.Errorf("error setting interface %s to peer %s: %s",
+			name, peer, err)
+	}
+	return nil
+}
+
+// SetOFInterfaceAttachedMAC sets the attached-mac of the interface
+func (ovsdb Ovsdb) SetOFInterfaceAttachedMAC(name, mac string) error {
+	mut := newMutation("external_ids", "insert",
+		map[string]string{"attached-mac": mac})
+	if err := ovsdb.addToOFInterface(name, mut); err != nil {
+		return fmt.Errorf("error setting interface %s to attached-mac %s: %s",
+			name, mac, err)
+	}
+	return nil
+}
+
+// SetOFInterfaceIfaceID sets the iface-id of the interface
+func (ovsdb Ovsdb) SetOFInterfaceIfaceID(name, ifaceID string) error {
+	mut := newMutation("external_ids", "insert",
+		map[string]string{"iface-id": ifaceID})
+	if err := ovsdb.addToOFInterface(name, mut); err != nil {
+		return fmt.Errorf("error setting interface %s to iface-id %s: %s",
+			name, ifaceID, err)
+	}
+	return nil
+}
+
+// SetOFInterfaceType sets the type of the interface
+func (ovsdb Ovsdb) SetOFInterfaceType(name, ifaceType string) error {
+	if err := ovsdb.updateOFInterface(name, Row{"type": ifaceType}); err != nil {
+		return fmt.Errorf("error setting interface %s to type %s: %s",
+			name, ifaceType, err)
+	}
+	return nil
+}
+
+// Error returns the error message
+func (e *ExistError) Error() string {
+	return e.msg
+}
+
+// IsExist checks if the error is of type *ExistError
+func IsExist(e error) bool {
+	_, ok := e.(*ExistError)
+	return ok
 }
