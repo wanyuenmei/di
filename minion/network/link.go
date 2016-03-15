@@ -188,3 +188,76 @@ func listVeths() ([]string, error) {
 	}
 	return veths, nil
 }
+
+func listIP(namespace string) ([]string, error) {
+	var ips []string
+
+	stdout, _, err := ipExecVerbose(namespace, "addr list dev %s", innerVeth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list ip addresses in %s: %s",
+			namespaceName(namespace), err)
+	}
+
+	re, _ := regexp.Compile(`(?:inet|inet6) (\S+)`)
+	for _, v := range re.FindAllSubmatch(stdout, -1) {
+		ips = append(ips, string(v[1]))
+	}
+
+	return ips, nil
+}
+
+func addIP(namespace, ip string) error {
+	_, _, err := ipExecVerbose(namespace, "addr add %s dev %s", ip, innerVeth)
+	if err != nil {
+		return fmt.Errorf("failed to add ip %s in %s: %s",
+			ip, namespaceName(namespace), err)
+	}
+	return nil
+}
+
+func delIP(namespace, ip string) error {
+	_, _, err := ipExecVerbose(namespace, "addr del %s dev %s", ip, innerVeth)
+	if err != nil {
+		return fmt.Errorf("failed to add ip %s in %s: %s",
+			ip, namespaceName(namespace), err)
+	}
+	return nil
+}
+
+func getMac(namespace string) (string, error) {
+	return linkQuery(namespace, innerVeth, "link/ether")
+}
+
+func setMac(namespace, mac string) error {
+	_, _, err := ipExecVerbose(namespace, "link set dev %s address %s", innerVeth, mac)
+	if err != nil {
+		return fmt.Errorf("failed to set mac %s in %s: %s",
+			mac, namespaceName(namespace), err)
+	}
+	return nil
+}
+
+func getDefaultGateway(namespace string) (string, error) {
+	stdout, _, err := ipExecVerbose(namespace, "route show default")
+	if err != nil {
+		return "", fmt.Errorf("failed to get default gateway in %s: %s",
+			namespaceName(namespace), err)
+	}
+
+	re, _ := regexp.Compile(`(?:default via) (\S+)`)
+	match := re.FindSubmatch(stdout)
+	dg := ""
+	if len(match) == 2 {
+		dg = string(match[1])
+	}
+	return dg, nil
+}
+
+func setDefaultGateway(namespace, ip string) error {
+	_, _, err := ipExecVerbose(namespace, "route add default via %s", ip)
+	if err != nil {
+		return fmt.Errorf("failed to set default gateway %s in %s: %s",
+			ip, namespaceName(namespace), err)
+	}
+	return nil
+}

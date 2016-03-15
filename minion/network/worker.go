@@ -522,48 +522,71 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		ns := networkNS(dbc.SchedID)
 		ip := dbc.IP
 
-		// XXX: On Each loop we're flushing all of the IP addresses away, and
-		// replacing them even if we dont' need to.  This really isn't ok,
-		// instead we should just add or delete addresses that need to change.
-
-		//Flush the exisisting IP addresses.
-		err = sh("ip netns exec %s ip addr flush dev %s", ns, innerVeth)
+		currIPs, err := listIP(ns)
 		if err != nil {
-			log.WithError(err).Error("Failed to flush IPs.")
+			log.WithError(err).Error("failed to list current ip addresses")
 			continue
 		}
 
-		// Set the mac address,
-		err = sh("ip netns exec %s ip link set dev %s address %s",
-			ns, innerVeth, dbc.Mac)
-		if err != nil {
-			log.WithError(err).Error("Failed to set MAC.")
-			continue
-		}
-
-		// Set the ip address.
-		err = sh("ip netns exec %s ip addr add %s dev %s", ns, ip, innerVeth)
-		if err != nil {
-			log.WithError(err).Error("Failed to set IP.")
-			continue
-		}
-
-		// Set the default gateway.
-		err = sh("ip netns exec %s ip route add default via %s", ns, ip)
-		if err != nil {
-			log.WithError(err).Error("Failed to set default gateway.")
-			continue
-		}
-
+		newIPSet := make(map[string]struct{})
+		newIPSet[ip] = struct{}{}
 		for _, l := range dbc.Labels {
-			if ip := labelIP[l]; ip != "" {
-				err = sh("ip netns exec %s ip addr add %s dev %s",
-					ns, ip, innerVeth)
-				if err != nil {
-					log.WithError(err).Error(
-						"Failed to set label IP.")
-					continue
-				}
+			newIP := labelIP[l]
+			if newIP != "" {
+				newIPSet[newIP] = struct{}{}
+			}
+		}
+
+		var newIPs []string
+		for ip := range newIPSet {
+			newIPs = append(newIPs, ip+"/32")
+		}
+
+		_, ipToDel, ipToAdd := join.Join(currIPs, newIPs, func(
+			left, right interface{}) int {
+			if left.(string) == right.(string) {
+				return 0
+			}
+			return -1
+		})
+
+		for _, ip := range ipToDel {
+			if err := delIP(ns, ip.(string)); err != nil {
+				log.WithError(err).Error("failed to delete ip")
+				continue
+			}
+		}
+
+		for _, ip := range ipToAdd {
+			if err := addIP(ns, ip.(string)); err != nil {
+				log.WithError(err).Error("failed to add ip")
+				continue
+			}
+		}
+
+		currMac, err := getMac(ns)
+		if err != nil {
+			log.WithError(err).Error("failed to get MAC")
+			continue
+		}
+
+		if currMac != dbc.Mac {
+			if err := setMac(ns, dbc.Mac); err != nil {
+				log.WithError(err).Error("failed to set MAC.")
+				continue
+			}
+		}
+
+		currDG, err := getDefaultGateway(ns)
+		if err != nil {
+			log.WithError(err).Error("failed to get current default gateway")
+			continue
+		}
+
+		if currDG != ip {
+			if err := setDefaultGateway(ns, ip); err != nil {
+				log.WithError(err).Error("failed to set new default gateway")
+				continue
 			}
 		}
 	}
@@ -827,7 +850,9 @@ func ipExec(namespace, format string, args ...interface{}) error {
 //
 // If you wanted to run this in namespace `ns1` then you would use
 // ("ns1", "link show %s", "eth0")
-func ipExecVerbose(namespace, format string, args ...interface{}) (
+//
+// Stored in a variable so we can mock it out for the unit tests.
+var ipExecVerbose = func(namespace, format string, args ...interface{}) (
 	stdout, stderr []byte, err error) {
 	cmd := fmt.Sprintf(format, args...)
 	cmd = fmt.Sprintf("ip %s", cmd)
