@@ -130,24 +130,20 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 // XXX: currently ignores cloudConfig
 // XXX: should probably have a better clean up routine if an error is encountered
 func (clst *gceCluster) Boot(bootSet []Machine) error {
-	if len(bootSet) < 0 {
-		return errors.New("count must be >= 0")
-	}
-	var ops []*compute.Operation
-	var urls []*compute.InstanceReference
+	var names []string
 	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		op, err := clst.instanceNew(name, m.Size, clst.cloudConfig)
+		_, err := clst.instanceNew(name, m.Size, clst.cloudConfig)
 		if err != nil {
-			return err
+			log.WithFields(log.Fields{
+				"error": err,
+				"id":    m.ID,
+			}).Error("Failed to start instance.")
+			continue
 		}
-		ops = append(ops, op)
-		urls = append(urls, &compute.InstanceReference{
-			Instance: op.TargetLink,
-		})
+		names = append(names, name)
 	}
-	err := clst.wait(ops, local)
-	if err != nil {
+	if err := clst.wait(names, true); err != nil {
 		return err
 	}
 	return nil
@@ -160,20 +156,18 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 //
 // XXX: should probably have a better clean up routine if an error is encountered
 func (clst *gceCluster) Stop(ids []string) error {
-	var ops []*compute.Operation
+	var names []string
 	for _, id := range ids {
-		op, err := clst.instanceDel(id)
-		if err != nil {
+		if _, err := clst.instanceDel(id); err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 				"id":    id,
 			}).Error("Failed to delete instance.")
 			continue
 		}
-		ops = append(ops, op)
+		names = append(names, id)
 	}
-	err := clst.wait(ops, local)
-	if err != nil {
+	if err := clst.wait(names, false); err != nil {
 		return err
 	}
 	return nil
@@ -192,13 +186,54 @@ func (clst *gceCluster) PickBestSize(ram dsl.Range, cpu dsl.Range,
 	return pickBestSize(googleDescriptions, ram, cpu, maxPrice)
 }
 
+// Get() and operationWait() don't always present the same results, so
+// Boot() and Stop() must have a special wait to stay in sync with Get().
+func (clst *gceCluster) wait(names []string, live bool) error {
+	if len(names) == 0 {
+		return nil
+	}
+
+	after := time.After(3 * time.Minute)
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
+
+	for range tick.C {
+		select {
+		case <-after:
+			return errors.New("wait(): timeout")
+		default:
+		}
+
+		for len(names) > 0 {
+			name := names[0]
+			instances, err := clst.Get()
+			if err != nil {
+				return err
+			}
+			exists := false
+			for _, ist := range instances {
+				if name == ist.ID {
+					exists = true
+				}
+			}
+			if live == exists {
+				names = append(names[:0], names[1:]...)
+			}
+		}
+		if len(names) == 0 {
+			return nil
+		}
+	}
+	return nil
+}
+
 // Blocking wait with a hardcoded timeout.
 //
 // Waits on operations, the type of which is indicated by 'domain'. All
 // operations must be of the same 'domain'
 //
 // XXX: maybe not hardcode timeout, and retry interval
-func (clst *gceCluster) wait(ops []*compute.Operation, domain int) error {
+func (clst *gceCluster) operationWait(ops []*compute.Operation, domain int) error {
 	if len(ops) == 0 {
 		return nil
 	}
@@ -212,7 +247,7 @@ func (clst *gceCluster) wait(ops []*compute.Operation, domain int) error {
 	for {
 		select {
 		case <-after:
-			return fmt.Errorf("wait(): timeout")
+			return fmt.Errorf("operationWait(): timeout")
 		case <-tick.C:
 			for len(ops) > 0 {
 				switch {
@@ -312,7 +347,7 @@ func (clst *gceCluster) updateSecurityGroups(acls []string) error {
 	if err != nil {
 		return err
 	}
-	err = clst.wait([]*compute.Operation{op}, global)
+	err = clst.operationWait([]*compute.Operation{op}, global)
 	if err != nil {
 		return err
 	}
@@ -488,7 +523,7 @@ func (clst *gceCluster) netInit() error {
 		return err
 	}
 
-	err = clst.wait([]*compute.Operation{op}, global)
+	err = clst.operationWait([]*compute.Operation{op}, global)
 	if err != nil {
 		return err
 	}
@@ -514,7 +549,7 @@ func (clst *gceCluster) fwInit() error {
 		return err
 	}
 
-	err = clst.wait([]*compute.Operation{op}, global)
+	err = clst.operationWait([]*compute.Operation{op}, global)
 	if err != nil {
 		return err
 	}
