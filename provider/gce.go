@@ -21,18 +21,19 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	compute "google.golang.org/api/compute/v1"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 const computeBaseURL string = "https://www.googleapis.com/compute/v1/projects"
@@ -46,10 +47,13 @@ var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
 
 type gceCluster struct {
-	projID  string // gce project ID
-	zone    string // gce zone
-	imgURL  string // gce url to the VM image
-	baseURL string // gce project specific url prefix
+	projID    string // gce project ID
+	zone      string // gce zone
+	imgURL    string // gce url to the VM image
+	baseURL   string // gce project specific url prefix
+	ipv4Range string // ipv4 range of the internal network
+	intFW     string // gce internal firewall name
+	extFW     string // gce external firewall name
 
 	ns          string // cluster namespace
 	cloudConfig string
@@ -64,12 +68,8 @@ type gceCluster struct {
 //
 // XXX: A lot of the fields are hardcoded.
 func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
-	if namespace == "" {
-		panic("newGCE(): namespace CANNOT be empty")
-	}
-
-	err := gceInit()
-	if err != nil {
+	if err := gceInit(); err != nil {
+		log.WithError(err).Debug("failed to start up gce")
 		return err
 	}
 
@@ -84,14 +84,17 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, key
 		computeBaseURL,
 		"ubuntu-os-cloud/global/images/ubuntu-1510-wily-v20160310")
 	clst.baseURL = fmt.Sprintf("%s/%s", computeBaseURL, clst.projID)
+	clst.ipv4Range = "10.240.0.0/16"
+	clst.intFW = fmt.Sprintf("%s-internal", clst.ns)
+	clst.extFW = fmt.Sprintf("%s-external", clst.ns)
 
-	err = clst.netInit()
-	if err != nil {
+	if err := clst.netInit(); err != nil {
+		log.WithError(err).Debug("failed to start up gce network")
 		return err
 	}
 
-	err = clst.fwInit()
-	if err != nil {
+	if err := clst.fwInit(); err != nil {
+		log.WithError(err).Debug("failed to start up gce firewalls")
 		return err
 	}
 
@@ -343,12 +346,28 @@ func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
 }
 
 func (clst *gceCluster) updateSecurityGroups(acls []string) error {
-	op, err := clst.firewallPatch(clst.ns, acls)
+	list, err := gceService.Firewalls.List(clst.projID).Do()
 	if err != nil {
 		return err
 	}
-	err = clst.operationWait([]*compute.Operation{op}, global)
+	var fw *compute.Firewall
+	for _, val := range list.Items {
+		if val.Name == clst.extFW {
+			fw = val
+			break
+		}
+	}
+	sort.Strings(fw.SourceRanges)
+	sort.Strings(acls)
+	if fw == nil || reflect.DeepEqual(fw.SourceRanges, acls) {
+		return nil
+	}
+
+	op, err := clst.firewallPatch(clst.extFW, acls)
 	if err != nil {
+		return err
+	}
+	if err = clst.operationWait([]*compute.Operation{op}, global); err != nil {
 		return err
 	}
 	return nil
@@ -357,7 +376,8 @@ func (clst *gceCluster) updateSecurityGroups(acls []string) error {
 // Creates the network for the cluster.
 func (clst *gceCluster) networkNew(name string) (*compute.Operation, error) {
 	network := &compute.Network{
-		Name: name,
+		Name:      name,
+		IPv4Range: clst.ipv4Range,
 	}
 
 	op, err := gceService.Networks.Insert(clst.projID, network).Do()
@@ -377,10 +397,11 @@ func (clst *gceCluster) networkExists(name string) (bool, error) {
 	return false, nil
 }
 
-// Creates the firewall for the cluster.
+// This creates a firewall but does nothing else
 //
 // XXX: Assumes there is only one network
-func (clst *gceCluster) firewallNew(name string) (*compute.Operation, error) {
+func (clst *gceCluster) insertFirewall(name, sourceRange string) (
+	*compute.Operation, error) {
 	firewall := &compute.Firewall{
 		Name: name,
 		Network: fmt.Sprintf("%s/global/networks/%s",
@@ -399,8 +420,7 @@ func (clst *gceCluster) firewallNew(name string) (*compute.Operation, error) {
 				IPProtocol: "icmp",
 			},
 		},
-		// XXX: This is just a dummy address to allow the rule to be created
-		SourceRanges: []string{"127.0.0.1/32"},
+		SourceRanges: []string{sourceRange},
 	}
 
 	op, err := gceService.Firewalls.Insert(clst.projID, firewall).Do()
@@ -533,24 +553,36 @@ func (clst *gceCluster) netInit() error {
 // Initializes the firewall for the cluster
 //
 // XXX: Currently assumes that each cluster is entirely behind 1 network
-// XXX: Currently only manipulates 1 firewall rule
 func (clst *gceCluster) fwInit() error {
-	exists, err := clst.firewallExists(clst.ns)
-	if err != nil {
+	var ops []*compute.Operation
+
+	if exists, err := clst.firewallExists(clst.intFW); err != nil {
 		return err
-	}
-	if exists {
-		log.Debug("Firewall already exists")
-		return nil
-	}
-	log.Debug("Creating firewall")
-	op, err := clst.firewallNew(clst.ns)
-	if err != nil {
-		return err
+	} else if exists {
+		log.Debug("internal firewall already exists")
+	} else {
+		log.Debug("creating internal firewall")
+		op, err := clst.insertFirewall(clst.intFW, clst.ipv4Range)
+		if err != nil {
+			return err
+		}
+		ops = append(ops, op)
 	}
 
-	err = clst.operationWait([]*compute.Operation{op}, global)
-	if err != nil {
+	if exists, err := clst.firewallExists(clst.extFW); err != nil {
+		return err
+	} else if exists {
+		log.Debug("external firewall already exists")
+	} else {
+		log.Debug("creating external firewall")
+		op, err := clst.insertFirewall(clst.extFW, "127.0.0.1/32")
+		if err != nil {
+			return err
+		}
+		ops = append(ops, op)
+	}
+
+	if err := clst.operationWait(ops, global); err != nil {
 		return err
 	}
 	return nil
