@@ -189,8 +189,9 @@ func (clst *gceCluster) Disconnect() {
 	// should delete the network
 }
 
-func (clst *gceCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
-	return ""
+func (clst *gceCluster) PickBestSize(ram dsl.Range, cpu dsl.Range,
+	maxPrice float64) string {
+	return pickBestSize(googleDescriptions, ram, cpu, maxPrice)
 }
 
 // Blocking wait with a hardcoded timeout.

@@ -381,5 +381,3 @@ var awsDescriptions = []description{
 }
 
 var azureDescriptions = []description{}
-
-var googleDescriptions = []description{}

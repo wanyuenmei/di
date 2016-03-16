@@ -13,6 +13,9 @@ install:
 generate:
 	go generate $(PACKAGES)
 
+providers:
+	python3 scripts/gce-descriptions > provider/gceConstants.go
+
 format:
 	gofmt -w -s $(NOVENDOR)
 

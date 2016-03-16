@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+
+### Developed on python3
+
+from bs4 import BeautifulSoup
+import urllib.request
+import os
+# from IPython import embed
+
+class GCEParser(object):
+    gceURL = "https://cloud.google.com/compute/pricing"
+    goPackage = 'provider'
+
+    machineType = 'Machine type'
+    ignoredTypes = ['Custom machine type']
+    price = 'Full price4 (USD) per hour without sustained use'
+    ram = 'Memory'
+    cpu = 'Virtual CPUs'
+
+    def __init__(self):
+        self.embedcount = 0
+
+    def parseGCE(self):
+        response = urllib.request.urlretrieve(self.gceURL)
+        tmpfile = response[0]
+        f = open(tmpfile, 'r')
+        soup = BeautifulSoup(f.read(), "html.parser")
+        f.close()
+        os.remove(tmpfile)
+
+        data = []
+        tables = soup.find_all('table')
+        for t in tables:
+            res = self.parseTable(t)
+            if res:
+                data += res
+
+        self.cleanData(data)
+        self.emitData(data)
+
+    # Prints the data to stdout
+    def emitData(self, data):
+        print("package {}\n".format(self.goPackage))
+        print("var googleDescriptions = []description{")
+        for row in data:
+            print("\t{}".format(self.emitLine(row)))
+        print("}")
+
+    # Returns the line
+    def emitLine(self, row):
+        line = "{{size: \"{}\", cpu: {}, ram: {}, price: {}}},".format(
+                row[self.machineType], row[self.cpu], row[self.ram],
+                row[self.price])
+        return line
+
+    def cleanData(self, data):
+        for row in data:
+            row[self.price] = row[self.price].strip("$")
+            row[self.ram] = row[self.ram].strip("GB")
+
+    def parseTable(self, table):
+        data = []
+        table_body = table.find('tbody')
+
+        header = table_body.find_all('th')
+        header = [x.text.strip() for x in header]
+
+        rows = table_body.find_all('tr')
+        for row in rows:
+            cols = row.find_all('td')
+            cols = [x.text.strip() for x in cols]
+            cols = [x for x in cols if x]
+            rowDict = {}
+            for i in range(len(header)):
+                if i >= len(cols):
+                    continue
+                rowDict[header[i]] = cols[i]
+            if rowDict:
+                if (self.machineType not in rowDict or
+                    rowDict[self.machineType] in self.ignoredTypes):
+                    continue
+                data.append(rowDict)
+        return data
+    
+
+def main():
+    gce = GCEParser()
+    gce.parseGCE()
+
+if __name__ == "__main__":
+    main()
