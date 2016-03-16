@@ -30,8 +30,11 @@ initialize_docker() {
 	# If getting the AWS internal IP works, then use that; otherwise, manually
 	# parse it ourselves.
 	PRIVATE_IPv4="$(curl -s --connect-timeout 5 http://instance-data/latest/meta-data/local-ipv4)"
-	if [ $? -ne 0 ] ; then
+	if [ -z "$PRIVATE_IPv4" ]; then
 		PRIVATE_IPv4="$(ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n')"
+	fi
+	if [ -z "$PRIVATE_IPv4" ]; then
+		PRIVATE_IPv4="$(hostname -i)"
 	fi
 
 	mkdir -p /etc/systemd/system/docker.service.d

@@ -1,10 +1,5 @@
 package provider
 
-////// ADD YOUR SSH KEY:
-//
-// 1) In the Google Developer Console navigate to:
-//    Metadata > SSH Keys
-//
 ////// SET UP API ACCESS:
 //
 // 1) In the Google Developer Console navigate to:
@@ -26,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/NetSys/di/db"
@@ -81,12 +77,12 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, key
 	clst.zone = "us-central1-a"
 	clst.id = clusterID
 	clst.ns = namespace
-	clst.cloudConfig = cloudConfigCoreOS(keys)
+	clst.cloudConfig = cloudConfigUbuntu(keys, "wily")
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
 	clst.imgURL = fmt.Sprintf(
 		"%s/%s",
 		computeBaseURL,
-		"coreos-cloud/global/images/coreos-beta-899-3-0-v20160115")
+		"ubuntu-os-cloud/global/images/ubuntu-1510-wily-v20160310")
 	clst.baseURL = fmt.Sprintf("%s/%s", computeBaseURL, clst.projID)
 
 	err = clst.netInit()
@@ -116,11 +112,13 @@ func (clst *gceCluster) Get() ([]Machine, error) {
 	var mList []Machine
 	for _, item := range list.Items {
 		// XXX: This make some iffy assumptions about NetworkInterfaces
+		machineSplitURL := strings.Split(item.MachineType, "/")
+		mtype := machineSplitURL[len(machineSplitURL)-1]
 		mList = append(mList, Machine{
 			ID:        item.Name,
 			PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
 			PrivateIP: item.NetworkInterfaces[0].NetworkIP,
-			Size:      item.MachineType,
+			Size:      mtype,
 			Provider:  db.Google,
 		})
 	}
@@ -286,11 +284,7 @@ func (clst *gceCluster) instanceNew(name string, size string, cloudConfig string
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				{
-					// There is a generic startup script method and a
-					// CoreOS specific way of startup scripting
-					//
-					//Key:   "startup-script", //XXX This is the GENERIC way
-					Key:   "user-data", //XXX This is CoreOS SPECIFIC
+					Key:   "startup-script",
 					Value: &cloudConfig,
 				},
 			},
