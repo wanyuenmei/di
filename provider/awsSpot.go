@@ -19,7 +19,6 @@ const spotPrice = "0.1"
 
 // Ubuntu 15.10, us-west-2, 64-bit hvm-ssd
 const ami = "ami-acd63bcc"
-const instanceType = "m4.large"
 const awsRegion = "us-west-2"
 
 type awsSpotCluster struct {
