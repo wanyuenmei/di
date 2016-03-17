@@ -5,7 +5,7 @@
 (label "masters" (makeList MasterCount (machine)))
 (label "workers" (makeList WorkerCount (machine)))
 (label "allmachines" "masters" "workers")
-(machineAttribute "allmachines" (provider "AmazonSpot") (size "m4.large"))
+(machineAttribute "allmachines" (provider "AmazonSpot") (size "m3.medium"))
 
 (define AdminACL (list "local"))
 (label "sshkeys" (list
