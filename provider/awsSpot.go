@@ -15,7 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const spotPrice = "0.1"
+const spotPrice = "0.5"
 
 // Ubuntu 15.10, us-west-2, 64-bit hvm-ssd
 const ami = "ami-acd63bcc"
