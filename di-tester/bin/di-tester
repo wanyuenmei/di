@@ -164,7 +164,7 @@ di_verbose "---End boot spec---"
 /bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
 
 # Wait until the minion connects before we start running our tests
-endtime=$((`date +%s` + (8 * 60)))
+endtime=$((`date +%s` + (15 * 60)))
 while ! grep -q 'New connection.' "$RUN_OUT" &> /dev/null; do
     [ $(date +%s) -gt $endtime ] && abort "Timeout!"
     sleep 1
