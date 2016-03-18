@@ -71,7 +71,7 @@ new dependency, make sure `GO15VENDOREXPERIMENT` is set to 1, then run:
 1. `godep restore` to install the package versions specified in `Godeps/Godeps.json` to your `$GOPATH`
 2. Run `go get foo/bar`
 3. Edit your code to import foo/bar
-4. Run `godep save`
+4. Run `godep save ./...`
 
 ## Containers
 Some of the functionality that isn't captured in this repo is packaged into
