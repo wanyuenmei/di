@@ -10,7 +10,6 @@ import (
 )
 
 var errUnbalancedParens = errors.New("unbalanced Parenthesis")
-var errBinding = errors.New("error parsing bindings")
 
 func parse(reader io.Reader) (astRoot, error) {
 	var s scanner.Scanner
@@ -28,20 +27,11 @@ func parse(reader io.Reader) (astRoot, error) {
 		return nil, err
 	}
 
-	var root []ast
-	for _, iface := range pt {
-		p, err := parseInterface(iface)
-		if err != nil {
-			return nil, err
-		}
-		root = append(root, p)
-	}
-
-	return astRoot(root), nil
+	return astRoot(pt), nil
 }
 
-func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
-	slice := []interface{}{}
+func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
+	var slice []ast
 	for {
 		switch s.Scan() {
 		case '+', '-', '/', '%', '*', scanner.Ident:
@@ -61,7 +51,7 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 				return nil, err
 			}
 
-			slice = append(slice, sexp)
+			slice = append(slice, astSexp(sexp))
 
 		case ')':
 			if depth == 0 {
@@ -78,121 +68,4 @@ func parseText(s *scanner.Scanner, depth int) ([]interface{}, error) {
 			return nil, fmt.Errorf("bad element: %s", s.TokenText())
 		}
 	}
-}
-
-func parseInterface(p1 interface{}) (ast, error) {
-	var list []interface{}
-	switch elem := p1.(type) {
-	case []interface{}:
-		list = elem
-	case astFloat:
-		return elem, nil
-	case astInt:
-		return elem, nil
-	case astIdent:
-		return elem, nil
-	case astString:
-		return elem, nil
-	default:
-		return nil, fmt.Errorf("bad element: %s", elem)
-	}
-
-	if len(list) == 0 {
-		return nil, fmt.Errorf("bad element: %s", list)
-	}
-
-	first, ok := list[0].(astIdent)
-	if !ok {
-		return nil, errors.New("expressions must begin with keywords")
-	}
-
-	switch first {
-	case "let":
-		if len(list) != 3 {
-			return nil, fmt.Errorf("not enough arguments: %s", list)
-		}
-
-		binds, err := parseBindList(list[1])
-		if err != nil {
-			return nil, err
-		}
-
-		tree, err := parseInterface(list[2])
-		if err != nil {
-			return nil, err
-		}
-
-		return astLet{binds, tree}, nil
-	case "define":
-		bind, err := parseBind(list[1:])
-		if err != nil {
-			return nil, err
-		}
-		return astDefine(bind), nil
-	default:
-		return parseFunc(first, list[1:])
-	}
-}
-
-func parseFunc(fn astIdent, ifaceArgs []interface{}) (ast, error) {
-	fni, ok := funcImplMap[fn]
-	if !ok {
-		return nil, fmt.Errorf("unknown function: %s", fn)
-	}
-
-	if len(ifaceArgs) < fni.minArgs {
-		return nil, fmt.Errorf("not enough arguments: %s", fn)
-	}
-
-	var args []ast
-	for _, arg := range ifaceArgs {
-		eval, err := parseInterface(arg)
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, eval)
-	}
-
-	return astFunc{fn, fni.do, args}, nil
-}
-
-func parseBindList(bindIface interface{}) ([]astBind, error) {
-	list, ok := bindIface.([]interface{})
-	if !ok {
-		return nil, errBinding
-	}
-
-	result := []astBind{}
-	for _, elem := range list {
-		bind, err := parseBind(elem)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, bind)
-	}
-
-	return result, nil
-}
-
-func parseBind(iface interface{}) (astBind, error) {
-	pair, ok := iface.([]interface{})
-	if !ok {
-		return astBind{}, errBinding
-	}
-
-	if len(pair) != 2 {
-		return astBind{}, errBinding
-	}
-
-	ident, ok := pair[0].(astIdent)
-	if !ok {
-		return astBind{}, errBinding
-	}
-
-	tree, err := parseInterface(pair[1])
-	if err != nil {
-		return astBind{}, err
-	}
-
-	return astBind{ident, tree}, nil
 }

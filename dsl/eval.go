@@ -4,7 +4,6 @@ import "fmt"
 
 type evalCtx struct {
 	binds       map[astIdent]ast
-	defines     map[astIdent]ast
 	labels      map[string][]atom
 	connections map[Connection]struct{}
 	atoms       []atom
@@ -29,7 +28,6 @@ func (l *atomImpl) SetLabels(labels []string) {
 
 func eval(parsed ast) (ast, evalCtx, error) {
 	ctx := evalCtx{
-		make(map[astIdent]ast),
 		make(map[astIdent]ast),
 		make(map[string][]atom),
 		make(map[Connection]struct{}),
@@ -63,60 +61,38 @@ func (list astList) eval(ctx *evalCtx) (ast, error) {
 	return astList(result), nil
 }
 
-func (fn astFunc) eval(ctx *evalCtx) (ast, error) {
-	return fn.do(ctx, fn.args)
-}
-
-func (def astDefine) eval(ctx *evalCtx) (ast, error) {
-	if _, ok := ctx.defines[def.ident]; ok {
-		return nil, fmt.Errorf("attempt to redefine: \"%s\"", def.ident)
+func (sexp astSexp) eval(ctx *evalCtx) (ast, error) {
+	if len(sexp) == 0 {
+		return nil, fmt.Errorf("S-expressions must start with a function call: %s", sexp)
 	}
 
-	result, err := def.ast.eval(ctx)
+	first, err := sexp[0].eval(ctx)
 	if err != nil {
+		if _, ok := sexp[0].(astIdent); ok {
+			return nil, fmt.Errorf("unknown function: %s", sexp[0])
+		}
 		return nil, err
 	}
 
-	ctx.defines[def.ident] = result
-	ctx.binds[def.ident] = result
-
-	return astDefine{def.ident, result}, nil
-}
-
-func (lt astLet) eval(ctx *evalCtx) (ast, error) {
-	oldBinds := make(map[astIdent]ast)
-	for _, bind := range lt.binds {
-		if val, ok := ctx.binds[bind.ident]; ok {
-			oldBinds[bind.ident] = val
+	switch fn := first.(type) {
+	case astIdent:
+		fnImpl := funcImplMap[fn]
+		if len(sexp)-1 < fnImpl.minArgs {
+			return nil, fmt.Errorf("not enough arguments: %s", fn)
 		}
+		return fnImpl.do(ctx, sexp[1:])
 	}
 
-	for _, bind := range lt.binds {
-		val, err := bind.ast.eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		ctx.binds[bind.ident] = val
-	}
-
-	result, err := lt.ast.eval(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, bind := range lt.binds {
-		if val, ok := oldBinds[bind.ident]; ok {
-			ctx.binds[bind.ident] = val
-		} else {
-			delete(ctx.binds, bind.ident)
-		}
-	}
-
-	return result, nil
+	return nil, fmt.Errorf("S-expressions must start with a function call: %s", first)
 }
 
 func (ident astIdent) eval(ctx *evalCtx) (ast, error) {
+	// If the ident represents a built-in function, just return the identifier.
+	// S-exp eval will know what to do with it.
+	if _, ok := funcImplMap[ident]; ok {
+		return ident, nil
+	}
+
 	val, ok := ctx.binds[ident]
 	if !ok {
 		return nil, fmt.Errorf("unassigned variable: %s", ident)

@@ -12,33 +12,43 @@ type funcImpl struct {
 	minArgs int
 }
 
-var funcImplMap = map[astIdent]funcImpl{
-	"%":                {arithFun(func(a, b int) int { return a % b }), 2},
-	"*":                {arithFun(func(a, b int) int { return a * b }), 2},
-	"+":                {arithFun(func(a, b int) int { return a + b }), 2},
-	"-":                {arithFun(func(a, b int) int { return a - b }), 2},
-	"/":                {arithFun(func(a, b int) int { return a / b }), 2},
-	"connect":          {connectImpl, 3},
-	"docker":           {dockerImpl, 1},
-	"label":            {labelImpl, 2},
-	"list":             {listImpl, 0},
-	"makeList":         {makeListImpl, 2},
-	"sprintf":          {sprintfImpl, 1},
-	"placement":        {placementImpl, 3},
-	"githubKey":        {githubKeyImpl, 1},
-	"plaintextKey":     {plaintextKeyImpl, 1},
-	"size":             {sizeImpl, 1},
-	"provider":         {providerImpl, 1},
-	"machine":          {machineImpl, 0},
-	"machineAttribute": {machineAttributeImpl, 2},
-	"ram":              {rangeImpl("ram"), 1},
-	"cpu":              {rangeImpl("cpu"), 1},
+var funcImplMap map[astIdent]funcImpl
+
+// We have to initialize `funcImplMap` in an init function or else the compiler
+// will complain about an initialization loop (funcImplMap -> letImpl ->
+// astSexp.eval -> funcImplMap).
+func init() {
+	funcImplMap = map[astIdent]funcImpl{
+		"%":                {arithFun(func(a, b int) int { return a % b }), 2},
+		"*":                {arithFun(func(a, b int) int { return a * b }), 2},
+		"+":                {arithFun(func(a, b int) int { return a + b }), 2},
+		"-":                {arithFun(func(a, b int) int { return a - b }), 2},
+		"/":                {arithFun(func(a, b int) int { return a / b }), 2},
+		"connect":          {connectImpl, 3},
+		"docker":           {dockerImpl, 1},
+		"label":            {labelImpl, 2},
+		"list":             {listImpl, 0},
+		"makeList":         {makeListImpl, 2},
+		"sprintf":          {sprintfImpl, 1},
+		"placement":        {placementImpl, 3},
+		"githubKey":        {githubKeyImpl, 1},
+		"plaintextKey":     {plaintextKeyImpl, 1},
+		"size":             {sizeImpl, 1},
+		"provider":         {providerImpl, 1},
+		"machine":          {machineImpl, 0},
+		"machineAttribute": {machineAttributeImpl, 2},
+		"ram":              {rangeImpl("ram"), 1},
+		"cpu":              {rangeImpl("cpu"), 1},
+		"define":           {defineImpl, 2},
+		"let":              {letImpl, 2},
+	}
 }
 
 // XXX: support float operators?
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
 		args, err := evalArgs(ctx, argsAst)
+
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +101,7 @@ func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	}
 	ctx.atoms = append(ctx.atoms, container)
 
-	return astAtom{astFunc{astIdent("docker"), dockerImpl, evalArgs}, index}, nil
+	return astAtom{astFunc(astIdent("docker"), evalArgs), index}, nil
 }
 
 func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -103,7 +113,7 @@ func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	key := &githubKey{username: string(evalArgs[0].(astString))}
 	ctx.atoms = append(ctx.atoms, key)
 
-	return astAtom{astFunc{astIdent("githubKey"), githubKeyImpl, evalArgs}, index}, nil
+	return astAtom{astFunc(astIdent("githubKey"), evalArgs), index}, nil
 }
 
 func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -116,7 +126,7 @@ func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	key := &plaintextKey{key: string(evalArgs[0].(astString))}
 	ctx.atoms = append(ctx.atoms, key)
 
-	return astAtom{astFunc{astIdent("plaintextKey"), plaintextKeyImpl, evalArgs}, index}, nil
+	return astAtom{astFunc(astIdent("plaintextKey"), evalArgs), index}, nil
 }
 
 func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -168,7 +178,7 @@ func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		return nil, fmt.Errorf("not a valid placement type: %s", ptype)
 	}
 
-	return astFunc{astIdent("placement"), placementImpl, args}, nil
+	return astFunc(astIdent("placement"), args), nil
 }
 
 func setMachineAttributes(machine *Machine, args []ast) error {
@@ -210,7 +220,7 @@ func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	ctx.atoms = append(ctx.atoms, machine)
 
-	return astAtom{astFunc{astIdent("machine"), machineImpl, evalArgs}, index}, nil
+	return astAtom{astFunc(astIdent("machine"), evalArgs), index}, nil
 }
 
 func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -240,7 +250,7 @@ func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		}
 	}
 
-	return astFunc{astIdent("machineAttribute"), machineAttributeImpl, evalArgs}, nil
+	return astFunc(astIdent("machineAttribute"), evalArgs), nil
 }
 
 func providerImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -362,7 +372,7 @@ func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		newArgs = append(newArgs, astString(label))
 	}
 
-	return astFunc{astIdent("connect"), connectImpl, newArgs}, nil
+	return astFunc(astIdent("connect"), newArgs), nil
 }
 
 func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -418,7 +428,7 @@ func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 
 	ctx.labels[label] = atoms
 
-	return astFunc{astIdent("label"), labelImpl, args}, nil
+	return astFunc(astIdent("label"), args), nil
 }
 
 func listImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -478,6 +488,94 @@ func sprintfImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astString(fmt.Sprintf(string(format), ifaceArgs...)), nil
 }
 
+func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
+	ident, ok := args[0].(astIdent)
+	if !ok {
+		return nil, fmt.Errorf("define name must be an ident: %s", args[0])
+	}
+
+	if _, ok := ctx.binds[ident]; ok {
+		return nil, fmt.Errorf("attempt to redefine: \"%s\"", args[0].(astIdent))
+	}
+
+	result, err := args[1].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx.binds[ident] = result
+
+	return astFunc(astIdent("define"), []ast{ident, result}), nil
+}
+
+type binding struct {
+	key astIdent
+	val ast
+}
+
+func parseBindings(bindings astSexp, ctx *evalCtx) ([]binding, error) {
+	var binds []binding
+	for _, astBinding := range bindings {
+		pair, ok := astBinding.(astSexp)
+		if !ok || len(pair) != 2 {
+			return []binding{}, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
+		}
+
+		key, ok := pair[0].(astIdent)
+		if !ok {
+			return []binding{}, fmt.Errorf("bind name must be an ident: %s", pair[0])
+		}
+
+		val, err := pair[1].eval(ctx)
+		if err != nil {
+			return []binding{}, err
+		}
+		binds = append(binds, binding{key, val})
+	}
+	return binds, nil
+}
+
+func letImpl(ctx *evalCtx, args []ast) (ast, error) {
+	bindingsRaw, ok := args[0].(astSexp)
+	if !ok {
+		return nil, fmt.Errorf("let binds must be defined in an S-expression")
+	}
+
+	bindings, err := parseBindings(bindingsRaw, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Modify the eval context with the binds.
+	oldBinds := make(map[astIdent]ast)
+	for _, binding := range bindings {
+		if val, ok := ctx.binds[binding.key]; ok {
+			oldBinds[binding.key] = val
+		}
+	}
+
+	for _, binding := range bindings {
+		arg, err := binding.val.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ctx.binds[binding.key] = arg
+	}
+
+	res, err := args[1].eval(ctx)
+
+	// Remove the binds from the eval context.
+	for _, binding := range bindings {
+		if val, ok := oldBinds[binding.key]; ok {
+			ctx.binds[binding.key] = val
+		} else {
+			delete(ctx.binds, binding.key)
+		}
+	}
+
+	return res, err
+}
+
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {
@@ -504,4 +602,8 @@ func flatten(lst []ast) []ast {
 	}
 
 	return result
+}
+
+func astFunc(ident astIdent, args []ast) astSexp {
+	return astSexp(append([]ast{ident}, args...))
 }

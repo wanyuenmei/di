@@ -147,7 +147,7 @@ func (dsl Dsl) QueryConnections() []Connection {
 
 // QueryFloat returns a float value defined in the dsl.
 func (dsl Dsl) QueryFloat(key string) (float64, error) {
-	result, ok := dsl.ctx.defines[astIdent(key)]
+	result, ok := dsl.ctx.binds[astIdent(key)]
 	if !ok {
 		return 0, fmt.Errorf("%s undefined", key)
 	}
@@ -162,7 +162,7 @@ func (dsl Dsl) QueryFloat(key string) (float64, error) {
 
 // QueryInt returns an integer value defined in the dsl.
 func (dsl Dsl) QueryInt(key string) int {
-	result, ok := dsl.ctx.defines[astIdent(key)]
+	result, ok := dsl.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return 0
@@ -179,7 +179,7 @@ func (dsl Dsl) QueryInt(key string) int {
 
 // QueryString returns a string value defined in the dsl.
 func (dsl Dsl) QueryString(key string) string {
-	result, ok := dsl.ctx.defines[astIdent(key)]
+	result, ok := dsl.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return ""
@@ -196,7 +196,7 @@ func (dsl Dsl) QueryString(key string) string {
 
 // QueryStrSlice returns a string slice value defined in the dsl.
 func (dsl Dsl) QueryStrSlice(key string) []string {
-	result, ok := dsl.ctx.defines[astIdent(key)]
+	result, ok := dsl.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return nil

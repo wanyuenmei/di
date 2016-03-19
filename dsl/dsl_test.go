@@ -520,33 +520,12 @@ func TestScanError(t *testing.T) {
 }
 
 func TestParseErrors(t *testing.T) {
-	parseErr(t, "(1 2 3)", "expressions must begin with keywords")
-
 	unbalanced := "unbalanced Parenthesis"
 	parseErr(t, "(", unbalanced)
 	parseErr(t, ")", unbalanced)
 	parseErr(t, "())", unbalanced)
 	parseErr(t, "(((())", unbalanced)
 	parseErr(t, "((+ 5 (* 3 7)))))", unbalanced)
-
-	args := "not enough arguments: +"
-	parseErr(t, "(+)", args)
-	parseErr(t, "(+ 5)", args)
-	parseErr(t, "(+ 5 (+ 6))", args)
-
-	bindErr := "error parsing bindings"
-	parseErr(t, "()", "bad element: []")
-	parseErr(t, "(let)", "not enough arguments: [let]")
-	parseErr(t, "(let 3 a)", bindErr)
-	parseErr(t, "(let (a) a)", bindErr)
-	parseErr(t, "(let ((a)) a)", bindErr)
-	parseErr(t, "(let ((3 a)) a)", bindErr)
-	parseErr(t, "(let ((a (+))) a)", args)
-	parseErr(t, "(let ((a 3)) (+))", args)
-
-	parseErr(t, "(define a (+))", args)
-
-	parseErr(t, "(badFun)", "unknown function: badFun")
 }
 
 func TestRuntimeErrors(t *testing.T) {
@@ -565,6 +544,26 @@ func TestRuntimeErrors(t *testing.T) {
 		`makeList must begin with a positive integer, found: "a"`)
 
 	runtimeErr(t, `(label a a)`, "unassigned variable: a")
+
+	runtimeErr(t, "(1 2 3)", "S-expressions must start with a function call: 1")
+
+	args := "not enough arguments: +"
+	runtimeErr(t, "(+)", args)
+	runtimeErr(t, "(+ 5)", args)
+	runtimeErr(t, "(+ 5 (+ 6))", args)
+
+	runtimeErr(t, "()", "S-expressions must start with a function call: ()")
+	runtimeErr(t, "(let)", "not enough arguments: let")
+	runtimeErr(t, "(let 3 a)", "let binds must be defined in an S-expression")
+	runtimeErr(t, "(let (a) a)", "binds must be exactly 2 arguments: a")
+	runtimeErr(t, "(let ((a)) a)", "binds must be exactly 2 arguments: (a)")
+	runtimeErr(t, "(let ((3 a)) a)", "bind name must be an ident: 3")
+	runtimeErr(t, "(let ((a (+))) a)", args)
+	runtimeErr(t, "(let ((a 3)) (+))", args)
+
+	runtimeErr(t, "(define a (+))", args)
+
+	runtimeErr(t, "(badFun)", "unknown function: badFun")
 }
 
 func TestQuery(t *testing.T) {
