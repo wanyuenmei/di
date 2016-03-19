@@ -12,6 +12,12 @@ type ast interface {
 	eval(*evalCtx) (ast, error)
 }
 
+type astLambda struct {
+	argNames []astIdent
+	do       ast
+	ctx      *evalCtx // The evalCtx when the lambda was defined.
+}
+
 type astAtom struct {
 	astSexp
 	index int
@@ -103,6 +109,14 @@ func (r astRange) String() string {
 	}
 
 	return fmt.Sprintf("(%s)", sliceStr(append([]ast{r.ident}, args...), " "))
+}
+
+func (l astLambda) String() string {
+	var args []ast
+	for _, name := range l.argNames {
+		args = append(args, name)
+	}
+	return fmt.Sprintf("(lambda (%s) %s)", sliceStr(args, " "), l.do)
 }
 
 func sliceStr(asts []ast, sep string) string {

@@ -64,6 +64,45 @@ func TestLet(t *testing.T) {
 	parseTest(t, "(let ((a 2)) (* (let ((a 3)) (* a a)) (* a a)))", "36")
 }
 
+func TestLambda(t *testing.T) {
+	// Single argument lambda
+	parseTest(t, "((lambda (x) (* x x)) 5)", "25")
+
+	// Two argument lambda
+	parseTest(t, "((lambda (x y) (* x y)) 5 6)", "30")
+
+	parseTest(t, "((lambda (x y) (* 2 (+ x y))) 5 6)", "22")
+
+	// Unevaluated argument
+	parseTest(t, "((lambda (x y) (+ x y)) 5 (* 2 6))", "17")
+
+	// Named lambda
+	squareDef := "(define Square (lambda (x) (* x x)))\n"
+	parseTest(t, squareDef+"(Square 5)", squareDef+"25")
+
+	// Named lambda in let
+	squareDef = "(let ((Square (lambda (x) (* x x))))\n"
+	parseTest(t, "(let ((Square (lambda (x) (* x x)))) (Square 6))", "36")
+
+	// Two named lambdas
+	cubeDef := "(define Square (lambda (x) (* x x)))\n" +
+		"(define Cube (lambda (x) (* x (Square x))))\n"
+	parseTest(t, cubeDef+"(Cube 5)", cubeDef+"125")
+
+	// Test closure
+	adder := "(define nAdder (lambda (n) (lambda (x) (+ n x))))\n" +
+		"(define fiveAdder (nAdder 5))\n" +
+		"(fiveAdder 10)"
+	adderRes := "(define nAdder (lambda (n) (lambda (x) (+ n x))))\n" +
+		"(define fiveAdder (lambda (x) (+ n x)))\n" +
+		"15"
+	parseTest(t, adder, adderRes)
+
+	// Test variable masking
+	adder = "((let ((x 5)) (lambda (x) (+ x 1))) 1)"
+	parseTest(t, adder, "2")
+}
+
 func TestDefine(t *testing.T) {
 	code := "(define a 1)"
 	parseTest(t, code, code)

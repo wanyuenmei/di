@@ -40,6 +40,7 @@ func init() {
 		"ram":              {rangeImpl("ram"), 1},
 		"cpu":              {rangeImpl("cpu"), 1},
 		"define":           {defineImpl, 2},
+		"lambda":           {lambdaImpl, 2},
 		"let":              {letImpl, 2},
 	}
 }
@@ -88,8 +89,6 @@ func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		args = append(args, string(arg))
 	}
 
-	index := len(ctx.atoms)
-
 	var command []string
 	if len(args) > 1 {
 		command = args[1:]
@@ -99,9 +98,8 @@ func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		Image: args[0], Command: command,
 		Placement: Placement{make(map[[2]string]struct{})},
 	}
-	ctx.atoms = append(ctx.atoms, container)
 
-	return astAtom{astFunc(astIdent("docker"), evalArgs), index}, nil
+	return astAtom{astFunc(astIdent("docker"), evalArgs), addAtom(ctx, container)}, nil
 }
 
 func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -109,11 +107,9 @@ func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	if err != nil {
 		return nil, err
 	}
-	index := len(ctx.atoms)
 	key := &githubKey{username: string(evalArgs[0].(astString))}
-	ctx.atoms = append(ctx.atoms, key)
 
-	return astAtom{astFunc(astIdent("githubKey"), evalArgs), index}, nil
+	return astAtom{astFunc(astIdent("githubKey"), evalArgs), addAtom(ctx, key)}, nil
 }
 
 func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -122,11 +118,9 @@ func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		return nil, err
 	}
 
-	index := len(ctx.atoms)
 	key := &plaintextKey{key: string(evalArgs[0].(astString))}
-	ctx.atoms = append(ctx.atoms, key)
 
-	return astAtom{astFunc(astIdent("plaintextKey"), evalArgs), index}, nil
+	return astAtom{astFunc(astIdent("plaintextKey"), evalArgs), addAtom(ctx, key)}, nil
 }
 
 func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -164,7 +158,7 @@ func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	switch ptype {
 	case "exclusive":
 		for _, label := range labels {
-			for _, c := range ctx.labels[label] {
+			for _, c := range ctx.globalCtx().labels[label] {
 				c, ok := c.(*Container)
 				if !ok {
 					return nil, fmt.Errorf("placement labels must contain containers: %s", label)
@@ -212,15 +206,13 @@ func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, err
 	}
 
-	index := len(ctx.atoms)
 	machine := &Machine{}
 	err = setMachineAttributes(machine, evalArgs)
 	if err != nil {
 		return nil, err
 	}
-	ctx.atoms = append(ctx.atoms, machine)
 
-	return astAtom{astFunc(astIdent("machine"), evalArgs), index}, nil
+	return astAtom{astFunc(astIdent("machine"), evalArgs), addAtom(ctx, machine)}, nil
 }
 
 func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
@@ -234,7 +226,7 @@ func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		return nil, fmt.Errorf("machineAttribute key must be a string: %s", evalArgs[0])
 	}
 
-	target, ok := ctx.labels[string(key)]
+	target, ok := ctx.globalCtx().labels[string(key)]
 	if !ok {
 		return nil, fmt.Errorf("machineAttribute key not defined: %s", key)
 	}
@@ -348,7 +340,7 @@ func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 			return nil, err
 		}
 
-		if _, ok := ctx.labels[string(label)]; !ok {
+		if _, ok := ctx.globalCtx().labels[string(label)]; !ok {
 			return nil, fmt.Errorf("connect undefined label: %s",
 				label)
 		}
@@ -390,7 +382,8 @@ func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		log.Error("Labels must be lowercase, sorry! https://github.com/docker/swarm/issues/1795")
 	}
 
-	if _, ok := ctx.labels[label]; ok {
+	globalCtx := ctx.globalCtx()
+	if _, ok := globalCtx.labels[label]; ok {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)
 	}
 
@@ -398,9 +391,9 @@ func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
 		case astAtom:
-			atoms = append(atoms, ctx.atoms[t.index])
+			atoms = append(atoms, globalCtx.atoms[t.index])
 		case astString:
-			children, ok := ctx.labels[string(t)]
+			children, ok := globalCtx.labels[string(t)]
 			if !ok {
 				return nil, fmt.Errorf("undefined label: %s", t)
 			}
@@ -426,7 +419,7 @@ func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		a.SetLabels(append(labels, label))
 	}
 
-	ctx.labels[label] = atoms
+	globalCtx.labels[label] = atoms
 
 	return astFunc(astIdent("label"), args), nil
 }
@@ -513,26 +506,52 @@ type binding struct {
 	val ast
 }
 
-func parseBindings(bindings astSexp, ctx *evalCtx) ([]binding, error) {
+func parseBinding(astBinding ast, ctx *evalCtx) (binding, error) {
+	pair, ok := astBinding.(astSexp)
+	if !ok || len(pair) != 2 {
+		return binding{}, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
+	}
+
+	key, ok := pair[0].(astIdent)
+	if !ok {
+		return binding{}, fmt.Errorf("bind name must be an ident: %s", pair[0])
+	}
+
+	val, err := pair[1].eval(ctx)
+	if err != nil {
+		return binding{}, err
+	}
+
+	return binding{key, val}, nil
+}
+
+func parseBindings(ctx *evalCtx, bindings astSexp) ([]binding, error) {
 	var binds []binding
 	for _, astBinding := range bindings {
-		pair, ok := astBinding.(astSexp)
-		if !ok || len(pair) != 2 {
-			return []binding{}, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
-		}
-
-		key, ok := pair[0].(astIdent)
-		if !ok {
-			return []binding{}, fmt.Errorf("bind name must be an ident: %s", pair[0])
-		}
-
-		val, err := pair[1].eval(ctx)
+		bind, err := parseBinding(astBinding, ctx)
 		if err != nil {
 			return []binding{}, err
 		}
-		binds = append(binds, binding{key, val})
+		binds = append(binds, bind)
 	}
 	return binds, nil
+}
+
+func lambdaImpl(ctx *evalCtx, args []ast) (ast, error) {
+	rawArgNames, ok := args[0].(astSexp)
+	if !ok {
+		return nil, fmt.Errorf("lambda functions must define an argument list")
+	}
+
+	var argNames []astIdent
+	for _, argName := range rawArgNames {
+		ident, ok := argName.(astIdent)
+		if !ok {
+			return nil, fmt.Errorf("lambda argument names must be idents")
+		}
+		argNames = append(argNames, ident)
+	}
+	return astLambda{argNames: argNames, do: args[1], ctx: ctx}, nil
 }
 
 func letImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -541,39 +560,19 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("let binds must be defined in an S-expression")
 	}
 
-	bindings, err := parseBindings(bindingsRaw, ctx)
+	bindings, err := parseBindings(ctx, bindingsRaw)
 	if err != nil {
 		return nil, err
 	}
 
-	// Modify the eval context with the binds.
-	oldBinds := make(map[astIdent]ast)
-	for _, binding := range bindings {
-		if val, ok := ctx.binds[binding.key]; ok {
-			oldBinds[binding.key] = val
-		}
+	var names []astIdent
+	var vals []ast
+	for _, pair := range bindings {
+		names = append(names, pair.key)
+		vals = append(vals, pair.val)
 	}
-
-	for _, binding := range bindings {
-		arg, err := binding.val.eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-		ctx.binds[binding.key] = arg
-	}
-
-	res, err := args[1].eval(ctx)
-
-	// Remove the binds from the eval context.
-	for _, binding := range bindings {
-		if val, ok := oldBinds[binding.key]; ok {
-			ctx.binds[binding.key] = val
-		} else {
-			delete(ctx.binds, binding.key)
-		}
-	}
-
-	return res, err
+	let := astSexp(append([]ast{astLambda{argNames: names, do: args[1], ctx: ctx}}, vals...))
+	return let.eval(ctx)
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
@@ -606,4 +605,17 @@ func flatten(lst []ast) []ast {
 
 func astFunc(ident astIdent, args []ast) astSexp {
 	return astSexp(append([]ast{ident}, args...))
+}
+
+// addAtom adds `a` to the global context. We have to place all atoms into
+// the same context because we extract them according to their index within
+// the atoms list.
+// If we didn't use the global scope, then if we created an atom (index 0) in one context,
+// and then created another atom (also index 0) in a lambda function, and then tried to reference
+// the first atom, we would actually retrieve the second one because of the indexing
+// conflict.
+func addAtom(ctx *evalCtx, a atom) int {
+	globalCtx := ctx.globalCtx()
+	globalCtx.atoms = append(globalCtx.atoms, a)
+	return len(globalCtx.atoms) - 1
 }

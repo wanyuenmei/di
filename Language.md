@@ -87,6 +87,43 @@ and max, and if it's one, then it represents just a min.
 If `MaxPrice` is defined, then a size is only selected based on the range if the
 selection for a single machine is less than `MaxPrice`.
 
+## Functions
+There are two types of functions: built-ins, and `lambda` functions.
+
+#### Built-ins
+Built-ins have special evaluation functions written in `go`. Examples include
+`placement` and `connect`.
+
+#### Lambda
+`lambda` functions are written in the spec language, and can be defined by the
+user. Lambda functions must be declared in the following form:
+
+`(lambda (<arg_names>) (<body>))`
+
+For example, a `lambda` for adding 2 to a number could be written as:
+
+`(lambda (x) (+ x 2))`
+
+Lambdas can be given names by combining them with a `define`:
+
+`(define Add2 (lambda (x) (+ x 2)))`
+
+#### Evaluation
+Both built-ins and lambda functions are evaluted in the same way. The first item in the S-expression
+refers to the function to be invoked, and the remaining items are the arguments.
+
+```
+(+ 2 2) // => 4
+
+((lambda (x) (+ x 2)) 2) // => 4
+
+(define Add2 (lambda (x) (+ x 2)))
+(Add2 2) // => 4
+
+(let ((Add2 (lambda (x) (+ x 2))))
+    (Add2 2)
+) // => 4
+```
 
 ## Labels
 ```
