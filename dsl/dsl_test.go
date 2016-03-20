@@ -66,6 +66,9 @@ func TestLet(t *testing.T) {
 	parseTest(t, "(let ((a 5)) (* a a))", "25")
 	parseTest(t, "(let ((a 5) (b 2)) (* a b))", "10")
 	parseTest(t, "(let ((a 2)) (* (let ((a 3)) (* a a)) (* a a)))", "36")
+
+	// Test the implicit progn
+	parseTest(t, "(let ((a 2)) (define b 3) (* a b))", "6")
 }
 
 func TestLambda(t *testing.T) {
@@ -105,6 +108,14 @@ func TestLambda(t *testing.T) {
 	// Test variable masking
 	adder = "((let ((x 5)) (lambda (x) (+ x 1))) 1)"
 	parseTest(t, adder, "2")
+}
+
+func TestProgn(t *testing.T) {
+	// Test that first argument gets run
+	runtimeErr(t, `(progn (+ 1 "1") (+ 2 2))`, `1: bad arithmetic argument: "1"`)
+
+	// Test that only the second arguments gets returned
+	parseTest(t, "(progn (+ 1 1) (+ 2 2))", "4")
 }
 
 func TestIf(t *testing.T) {

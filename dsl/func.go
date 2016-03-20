@@ -50,6 +50,7 @@ func init() {
 		">":                {compareFun(func(a, b int) bool { return a > b }), 2},
 		"<":                {compareFun(func(a, b int) bool { return a < b }), 2},
 		"!":                {notImpl, 1},
+		"progn":            {prognImpl, 1},
 	}
 }
 
@@ -610,7 +611,8 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		names = append(names, pair.key)
 		vals = append(vals, pair.val)
 	}
-	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: args[1], ctx: ctx}}, vals...)}
+	progn := astSexp{sexp: append([]ast{astIdent("progn")}, args[1:]...)}
+	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: progn, ctx: ctx}}, vals...)}
 	return let.eval(ctx)
 }
 
@@ -685,6 +687,18 @@ func notImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
 	}
 	return astBool(!pred), nil
+}
+
+func prognImpl(ctx *evalCtx, args []ast) (ast, error) {
+	var res ast
+	var err error
+	for _, arg := range args {
+		res, err = arg.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
