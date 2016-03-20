@@ -26,12 +26,23 @@ func parse(s scanner.Scanner) (astRoot, error) {
 	return astRoot(pt), nil
 }
 
+func parseIdent(ident string) ast {
+	switch ident {
+	case "true":
+		return astBool(true)
+	case "false":
+		return astBool(false)
+	default:
+		return astIdent(ident)
+	}
+}
+
 func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 	var slice []ast
 	for {
 		switch s.Scan() {
-		case '+', '-', '/', '%', '*', scanner.Ident:
-			slice = append(slice, astIdent(s.TokenText()))
+		case '+', '-', '/', '%', '*', '=', '<', '>', '!', scanner.Ident:
+			slice = append(slice, parseIdent(s.TokenText()))
 		case scanner.Float:
 			x, _ := strconv.ParseFloat(s.TokenText(), 64)
 			slice = append(slice, astFloat(x))

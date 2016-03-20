@@ -163,6 +163,10 @@ func (x astInt) eval(ctx *evalCtx) (ast, error) {
 	return x, nil
 }
 
+func (b astBool) eval(ctx *evalCtx) (ast, error) {
+	return b, nil
+}
+
 func (githubKey astGithubKey) eval(ctx *evalCtx) (ast, error) {
 	return githubKey, nil
 }

@@ -107,6 +107,100 @@ func TestLambda(t *testing.T) {
 	parseTest(t, adder, "2")
 }
 
+func TestIf(t *testing.T) {
+	// Test boolean atoms
+	trueTest := "(if true 1 0)"
+	parseTest(t, trueTest, "1")
+
+	falseTest := "(if false 1 0)"
+	parseTest(t, falseTest, "0")
+
+	// Test no else case
+	falseTest = "(if false 1)"
+	parseTest(t, falseTest, "false")
+
+	// Test one-argument and
+	trueTest = "(if (and true) 1 0)"
+	parseTest(t, trueTest, "1")
+
+	falseTest = "(if (and false) 1 0)"
+	parseTest(t, falseTest, "0")
+
+	// Test one-argument or
+	trueTest = "(if (or true) 1 0)"
+	parseTest(t, trueTest, "1")
+
+	falseTest = "(if (or false) 1 0)"
+	parseTest(t, falseTest, "0")
+
+	// Test two-argument and
+	trueTest = "(if (and true true) 1 0)"
+	parseTest(t, trueTest, "1")
+
+	falseTest = "(if (and true false) 1 0)"
+	parseTest(t, falseTest, "0")
+
+	// Test two-argument or
+	trueTest = "(if (or false true) 1 0)"
+	parseTest(t, trueTest, "1")
+
+	falseTest = "(if (or false false) 1 0)"
+	parseTest(t, falseTest, "0")
+
+	// Test short-circuiting
+	andShort := "(if (and false (/ 1 0)) 1 0)"
+	parseTest(t, andShort, "0")
+
+	orShort := "(if (or true (/ 1 0)) 1 0)"
+	parseTest(t, orShort, "1")
+
+	// Test = on ints
+	compTest := "(= 1 1)"
+	parseTest(t, compTest, "true")
+
+	compTest = "(= 1 2)"
+	parseTest(t, compTest, "false")
+
+	// Test = on strings
+	compTest = `(= "hello" "hello")`
+	parseTest(t, compTest, "true")
+
+	compTest = `(= "hello" "world")`
+	parseTest(t, compTest, "false")
+
+	// Test = on lists
+	compTest = `(= (list "hello" "world") (list "hello" "world"))`
+	parseTest(t, compTest, "true")
+
+	compTest = `(= (list "hello" "world") (list "world hello"))`
+	parseTest(t, compTest, "false")
+
+	// Test <
+	compTest = "(< 2 1)"
+	parseTest(t, compTest, "false")
+
+	compTest = "(< 1 2)"
+	parseTest(t, compTest, "true")
+
+	// Test >
+	compTest = "(> 1 2)"
+	parseTest(t, compTest, "false")
+
+	compTest = "(> 2 1)"
+	parseTest(t, compTest, "true")
+
+	// Test !
+	notTest := "(! false)"
+	parseTest(t, notTest, "true")
+
+	notTest = "(! true)"
+	parseTest(t, notTest, "false")
+
+	// Putting it together..
+	fibDef := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1))))))"
+	parseTest(t, fibDef+"\n"+"(fib 5)", fibDef+"\n"+"120")
+}
+
 func TestDefine(t *testing.T) {
 	code := "(define a 1)"
 	parseTest(t, code, code)

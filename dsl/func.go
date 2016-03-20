@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -42,6 +43,13 @@ func init() {
 		"define":           {defineImpl, 2},
 		"lambda":           {lambdaImpl, 2},
 		"let":              {letImpl, 2},
+		"if":               {ifImpl, 2},
+		"and":              {andImpl, 1},
+		"or":               {orImpl, 1},
+		"=":                {eqImpl, 2},
+		">":                {compareFun(func(a, b int) bool { return a > b }), 2},
+		"<":                {compareFun(func(a, b int) bool { return a < b }), 2},
+		"!":                {notImpl, 1},
 	}
 }
 
@@ -70,6 +78,37 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 		}
 
 		return astInt(total), nil
+	}
+}
+
+func eqImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+
+	if err != nil {
+		return nil, err
+	}
+	return astBool(reflect.DeepEqual(args[0], args[1])), nil
+}
+
+func compareFun(do func(a, b int) bool) func(*evalCtx, []ast) (ast, error) {
+	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
+		args, err := evalArgs(ctx, argsAst)
+
+		if err != nil {
+			return nil, err
+		}
+
+		var ints []int
+		for _, arg := range args {
+			ival, ok := arg.(astInt)
+			if !ok {
+				err := fmt.Errorf("bad arithmetic argument: %s", arg)
+				return nil, err
+			}
+			ints = append(ints, int(ival))
+		}
+
+		return astBool(do(ints[0], ints[1])), nil
 	}
 }
 
@@ -573,6 +612,79 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: args[1], ctx: ctx}}, vals...)}
 	return let.eval(ctx)
+}
+
+func ifImpl(ctx *evalCtx, args []ast) (ast, error) {
+	predAst, err := args[0].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pred, ok := predAst.(astBool)
+	if !ok {
+		return nil, fmt.Errorf("if predicate must be a boolean: %s", predAst)
+	}
+
+	if bool(pred) {
+		return args[1].eval(ctx)
+	}
+
+	// If the predicate is false, but there's no else case.
+	if len(args) == 2 {
+		return pred, nil
+	}
+	return args[2].eval(ctx)
+}
+
+func andImpl(ctx *evalCtx, args []ast) (ast, error) {
+	for _, arg := range args {
+		predAst, err := arg.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		pred, ok := predAst.(astBool)
+		if !ok {
+			return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
+		}
+
+		if !pred {
+			return astBool(false), nil
+		}
+	}
+	return astBool(true), nil
+}
+
+func orImpl(ctx *evalCtx, args []ast) (ast, error) {
+	for _, arg := range args {
+		predAst, err := arg.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		pred, ok := predAst.(astBool)
+		if !ok {
+			return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
+		}
+
+		if pred {
+			return astBool(true), nil
+		}
+	}
+	return astBool(false), nil
+}
+
+func notImpl(ctx *evalCtx, args []ast) (ast, error) {
+	predAst, err := args[0].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pred, ok := predAst.(astBool)
+	if !ok {
+		return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
+	}
+	return astBool(!pred), nil
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {

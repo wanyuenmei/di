@@ -48,6 +48,7 @@ type astIdent string /* Identities, i.e. key words, variable names etc. */
 type astString string
 type astFloat float64
 type astInt int
+type astBool bool
 
 /* SSH Keys */
 type astGithubKey astString
@@ -104,6 +105,10 @@ func (x astFloat) String() string {
 
 func (x astInt) String() string {
 	return fmt.Sprintf("%d", x)
+}
+
+func (b astBool) String() string {
+	return fmt.Sprintf("%t", b)
 }
 
 func (r astRange) String() string {
