@@ -99,7 +99,9 @@ func runWorker(conn db.Conn, dk docker.Client) {
 
 	updateNamespaces(containers)
 	updateVeths(containers)
-	updatePorts(containers)
+	if ovsdbIsRunning(dk) {
+		updatePorts(containers)
+	}
 	updateIPs(containers, labels)
 	updateOpenFlow(dk, containers, labels)
 	updateEtcHosts(dk, containers, labels, connections)
@@ -780,6 +782,15 @@ func namespaceExists(namespace string) (bool, error) {
 	} else {
 	}
 	return false, nil
+}
+
+func ovsdbIsRunning(dk docker.Client) bool {
+	required, err := dk.List(map[string][]string{"name": {"ovs-vswitchd"}})
+	if err != nil {
+		log.WithError(err).Error("list filter for ovsdb container failed")
+		return false
+	}
+	return (len(required) != 0)
 }
 
 func networkNS(id string) string {
