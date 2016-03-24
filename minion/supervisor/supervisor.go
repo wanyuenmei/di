@@ -70,6 +70,10 @@ func (sv *supervisor) runApp() {
 			continue
 		}
 
+		if err := delStopped(sv.dk); err != nil {
+			log.WithError(err).Error("Failed to clean up stopped containers")
+		}
+
 		dkcs, err := sv.dk.List(map[string][]string{
 			"label": {docker.SchedulerLabelPair},
 		})
@@ -83,6 +87,30 @@ func (sv *supervisor) runApp() {
 			return nil
 		})
 	}
+}
+
+// Delete stopped containers
+//
+// We do this because Docker Swarm will account for stopped containers
+// when using its affinity filter, where our semantics don't consider
+// stopped containers in its scheduling decisions.
+func delStopped(dk docker.Client) error {
+	containers, err := dk.List(map[string][]string{"status": {"exited"}})
+	if err != nil {
+		return fmt.Errorf("error listing stopped containers: %s", err)
+	}
+	for _, dkc := range containers {
+		// Stopped containers show up with a "/" in front of the name
+		name := dkc.Name[1:]
+		if err := dk.Remove(name); err != nil {
+			log.WithFields(log.Fields{
+				"name": name,
+				"err":  err,
+			}).Error("error removing container")
+			continue
+		}
+	}
+	return nil
 }
 
 func (sv *supervisor) runAppTransact(view db.Database,
