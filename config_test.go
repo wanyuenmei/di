@@ -39,4 +39,5 @@ func TestConfigs(t *testing.T) {
 	testConfig("./config.spec")
 	testConfig("di-tester/config/config.spec")
 	testConfig("specs/spark/spark.spec")
+	testConfig("specs/zookeeper/zookeeper.spec")
 }
