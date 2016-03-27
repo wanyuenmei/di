@@ -650,6 +650,10 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 
 	for _, label := range labels {
+		if !label.MultiHost {
+			continue
+		}
+
 		macs := LabelMacs[label.Label]
 		if len(macs) == 0 {
 			continue

@@ -43,7 +43,7 @@ func runMaster(conn db.Conn) {
 		etcds = view.SelectFromEtcd(nil)
 
 		labels = view.SelectFromLabel(func(label db.Label) bool {
-			return label.IP != ""
+			return label.IP != "" && label.MultiHost
 		})
 
 		containers = view.SelectFromContainer(func(dbc db.Container) bool {

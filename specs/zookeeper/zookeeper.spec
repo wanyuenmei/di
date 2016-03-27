@@ -8,15 +8,11 @@
 (machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large"))
 
 // XXX: Once we have lambda this could be simplified with a map and a range
-// function.
-
-// XXX: Zookeeper gets confused if you set the local IP address to the label IP
-// (instead of 0.0.0.0).  This is likely due to a design flaw in our network
-// architecture.  Need to look into it.
-(let ((image "quay.io/netsys/zookeeper")) (list
-    (label "zoo1" (docker image "1" "0.0.0.0,zoo2.di,zoo3.di"))
-    (label "zoo2" (docker image "2" "zoo1.di,0.0.0.0,zoo3.di"))
-    (label "zoo3" (docker image "3" "zoo1.di,zoo2.di,0.0.0.0"))))
+(let ((image "quay.io/netsys/zookeeper")
+      (zooHosts "zoo1.di,zoo2.di,zoo3.di"))
+     (list (label "zoo1" (docker image "1" zooHosts))
+           (label "zoo2" (docker image "2" zooHosts))
+           (label "zoo3" (docker image "3" zooHosts))))
 
 // XXX: Sigh -- need a much better way to do this.
 (let ((zooList (list "zoo1" "zoo2" "zoo3")) (portRange (list 1000 65535)))

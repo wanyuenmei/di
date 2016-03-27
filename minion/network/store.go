@@ -136,6 +136,7 @@ func readLabelTransact(view db.Database, dir directory) {
 		dbl := pair.L.(db.Label)
 		dbl.Label = pair.R.(string)
 		dbl.IP = dir[dbl.Label]["IP"]
+		_, dbl.MultiHost = dir[dbl.Label]["MultiHost"]
 		view.Commit(dbl)
 	}
 }
@@ -199,6 +200,73 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 	}
 
 	syncDir(store, dir, labelDir, ids)
+
+	// Labels that point to a single container don't need IPs separate from their
+	// constituent container IP.  Thus the following code marks those labels, by the
+	// absence of the `MultiHost` file in the consensus store, and sets their IP to
+	// whatever is found in the container table.
+
+	// Map from each label to the containers that implement it.
+	labelMap := map[string][]db.Container{}
+	for _, dbc := range containers {
+		for _, label := range dbc.Labels {
+			labelMap[label] = append(labelMap[label], dbc)
+		}
+	}
+
+	// Mark labels as MultiHost if they have more than one container.
+	for label, dbcs := range labelMap {
+		isMH := len(dbcs) > 1
+		if _, ok := dir[label]["MultiHost"]; ok == isMH {
+			continue
+		}
+
+		var err error
+		path := fmt.Sprintf("%s/%s/MultiHost", labelDir, label)
+		if isMH {
+			dir[label]["MultiHost"] = "true"
+			err = store.Set(path, "true")
+		} else {
+			delete(dir[label], "MultiHost")
+			err = store.Delete(path)
+		}
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"label": label,
+				"error": err,
+			}).Warn("Failed to change MultiHost key.")
+		}
+	}
+
+	// Set the IPs of the non-MultiHost containers.
+	for label, dbcs := range labelMap {
+		if len(dbcs) != 1 {
+			continue
+		}
+
+		dbc := dbcs[0]
+		if dbc.IP == "" || dir[dbc.IP]["IP"] == dbc.IP {
+			continue
+		}
+
+		path := fmt.Sprintf("%s/%s/IP", labelDir, label)
+		if err := store.Set(path, dbc.IP); err != nil {
+			log.WithFields(log.Fields{
+				"label": label,
+				"IP":    dbc.IP,
+				"error": err,
+			}).Warn("Consensus store failed set label IP.")
+		}
+	}
+
+	// Remove the non-MultiHost containers from `dir` to avoid confusing syncIPs.
+	for label, mp := range dir {
+		if _, ok := mp["MultiHost"]; !ok {
+			delete(dir, label)
+		}
+	}
+
 	syncIPs(store, dir, labelDir, net.IPv4(10, 1, 0, 0))
 	return nil
 }
