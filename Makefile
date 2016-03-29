@@ -19,14 +19,14 @@ providers:
 format:
 	gofmt -w -s $(NOVENDOR)
 
-docker: build-linux
+docker: docker-minion
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
 	docker build -t quay.io/netsys/di .
-	cd -P minion && docker build -t quay.io/netsys/di-minion .
 	cd -P di-tester && docker build -t quay.io/netsys/di-tester .
 
-build-linux:
-	export CGO_ENABLED=0 GOOS=linux GOARCH=amd64 && \
-		    go build . && cd -P minion && go build .
+docker-minion:
+	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
+	    && docker build -t quay.io/netsys/di-minion .
 
 check:
 	go test $(PACKAGES)
