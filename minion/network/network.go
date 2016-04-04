@@ -5,7 +5,10 @@
 package network
 
 import (
+	"fmt"
+
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/ovsdb"
@@ -41,16 +44,19 @@ func runMaster(conn db.Conn) {
 	var etcds []db.Etcd
 	var labels []db.Label
 	var containers []db.Container
+	var connections []db.Connection
 	conn.Transact(func(view db.Database) error {
 		etcds = view.SelectFromEtcd(nil)
 
 		labels = view.SelectFromLabel(func(label db.Label) bool {
-			return label.IP != "" && label.MultiHost
+			return label.IP != ""
 		})
 
 		containers = view.SelectFromContainer(func(dbc db.Container) bool {
 			return dbc.SchedID != "" && dbc.Mac != "" && dbc.IP != ""
 		})
+
+		connections = view.SelectFromConnection(nil)
 		return nil
 	})
 
@@ -81,6 +87,10 @@ func runMaster(conn db.Conn) {
 	}
 
 	for _, dbl := range labels {
+		if !dbl.MultiHost {
+			continue
+		}
+
 		if _, ok := garbageMap[dbl.Label]; ok {
 			delete(garbageMap, dbl.Label)
 			continue
@@ -121,6 +131,120 @@ func runMaster(conn db.Conn) {
 		log.Infof("Delete logical port %s.", lport)
 		if err := ovsdb.DeletePort(lSwitch, lport); err != nil {
 			log.WithError(err).Warn("Failed to delete logical port.")
+		}
+	}
+
+	updateACLs(connections, labels, containers)
+}
+
+func updateACLs(connections []db.Connection, labels []db.Label,
+	containers []db.Container) {
+	// Get the ACLs currently stored in the database.
+	ovsdbClient, err := ovsdb.Open()
+	if err != nil {
+		log.WithError(err).Error("Failed to connect to OVSDB.")
+		return
+	}
+	defer ovsdbClient.Close()
+
+	ovsdbACLs, err := ovsdbClient.ListACLs(lSwitch)
+	if err != nil {
+		log.WithError(err).Error("Failed to list ACLS.")
+		return
+	}
+
+	// Generate the ACLs that should be in the database.
+	labelIPMap := map[string]string{}
+	for _, l := range labels {
+		labelIPMap[l.Label] = l.IP
+	}
+
+	labelDbcMap := map[string][]db.Container{}
+	for _, dbc := range containers {
+		for _, l := range dbc.Labels {
+			labelDbcMap[l] = append(labelDbcMap[l], dbc)
+		}
+	}
+
+	matchSet := map[string]struct{}{}
+	for _, conn := range connections {
+		for _, fromDbc := range labelDbcMap[conn.From] {
+			fromIP := fromDbc.IP
+			toIP := labelIPMap[conn.To]
+			min := conn.MinPort
+			max := conn.MaxPort
+
+			match := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
+				"(icmp || %d <= udp.dst <= %d || %[3]d <= tcp.dst <= %[4]d)",
+				fromIP, toIP, min, max)
+			reverse := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
+				"(icmp || %d <= udp.src <= %d || %[3]d <= tcp.src <= %[4]d)",
+				toIP, fromIP, min, max)
+
+			matchSet[match] = struct{}{}
+			matchSet[reverse] = struct{}{}
+		}
+	}
+
+	// Drop all ip traffic by default.
+	acls := []ovsdb.Acl{
+		{
+			Priority:  0,
+			Match:     "ip",
+			Action:    "drop",
+			Direction: "to-lport"},
+		{
+			Priority:  0,
+			Match:     "ip",
+			Action:    "drop",
+			Direction: "from-lport"},
+	}
+
+	for match := range matchSet {
+		acls = append(acls,
+			ovsdb.Acl{
+				Priority:  1,
+				Direction: "to-lport",
+				Action:    "allow",
+				Match:     match,
+			},
+			ovsdb.Acl{
+				Priority:  1,
+				Direction: "from-lport",
+				Action:    "allow",
+				Match:     match,
+			})
+	}
+
+	_, lonelyACLS, lonelyOVS := join.Join(acls, ovsdbACLs,
+		func(left, right interface{}) int {
+			acl := left.(ovsdb.Acl)
+			ovsc := right.(ovsdb.Acl)
+
+			if acl.Priority == ovsc.Priority &&
+				acl.Direction == ovsc.Direction &&
+				acl.Action == ovsc.Action &&
+				acl.Match == ovsc.Match {
+				return 0
+			}
+			return -1
+		})
+
+	for _, toCreate := range lonelyACLS {
+		acl := toCreate.(ovsdb.Acl)
+		err := ovsdbClient.CreateACL(lSwitch, acl.Direction, acl.Priority,
+			acl.Match, acl.Action, acl.Log)
+		if err != nil {
+			log.WithError(err).Warn("Error adding ACL")
+		}
+	}
+
+	for _, toDelete := range lonelyOVS {
+		acl := toDelete.(ovsdb.Acl)
+		err := ovsdbClient.DeleteACL(lSwitch, acl.Direction, acl.Priority,
+			acl.Match)
+		if err != nil {
+			log.WithError(err).Warn("Error deleting ACL")
 		}
 	}
 }
