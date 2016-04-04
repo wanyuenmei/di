@@ -21,12 +21,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/management/hostedservice"
 	"github.com/Azure/azure-sdk-for-go/management/virtualmachine"
 	"github.com/Azure/azure-sdk-for-go/management/vmutils"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 const storageAccount string = "netsysstorage"
 const clusterLocation string = "Central US"
-const vmSize string = "Basic_A0"
 const vmImage string = "b39f27a8b8c64d52b05eac6a62ebad85__Ubuntu-15_10-amd64-server-20151116.1-en-us-30GB"
 const username string = "ubuntu"
 
@@ -93,6 +92,7 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 		}
 
 		if deploymentName == "" {
+			clst.instanceDel(id)
 			continue
 		}
 
@@ -188,11 +188,13 @@ func (clst *azureCluster) instanceNew(name string, vmSize string, cloudConfig st
 		name,
 		virtualmachine.CreateDeploymentOptions{})
 	if err != nil {
+		clst.instanceDel(name)
 		return err
 	}
 
 	// Block the operation.
 	if err := clst.azureClient.WaitForOperation(operationID, nil); err != nil {
+		clst.instanceDel(name)
 		return err
 	}
 
