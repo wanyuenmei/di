@@ -79,9 +79,9 @@ func TestReadLabelTransact(t *testing.T) {
 
 func testReadLabelTransact(t *testing.T, view db.Database) {
 	dir := directory(map[string]map[string]string{
-		"a": {"IP": "10.0.0.1"},
-		"b": {"IP": "10.0.0.2"},
-		"c": {"IP": "10.0.0.3"},
+		"a": {"IP": "10.0.0.2"},
+		"b": {"IP": "10.0.0.3"},
+		"c": {"IP": "10.0.0.4"},
 	})
 
 	readLabelTransact(view, dir)
@@ -91,9 +91,9 @@ func testReadLabelTransact(t *testing.T, view db.Database) {
 	}
 
 	exp := map[string]string{
-		"a": "10.0.0.1",
-		"b": "10.0.0.2",
-		"c": "10.0.0.3",
+		"a": "10.0.0.2",
+		"b": "10.0.0.3",
+		"c": "10.0.0.4",
 	}
 	if !eq(lip, exp) {
 		t.Error(spew.Sprintf("Found: %s\nExpected: %s\n", lip, exp))
@@ -247,7 +247,8 @@ func TestSyncIPs(t *testing.T) {
 		ipSet[mp["IP"]] = struct{}{}
 	}
 
-	expSet := sliceToSet([]string{"10.0.0.0", "10.0.0.1", "10.0.0.2"})
+	// 10.0.0.1 is reserved for the default gateway
+	expSet := sliceToSet([]string{"10.0.0.0", "10.0.0.2", "10.0.0.3"})
 	if !eq(ipSet, expSet) {
 		t.Error(spew.Sprintf("Unexpected IP allocations."+
 			"\nFound %s\nExpected %s\nDir %s",
@@ -265,7 +266,7 @@ func TestSyncIPs(t *testing.T) {
 	}
 
 	aIP := dir["a"]["IP"]
-	expected := "10.0.0.3"
+	expected := "10.0.0.4"
 	if aIP != expected {
 		t.Error(spew.Sprintf("Unexpected IP allocations.\nFound %s\nExpected %s",
 			aIP, expected))
@@ -273,7 +274,7 @@ func TestSyncIPs(t *testing.T) {
 
 	// Force collisions
 	rand32 = func() uint32 {
-		return 3
+		return 4
 	}
 
 	store.Set("/test/b/IP", "junk")

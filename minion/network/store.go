@@ -327,6 +327,8 @@ func syncIPs(store consensus.Store, dir directory, path string, prefixIP net.IP)
 		}
 	}
 
+	// Don't assign the IP of the default gateway
+	ipSet[parseIP(gatewayIP, prefix, mask)] = struct{}{}
 	var etcdLog string
 	for _, k := range unassigned {
 		ip32 := randomIP(ipSet, prefix, mask)

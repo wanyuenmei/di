@@ -1,6 +1,7 @@
 package network
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -49,6 +51,13 @@ type netdev struct {
 	peerMTU int
 }
 
+// This represents a route in the routing table
+type route struct {
+	ip        string
+	dev       string
+	isDefault bool
+}
+
 // This represents a OVS port and its default interface
 type ovsPort struct {
 	name   string
@@ -60,8 +69,15 @@ type ovsPort struct {
 	ifaceID     string
 }
 
+// This represents a rule in the iptables
+type ipRule struct {
+	cmd   string
+	chain string
+	opts  string // Must be sorted - see makeIPRule
+}
+
 // Query the database for any running containers and for each container running on this
-// host, do the following: (most of this happens in setupContainer())
+// host, do the following:
 //    - Create a pair of virtual interfaces for the container if it's new and
 //      assign them the appropriate addresses
 //    - Move one of the interfaces into the network namespace of the container,
@@ -74,9 +90,25 @@ type ovsPort struct {
 //    - Update the container's /etc/hosts file with the set of labels it may access.
 //    - Populate di-int with the OpenFlow rules necessary to facilitate forwarding.
 //
+// To connect to the public internet, we do the following setup:
+//    - On the host:
+//        * Bring up the di-int device and assign it the IP address 10.0.0.1/8, and
+//          the corresponding MAC address.
+//          di-int is the containers' default gateway.
+//        * Set up NAT for packets coming from the 10/8 subnet and leaving on eth0.
+//    - On each container:
+//        * Make eth0 the route to the 10/8 subnet.
+//        * Make the di-int device on the host the default gateway (this is the LOCAL port
+//          on the di-int bridge).
+//        * Setup /etc/resolv.conf with the same nameservers as the host.
+//    - On the di-int bridge:
+//        * Forward packets from containers to LOCAL, if their dst MAC is that of the
+//          default gateway.
+//        * Forward arp packets to both br-int and the default gateway.
+//        * Forward packets from LOCAL to the container with the packet's dst MAC.
 // XXX: The worker additionally has several basic jobs which are currently unimplemented:
 //    - ACLS should be installed to guarantee only sanctioned communication.
-//    - /etc/hosts in the containers needs to be generated.
+
 func runWorker(conn db.Conn, dk docker.Client) {
 	minions := conn.SelectFromMinion(nil)
 	if len(minions) != 1 || minions[0].Role != db.Worker {
@@ -99,10 +131,14 @@ func runWorker(conn db.Conn, dk docker.Client) {
 
 	updateNamespaces(containers)
 	updateVeths(containers)
+	updateNAT()
 	if ovsdbIsRunning(dk) {
 		updatePorts(containers)
 	}
-	updateIPs(containers, labels)
+	updateNameservers(dk, containers)
+	updateDefaultGw()
+	updateContainerIPs(containers, labels)
+	updateRoutes(containers)
 	updateOpenFlow(dk, containers, labels)
 	updateEtcHosts(dk, containers, labels, connections)
 }
@@ -311,6 +347,83 @@ func generateCurrentVeths(containers []db.Container) ([]netdev, error) {
 	return configs, nil
 }
 
+func updateNAT() {
+	targetRules := generateTargetNatRules()
+	currRules, err := generateCurrentNatRules()
+	if err != nil {
+		log.WithError(err).Error("failed to get NAT rules")
+		return
+	}
+
+	_, rulesToDel, rulesToAdd := join.Join(currRules, targetRules, func(
+		left, right interface{}) int {
+		if left.(ipRule).cmd == right.(ipRule).cmd &&
+			left.(ipRule).chain == right.(ipRule).chain &&
+			left.(ipRule).opts == right.(ipRule).opts {
+			return 0
+		}
+		return -1
+	})
+
+	for _, rule := range rulesToDel {
+		if err := deleteNatRule(rule.(ipRule)); err != nil {
+			log.WithError(err).Error("failed to delete ip rule")
+			continue
+		}
+	}
+
+	for _, rule := range rulesToAdd {
+		if err := addNatRule(rule.(ipRule)); err != nil {
+			log.WithError(err).Error("failed to add ip rule")
+			continue
+		}
+	}
+}
+
+func generateCurrentNatRules() ([]ipRule, error) {
+	stdout, _, err := shVerbose("iptables -t nat -S")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get IP tables: %s", err)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(stdout))
+	var rules []ipRule
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		rule, err := makeIPRule(line)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current IP rules: %s", err)
+		}
+		rules = append(rules, rule)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error while getting IP tables: %s", err)
+	}
+	return rules, nil
+}
+
+func generateTargetNatRules() []ipRule {
+	strRules := []string{
+		"-P PREROUTING ACCEPT",
+		"-P INPUT ACCEPT",
+		"-P OUTPUT ACCEPT",
+		"-P POSTROUTING ACCEPT",
+		"-A POSTROUTING -s 10.0.0.0/8 -o eth0 -j MASQUERADE",
+	}
+	var rules []ipRule
+	for _, r := range strRules {
+		rule, err := makeIPRule(r)
+		if err != nil {
+			panic("malformed target NAT rule")
+		}
+		rules = append(rules, rule)
+	}
+	return rules
+}
+
 // There certain exceptions, as certain ports will never be deleted.
 func updatePorts(containers []db.Container) {
 	// An Open vSwitch patch port is referred to as a "port".
@@ -510,7 +623,56 @@ func modPort(odb ovsdb.Ovsdb, current ovsPort, target ovsPort) error {
 	return nil
 }
 
-func updateIPs(containers []db.Container, labels []db.Label) {
+func updateDefaultGw() {
+	currMac, err := getMac("", diBridge)
+	if err != nil {
+		log.WithError(err).Errorf("failed to get MAC for %s", diBridge)
+		return
+	}
+
+	if currMac != gatewayMAC {
+		if err := setMac("", diBridge, gatewayMAC); err != nil {
+			log.WithError(err).Error("failed to set MAC")
+		}
+	}
+
+	if err := upLink("", diBridge); err != nil {
+		log.WithError(err).Error("failed to up default gateway")
+	}
+
+	currIPs, err := listIP("", diBridge)
+	targetIPs := []string{gatewayIP + "/8"}
+
+	if err := updateIPs("", diBridge, currIPs, targetIPs); err != nil {
+		log.WithError(err).Errorf("failed to update IPs")
+	}
+}
+
+func updateIPs(namespace string, dev string, currIPs []string, targetIPs []string) error {
+	_, ipToDel, ipToAdd := join.Join(currIPs, targetIPs, func(
+		left, right interface{}) int {
+		if left.(string) == right.(string) {
+			return 0
+		}
+		return -1
+	})
+
+	for _, ip := range ipToDel {
+		if err := delIP(namespace, ip.(string), dev); err != nil {
+			return err
+		}
+	}
+
+	for _, ip := range ipToAdd {
+		if err := addIP(namespace, ip.(string), dev); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func updateContainerIPs(containers []db.Container, labels []db.Label) {
 	labelIP := make(map[string]string)
 	for _, l := range labels {
 		labelIP[l.Label] = l.IP
@@ -522,7 +684,7 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 		ns := networkNS(dbc.SchedID)
 		ip := dbc.IP
 
-		currIPs, err := listIP(ns)
+		currIPs, err := listIP(ns, innerVeth)
 		if err != nil {
 			log.WithError(err).Error("failed to list current ip addresses")
 			continue
@@ -539,57 +701,103 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 
 		var newIPs []string
 		for ip := range newIPSet {
-			newIPs = append(newIPs, ip+"/32")
+			newIPs = append(newIPs, ip+"/8")
 		}
 
-		_, ipToDel, ipToAdd := join.Join(currIPs, newIPs, func(
-			left, right interface{}) int {
-			if left.(string) == right.(string) {
-				return 0
-			}
-			return -1
-		})
-
-		for _, ip := range ipToDel {
-			if err := delIP(ns, ip.(string)); err != nil {
-				log.WithError(err).Error("failed to delete ip")
-				continue
-			}
+		if err := updateIPs(ns, innerVeth, currIPs, newIPs); err != nil {
+			log.WithError(err).Error("failed to update IPs")
+			continue
 		}
 
-		for _, ip := range ipToAdd {
-			if err := addIP(ns, ip.(string)); err != nil {
-				log.WithError(err).Error("failed to add ip")
-				continue
-			}
-		}
-
-		currMac, err := getMac(ns)
+		currMac, err := getMac(ns, innerVeth)
 		if err != nil {
 			log.WithError(err).Error("failed to get MAC")
 			continue
 		}
 
 		if currMac != dbc.Mac {
-			if err := setMac(ns, dbc.Mac); err != nil {
+			if err := setMac(ns, innerVeth, dbc.Mac); err != nil {
 				log.WithError(err).Error("failed to set MAC.")
 				continue
 			}
 		}
+	}
+}
 
-		currDG, err := getDefaultGateway(ns)
+func updateRoutes(containers []db.Container) {
+	targetRoutes := []route{
+		{
+			ip:        "10.0.0.0/8",
+			dev:       innerVeth,
+			isDefault: false,
+		},
+		{
+			ip:        gatewayIP,
+			dev:       innerVeth,
+			isDefault: true,
+		},
+	}
+
+	for _, dbc := range containers {
+		ns := networkNS(dbc.SchedID)
+
+		currentRoutes, err := generateCurrentRoutes(ns)
 		if err != nil {
-			log.WithError(err).Error("failed to get current default gateway")
+			log.WithError(err).Error("failed to get current ip routes")
 			continue
 		}
 
-		if currDG != ip {
-			if err := setDefaultGateway(ns, ip); err != nil {
-				log.WithError(err).Error("failed to set new default gateway")
-				continue
+		_, routesDel, routesAdd := join.Join(currentRoutes, targetRoutes, func(
+			left, right interface{}) int {
+			if left.(route).ip == right.(route).ip &&
+				left.(route).dev == right.(route).dev &&
+				left.(route).isDefault == right.(route).isDefault {
+				return 0
+			}
+			return -1
+		})
+
+		for _, l := range routesDel {
+			if err := deleteRoute(ns, l.(route)); err != nil {
+				log.WithError(err).Error("error deleting route")
+			}
+		}
+
+		for _, r := range routesAdd {
+			if err := addRoute(ns, r.(route)); err != nil {
+				log.WithError(err).Error("error adding route")
 			}
 		}
 	}
+}
+
+func generateCurrentRoutes(namespace string) ([]route, error) {
+	stdout, _, err := ipExecVerbose(namespace, "route show")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get routes in %s: %s",
+			namespaceName(namespace), err)
+	}
+
+	var routes []route
+	routeRE := regexp.MustCompile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\s(\\S+)")
+	gwRE := regexp.MustCompile("default via ((?:[0-9]{1,3}\\.){3}[0-9]{1,3}) dev (\\S+)")
+	for _, r := range routeRE.FindAllSubmatch(stdout, -1) {
+		routes = append(routes, route{
+			ip:        string(r[1]),
+			dev:       string(r[2]),
+			isDefault: false,
+		})
+	}
+
+	for _, r := range gwRE.FindAllSubmatch(stdout, -1) {
+		routes = append(routes, route{
+			ip:        string(r[1]),
+			dev:       string(r[2]),
+			isDefault: true,
+		})
+	}
+
+	return routes, nil
 }
 
 // Sets up the OpenFlow tables to get packets from containers into the OVN controlled
@@ -607,31 +815,38 @@ func updateIPs(containers []db.Container, labels []db.Label) {
 // XXX: The multipath action doesn't perform well.  We should migrate away from it
 // choosing datapath recirculation instead.
 func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Label) {
+	defaultGwMac, err := getMac("", diBridge)
+	if err != nil {
+		log.WithError(err).Error("failed to get MAC")
+		return
+	}
+
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
 		_, peerDI := patchPorts(dbc.SchedID)
+		dbcMac := dbc.Mac
 
 		ovsdb, err := ovsdb.Open()
 		if err != nil {
-			log.WithError(err).Error("Failed to connect to OVSDB.")
+			log.WithError(err).Error("failed to connect to OVSDB.")
 			return
 		}
 		defer ovsdb.Close()
 
 		ofDI, err := ovsdb.GetOFPortNo(peerDI)
 		if err != nil {
-			log.WithError(err).Error("Failed to get OpenFLow Port.")
+			log.WithError(err).Error("failed to get OpenFLow Port.")
 			return
 		}
 
 		ofVeth, err := ovsdb.GetOFPortNo(vethOut)
 		if err != nil {
-			log.WithError(err).Error("Failed to get OpenFLow Port")
+			log.WithError(err).Error("failed to get OpenFLow Port")
 			return
 		}
 
 		if ofDI < 0 || ofVeth < 0 {
-			log.Warning("Missing OpenFlow port number")
+			log.Warning("missing OpenFlow port number")
 			return
 		}
 
@@ -650,8 +865,21 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		args = fmt.Sprintf(args, diBridge, 5000, ofVeth, ofDI)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
+		// Flows destined for the public web.
+		// LOCAL is the default di-int port created with the bridge
+		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
+			",dl_dst=%s,actions=output:LOCAL"
+		args = fmt.Sprintf(args, diBridge, 5000, ofVeth, defaultGwMac)
+		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+
+		// Flows from public web destined for this container.
+		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=LOCAL," +
+			",dl_dst=%s,actions=output:%d"
+		args = fmt.Sprintf(args, diBridge, 5000, dbcMac, ofVeth)
+		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+
 		args = "ovs-ofctl add-flow"
-		args += " %s priority=%d,table=0,arp,in_port=%d,actions=output:%d"
+		args += " %s priority=%d,table=0,arp,in_port=%d,actions=output:LOCAL,%d"
 		args = fmt.Sprintf(args, diBridge, 4500, ofVeth, ofDI)
 		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
@@ -705,6 +933,35 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 				"actions=mod_dl_dst:%s,resubmit(,2)", ip, i, mac)
 			dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "add-flow", flow1)
 			i++
+		}
+	}
+}
+
+// updateNameservers assigns each container the same nameservers as the host.
+func updateNameservers(dk docker.Client, containers []db.Container) {
+	hostResolv, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		log.WithError(err).Error("failed to read /etc/resolv.conf")
+	}
+
+	nsRE := regexp.MustCompile("nameserver\\s([0-9]{1,3}\\.){3}[0-9]{1,3}\\s+")
+	matches := nsRE.FindAllString(string(hostResolv), -1)
+	newNameservers := strings.Join(matches, "\n")
+
+	for _, dbc := range containers {
+		id := dbc.SchedID
+
+		currNameservers, err := dk.GetFromContainer(id, "/etc/resolv.conf")
+		if err != nil {
+			log.WithError(err).Error("failed to get /etc/resolv.conf")
+			return
+		}
+
+		if newNameservers != currNameservers {
+			err = dk.WriteToContainer(id, newNameservers, "/etc", "resolv.conf", 0644)
+			if err != nil {
+				log.WithError(err).Error("failed to update /etc/resolv.conf")
+			}
 		}
 	}
 }
@@ -871,7 +1128,7 @@ func sh(format string, args ...interface{}) error {
 //
 // It's critical that the error returned here is the exact error
 // from "os/exec" commands
-func shVerbose(format string, args ...interface{}) (
+var shVerbose = func(format string, args ...interface{}) (
 	stdout, stderr []byte, err error) {
 	command := fmt.Sprintf(format, args...)
 	cmdArgs := strings.Split(command, " ")
@@ -894,4 +1151,102 @@ func namespaceName(namespace string) string {
 		return "root namespace"
 	}
 	return fmt.Sprintf("%s namespace", namespace)
+}
+
+// makeIPRule takes an ip rule as formatted in the output of `iptables -S`,
+// and returns an ipRule with the options in sorted order. This simplifies
+// diffing ipRules in updateNAT.
+func makeIPRule(inputRule string) (ipRule, error) {
+	cmdRE := regexp.MustCompile("(-[A-Z]+)((\\s+[A-Z]+)+)")
+	optRE := regexp.MustCompile("((?:!\\s+)*-+[a-z]+)\\s+(\\S+)")
+
+	cmdMatch := cmdRE.FindSubmatch([]byte(inputRule))
+	if len(cmdMatch) < 3 {
+		return ipRule{}, fmt.Errorf("missing iptables command")
+	}
+
+	rule := ipRule{
+		cmd:   strings.TrimSpace(string(cmdMatch[1])),
+		chain: strings.TrimSpace(string(cmdMatch[2])),
+	}
+
+	var opts []string
+	optMatches := optRE.FindAllSubmatch([]byte(inputRule), -1)
+	for _, m := range optMatches {
+
+		if len(m) < 3 {
+			return ipRule{}, fmt.Errorf("malformed iptables options")
+		}
+
+		flag := string(m[1])
+		splitOpts := strings.Split(string(m[2]), ",")
+		sort.Strings(splitOpts)
+		sorted := strings.Join(splitOpts, ",")
+		opts = append(opts, flag+" "+sorted)
+	}
+
+	sort.Strings(opts)
+	rule.opts = strings.Join(opts, " ")
+	return rule, nil
+}
+
+func deleteNatRule(rule ipRule) error {
+	var command string
+	args := fmt.Sprintf("%s %s", rule.chain, rule.opts)
+	if rule.cmd == "-A" {
+		command = fmt.Sprintf("iptables -t nat -D %s", args)
+	} else if rule.cmd == "-N" {
+		// Delete new chains.
+		command = fmt.Sprintf("iptables -t nat -X %s", rule.chain)
+	}
+
+	stdout, _, err := shVerbose(command)
+	if err != nil {
+		return fmt.Errorf("failed to delete NAT rule %s: %s", command, string(stdout))
+	}
+	return nil
+}
+
+func addNatRule(rule ipRule) error {
+	args := fmt.Sprintf("%s %s", rule.chain, rule.opts)
+	cmd := fmt.Sprintf("iptables -t nat -A %s", args)
+	stdout, _, err := shVerbose(cmd)
+	if err != nil {
+		return fmt.Errorf("Failed to add NAT rule %s: %s", cmd, string(stdout))
+	}
+	return nil
+}
+
+// The addRoute function adds a new route to the given namespace.
+func addRoute(namespace string, r route) error {
+	var command string
+	if r.isDefault {
+		command = fmt.Sprintf("route add default via %s", r.ip)
+	} else {
+		command = fmt.Sprintf("route add %s via %s", r.ip, r.dev)
+	}
+
+	_, _, err := ipExecVerbose(namespace, command)
+	if err != nil {
+		return fmt.Errorf("failed to add route %s in %s: %s",
+			r.ip, namespaceName(namespace), err)
+	}
+	return nil
+}
+
+// deleteRoute adds route to the routing table in namespace.
+func deleteRoute(namespace string, r route) error {
+	var command string
+	if r.isDefault {
+		command = fmt.Sprintf("route del default via %s", r.ip)
+	} else {
+		command = fmt.Sprintf("route delete %s via %s", r.ip, r.dev)
+	}
+
+	_, _, err := ipExecVerbose(namespace, command)
+	if err != nil {
+		return fmt.Errorf("failed to delete route %s in %s: %s",
+			r.ip, namespaceName(namespace), err)
+	}
+	return nil
 }

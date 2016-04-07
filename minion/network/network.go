@@ -18,6 +18,8 @@ const labelMac = "0A:00:00:00:00:00"
 const lSwitch = "di"
 const diBridge = "di-int"
 const ovnBridge = "br-int"
+const gatewayIP = "10.0.0.1"
+const gatewayMAC = "02:00:0a:00:00:01"
 
 // Run blocks implementing the network services.
 func Run(conn db.Conn, store consensus.Store, dk docker.Client) {

@@ -189,10 +189,10 @@ func listVeths() ([]string, error) {
 	return veths, nil
 }
 
-func listIP(namespace string) ([]string, error) {
+func listIP(namespace, dev string) ([]string, error) {
 	var ips []string
 
-	stdout, _, err := ipExecVerbose(namespace, "addr list dev %s", innerVeth)
+	stdout, _, err := ipExecVerbose(namespace, "addr list dev %s", dev)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list ip addresses in %s: %s",
 			namespaceName(namespace), err)
@@ -206,58 +206,58 @@ func listIP(namespace string) ([]string, error) {
 	return ips, nil
 }
 
-func addIP(namespace, ip string) error {
-	_, _, err := ipExecVerbose(namespace, "addr add %s dev %s", ip, innerVeth)
+func addIP(namespace, ip, dev string) error {
+	err := ipExec(namespace, "addr add %s dev %s", ip, dev)
 	if err != nil {
-		return fmt.Errorf("failed to add ip %s in %s: %s",
+		return fmt.Errorf("failed to add ip %s to %s in %s: %s",
+			ip, dev, namespaceName(namespace), err)
+	}
+	return nil
+}
+
+func delIP(namespace, ip, dev string) error {
+	err := ipExec(namespace, "addr del %s dev %s", ip, dev)
+	if err != nil {
+		return fmt.Errorf("failed to delete ip %s in %s: %s",
 			ip, namespaceName(namespace), err)
 	}
 	return nil
 }
 
-func delIP(namespace, ip string) error {
-	_, _, err := ipExecVerbose(namespace, "addr del %s dev %s", ip, innerVeth)
+func getMac(namespace, dev string) (string, error) {
+	return linkQuery(namespace, dev, "link/ether")
+}
+
+func setMac(namespace, dev, mac string) error {
+	err := ipExec(namespace, "link set dev %s address %s", dev, mac)
 	if err != nil {
-		return fmt.Errorf("failed to add ip %s in %s: %s",
-			ip, namespaceName(namespace), err)
+		return fmt.Errorf("failed to set mac %s for %s in %s: %s",
+			mac, dev, namespaceName(namespace), err)
 	}
 	return nil
 }
 
-func getMac(namespace string) (string, error) {
-	return linkQuery(namespace, innerVeth, "link/ether")
-}
-
-func setMac(namespace, mac string) error {
-	_, _, err := ipExecVerbose(namespace, "link set dev %s address %s", innerVeth, mac)
-	if err != nil {
-		return fmt.Errorf("failed to set mac %s in %s: %s",
-			mac, namespaceName(namespace), err)
+func upLink(namespace, dev string) error {
+	up, err := linkIsUp(namespace, dev)
+	if up || err != nil {
+		return err
 	}
+
+	if err = ipExec(namespace, "link set dev %s up", dev); err != nil {
+		return fmt.Errorf("failed to set %s up in %s: %s",
+			dev, namespaceName(namespace), err)
+	}
+
 	return nil
 }
 
-func getDefaultGateway(namespace string) (string, error) {
-	stdout, _, err := ipExecVerbose(namespace, "route show default")
+func linkIsUp(namespace, dev string) (bool, error) {
+	stdout, _, err := ipExecVerbose(namespace, "link show %s", dev)
 	if err != nil {
-		return "", fmt.Errorf("failed to get default gateway in %s: %s",
-			namespaceName(namespace), err)
+		return false, fmt.Errorf("failed to show %s: %s", dev, err)
 	}
 
-	re, _ := regexp.Compile(`(?:default via) (\S+)`)
-	match := re.FindSubmatch(stdout)
-	dg := ""
-	if len(match) == 2 {
-		dg = string(match[1])
-	}
-	return dg, nil
-}
-
-func setDefaultGateway(namespace, ip string) error {
-	_, _, err := ipExecVerbose(namespace, "route add default via %s", ip)
-	if err != nil {
-		return fmt.Errorf("failed to set default gateway %s in %s: %s",
-			ip, namespaceName(namespace), err)
-	}
-	return nil
+	pattern := fmt.Sprintf("^\\d+:\\s%s:\\s<.*,UP.*>.*", dev)
+	stateRE := regexp.MustCompile(pattern)
+	return stateRE.MatchString(string(stdout)), nil
 }
