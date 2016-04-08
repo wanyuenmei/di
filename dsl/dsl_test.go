@@ -446,7 +446,7 @@ func TestStdlib(t *testing.T) {
 	util.AppFs = afero.NewOsFs()
 
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
-		ctx := parseTestImport(t, code, expectedCode, []string{"../specs"})
+		ctx := parseTestImport(t, code, expectedCode, []string{"../specs/stdlib"})
 		machineResult := Dsl{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",

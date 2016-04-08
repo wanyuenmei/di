@@ -1,55 +1,70 @@
-(import "machines")
+(import "labels")
+(import "util")
 
-(define Namespace "nlsun-wp")
-(define AdminACL (list "local"))
+(define wordpressSource "quay.io/netsys/di-wordpress")
+(define wordpressDefaultArgs "apache2-foreground")
 
-(define MasterCount 1)
-(define WorkerCount 1)
-(machines.Boot
-  MasterCount
-  WorkerCount
-  (list (provider "AmazonSpot")
-        (size "m4.large")
-        (githubKey "nlsun")))
+(define (parseFlags database flags)
+  (hmap
+    ("dbSlaves"
+     (util.HmapMultiContains database (list "slavenodes" "ports")))
+    ("memcached"
+     (util.NestedHmapMultiContains flags "memcached" (list "nodes" "ports")))
+    ("redis"
+     (util.NestedHmapMultiContains flags "redis" (list "nodes" "ports")))))
 
-// Redis is turned on here, but if you didn't want it you can just run it
-// without any arguments
-(label "wp1" (docker "quay.io/nlsun/di-wordpress" "--redis" "apache2-foreground"))
-(label "wp2" (docker "quay.io/nlsun/di-wordpress" "--redis" "apache2-foreground"))
+(define (makeDockerFlags database flags parsedFlags)
+  (list
+    (list "--dbm" (labels.ListToString (hmapGet database "masternodes")))
+    (if (hmapGet parsedFlags "dbSlaves")
+      (list "--repl-mysql"
+            (labels.ListToString (hmapGet database "slavenodes")))
+      (list))
+    (if (hmapGet parsedFlags "memcached")
+      (let ((memcached (hmapGet flags "memcached")))
+        (list "--memcached" (labels.ListToString (hmapGet memcached "nodes"))))
+      (list))
+    (if (hmapGet parsedFlags "redis")
+      (let ((redis (hmapGet flags "redis")))
+        (list "--redis" (labels.ListToString (hmapGet redis "nodes"))))
+      (list))))
 
-// All wordpress instances refer to themselves as "wordpress", this is
-// hardcoded as the url (http://wordpress.di)
-(label "wordpress" "wp1" "wp2")
+(define (wpConnect wordpressNodes externalApp portsKey nodesKey)
+  (connect (hmapGet externalApp portsKey)
+           wordpressNodes
+           (hmapGet externalApp nodesKey)))
 
-// di-rds-wordpress instances will always look for redis under hostname "redis.di"
-(label "redis" (docker "redis:3.0.7"))
+(define (link database flags parsedFlags wordpressNodes)
+  (wpConnect wordpressNodes database "ports" "masternodes")
+  (if (hmapGet parsedFlags "dbSlaves")
+    (wpConnect wordpressNodes database "ports" "slavenodes"))
+  (if (hmapGet parsedFlags "memcached")
+    (wpConnect wordpressNodes (hmapGet flags "memcached") "ports" "nodes"))
+  (if (hmapGet parsedFlags "redis")
+    (wpConnect wordpressNodes (hmapGet flags "redis") "ports" "nodes")))
 
-// Feed di-wp-haproxy the hostnames of the wordpress instances in a comma
-// separated list, the rest is just the default CMD copied from the Dockerfile
-(label "hap1" (docker "quay.io/nlsun/di-wp-haproxy" "wp1.di,wp2.di" "haproxy" "-f" "/usr/local/etc/haproxy/haproxy.cfg"))
-(label "hap2" (docker "quay.io/nlsun/di-wp-haproxy" "wp1.di,wp2.di" "haproxy" "-f" "/usr/local/etc/haproxy/haproxy.cfg"))
-(label "haproxy" "hap1" "hap2")
+(define (createWordpressNodes prefix count flagStrs)
+  (map (lambda (i)
+         (labels.Docker
+           (list prefix i)
+           (list wordpressSource flagStrs wordpressDefaultArgs)))
+       (range count)))
 
-// di-wordpress instances will always look for mysql under hostname "database.di"
-(label "database" (docker "quay.io/nlsun/di-wp-mysql"))
+// Returns the labels of the new wordpress nodes
+(define (create prefix count database flags)
+  (let ((parsedFlags (parseFlags database flags))
+        (flagStrs (makeDockerFlags database flags parsedFlags))
+        (wordpressNodes (createWordpressNodes prefix count flagStrs)))
+    (link database flags parsedFlags wordpressNodes)
+    wordpressNodes))
 
-// This is just for testing purposes
-(label "toolbox" (docker "quay.io/nlsun/di-toolbox"))
-
-
-// Allow haproxy to connect to wordpress to do health checks
-// haproxy must be able to resolve the hostnames separately
-(connect 80 "haproxy" "wp1")
-(connect 80 "haproxy" "wp2")
-
-// Connect wordpress to mysql
-(connect 3306 "wordpress" "database")
-
-// Connect wordpress to redis
-(connect 6379 "wordpress" "redis")
-
-// This is just for testing purposes
-(connect 80 "toolbox" "haproxy")
-(connect 80 "toolbox" "wordpress")
-(connect 3306 "toolbox" "database")
-(connect 6379 "toolbox" "redis")
+// database: hmap
+//   "masternodes": list of masternodes
+//   "slavenodes": list of slavenodes
+//   "ports": list of ports to access database
+// flags: hmap with optional keys
+//   "redis": hmap of redis "nodes" and "ports"
+//   "memcached": hmap of memcached "nodes" and "ports"
+(define (New prefix count database flags)
+  (hmap ("nodes" (create prefix count database flags))
+        ("ports" 80)))

@@ -38,9 +38,10 @@ func TestConfigs(t *testing.T) {
 			t.Errorf("%s failed validation: %s", configPath, err.Error())
 		}
 	}
-	testConfig("./config.spec", []string{"specs"})
-	testConfig("di-tester/config/config.spec", []string{"specs"})
-	testConfig("specs/spark/spark.spec", []string{"specs"})
-	testConfig("specs/zookeeper/zookeeper.spec", []string{"specs"})
-	testConfig("specs/wordpress/wordpress.spec", []string{"specs"})
+	testConfig("./config.spec", []string{"specs/stdlib"})
+	testConfig("di-tester/config/config.spec", []string{"specs/stdlib"})
+	testConfig("specs/spark/spark.spec", []string{"specs/stdlib"})
+	testConfig("specs/zookeeper/zookeeper.spec", []string{"specs/stdlib"})
+	testConfig("specs/wordpress/main.spec",
+		[]string{"specs/stdlib", "specs/wordpress"})
 }
