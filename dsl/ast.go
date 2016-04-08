@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"text/scanner"
 )
@@ -31,7 +32,8 @@ type astRange struct {
 	max astFloat
 }
 
-type astList []ast /* A data list after evaluation. */
+type astList []ast          /* A data list after evaluation. */
+type astHashmap map[ast]ast /* A map after evaluation. */
 
 type astSexp struct {
 	sexp []ast
@@ -97,6 +99,20 @@ func (list astList) String() string {
 	}
 
 	return fmt.Sprintf("(list %s)", sliceStr(list, " "))
+}
+
+func (h astHashmap) String() string {
+	if len(h) == 0 {
+		return "(hashmap)"
+	}
+
+	keyValues := []string{}
+	for key, value := range h {
+		keyValues = append(keyValues, fmt.Sprintf("(%s %s)", key.String(), value.String()))
+	}
+	sort.Strings(keyValues)
+
+	return fmt.Sprintf("(hashmap %s)", strings.Join(keyValues[:], " "))
 }
 
 func (ident astIdent) String() string {

@@ -245,6 +245,63 @@ func TestList(t *testing.T) {
 	parseTestNoPath(t, `(let ((a 2)) (makeList a 3))`, `(list 3 3)`)
 }
 
+func TestHashmap(t *testing.T) {
+	parseTestNoPath(t, "(hashmap)", "(hashmap)")
+	code := `(define a (hashmap))
+(hashmapSet a "key" "value")`
+	exp := `(define a (hashmap))
+(hashmap ("key" "value"))`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap))
+(define b (hashmapSet a "key" "value"))
+(hashmapGet b "key")`
+	exp = `(define a (hashmap))
+(define b (hashmap ("key" "value")))
+"value"`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap))
+(hashmapGet (hashmapSet a "key" "value") "key")`
+	exp = `(define a (hashmap))
+"value"`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap ("key1" "value1")))
+(hashmapGet a "key1")`
+	exp = `(define a (hashmap ("key1" "value1")))
+"value1"`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap ("key1" "value1") ("key2" "value2")))
+(hashmapGet a "key1")
+(hashmapGet a "key2")`
+	exp = `(define a (hashmap ("key1" "value1") ("key2" "value2")))
+"value1"
+"value2"`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap ("key1" "value1")))
+(hashmapGet a "key1")
+(define b (hashmapSet a "key2" "value2"))
+(hashmapGet b "key1")
+(hashmapGet b "key2")`
+	exp = `(define a (hashmap ("key1" "value1")))
+"value1"
+(define b (hashmap ("key1" "value1") ("key2" "value2")))
+"value1"
+"value2"`
+	parseTestNoPath(t, code, exp)
+	code = `(define a (hashmap ("key1" "value1")))
+(hashmapGet a "key1")
+(define b (hashmapSet (hashmapSet a "key2" "value2") "key3" "value3"))
+(hashmapGet b "key1")
+(hashmapGet b "key2")
+(hashmapGet b "key3")`
+	exp = `(define a (hashmap ("key1" "value1")))
+"value1"
+(define b (hashmap ("key1" "value1") ("key2" "value2") ("key3" "value3")))
+"value1"
+"value2"
+"value3"`
+	parseTestNoPath(t, code, exp)
+}
+
 func TestDocker(t *testing.T) {
 	checkContainers := func(code, expectedCode string, expected ...*Container) {
 		ctx := parseTestNoPath(t, code, expectedCode)

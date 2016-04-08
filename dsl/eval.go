@@ -153,6 +153,10 @@ func (ident astIdent) eval(ctx *evalCtx) (ast, error) {
 	return ident.eval(ctx.parent)
 }
 
+func (m astHashmap) eval(ctx *evalCtx) (ast, error) {
+	return m, nil
+}
+
 func (str astString) eval(ctx *evalCtx) (ast, error) {
 	return str, nil
 }

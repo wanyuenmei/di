@@ -36,6 +36,9 @@ func init() {
 		"label":            {labelImpl, 2},
 		"list":             {listImpl, 0},
 		"makeList":         {makeListImpl, 2},
+		"hashmap":          {hashmapImpl, 0},
+		"hashmapSet":       {hashmapSetImpl, 3},
+		"hashmapGet":       {hashmapGetImpl, 2},
 		"sprintf":          {sprintfImpl, 1},
 		"placement":        {placementImpl, 3},
 		"githubKey":        {githubKeyImpl, 1},
@@ -500,6 +503,61 @@ func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astList(result), nil
 }
 
+func hashmapImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m := astHashmap(make(map[ast]ast))
+	bindings, err := parseBindings(ctx, astSexp{sexp: args})
+	if err != nil {
+		return nil, err
+	}
+	for _, bind := range bindings {
+		key, err := bind.key.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		val, err := bind.val.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		m[key] = val
+	}
+	return m, nil
+}
+
+func hashmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
+	args, err := evalArgs(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	m, ok := args[0].(astHashmap)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a hashmap", args[0])
+	}
+	newM := astHashmap(make(map[ast]ast))
+	for k, v := range m {
+		newM[k] = v
+	}
+	newM[args[1]] = args[2]
+	return newM, nil
+}
+
+func hashmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
+	args, err := evalArgs(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+
+	m, ok := args[0].(astHashmap)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a hashmap", args[0])
+	}
+	value, ok := m[args[1]]
+	if !ok {
+		return nil, fmt.Errorf("undefined key: %s", args[1])
+	}
+	return value, nil
+}
+
 func sprintfImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	args, err := evalArgs(ctx, argsAst)
 	if err != nil {
@@ -550,37 +608,18 @@ func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 type binding struct {
-	key astIdent
+	key ast
 	val ast
-}
-
-func parseBinding(astBinding ast, ctx *evalCtx) (binding, error) {
-	pair, ok := astBinding.(astSexp)
-	if !ok || len(pair.sexp) != 2 {
-		return binding{}, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
-	}
-
-	key, ok := pair.sexp[0].(astIdent)
-	if !ok {
-		return binding{}, fmt.Errorf("bind name must be an ident: %s", pair.sexp[0])
-	}
-
-	val, err := pair.sexp[1].eval(ctx)
-	if err != nil {
-		return binding{}, err
-	}
-
-	return binding{key, val}, nil
 }
 
 func parseBindings(ctx *evalCtx, bindings astSexp) ([]binding, error) {
 	var binds []binding
 	for _, astBinding := range bindings.sexp {
-		bind, err := parseBinding(astBinding, ctx)
-		if err != nil {
-			return []binding{}, err
+		bind, ok := astBinding.(astSexp)
+		if !ok || len(bind.sexp) != 2 {
+			return nil, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
 		}
-		binds = append(binds, bind)
+		binds = append(binds, binding{bind.sexp[0], bind.sexp[1]})
 	}
 	return binds, nil
 }
@@ -616,8 +655,16 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 	var names []astIdent
 	var vals []ast
 	for _, pair := range bindings {
-		names = append(names, pair.key)
-		vals = append(vals, pair.val)
+		key, ok := pair.key.(astIdent)
+		if !ok {
+			return nil, fmt.Errorf("bind name must be an ident: %s", pair.key)
+		}
+		val, err := pair.val.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, key)
+		vals = append(vals, val)
 	}
 	progn := astSexp{sexp: append([]ast{astIdent("progn")}, args[1:]...)}
 	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: progn, ctx: ctx}}, vals...)}
