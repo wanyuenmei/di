@@ -67,16 +67,24 @@ func (c Container) String() string {
 		tags = append(tags, fmt.Sprintf("SchedID: %s", id))
 	}
 
+	if c.Pid != 0 {
+		tags = append(tags, fmt.Sprintf("Pid: %d", c.Pid))
+	}
+
+	if c.IP != "" {
+		tags = append(tags, fmt.Sprintf("IP: %s", c.IP))
+	}
+
+	if c.Mac != "" {
+		tags = append(tags, fmt.Sprintf("Mac: %s", c.Mac))
+	}
+
 	if len(c.Labels) > 0 {
 		tags = append(tags, fmt.Sprintf("Labels: %s", c.Labels))
 	}
 
 	if len(c.Placement.Exclusive) > 0 {
 		tags = append(tags, fmt.Sprintf("Env: %s", c.Placement.Exclusive))
-	}
-
-	if c.IP != "" {
-		tags = append(tags, c.IP)
 	}
 
 	return fmt.Sprintf("Container-%d{%s}", c.ID, strings.Join(tags, ", "))
