@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"sort"
 	"strings"
 	"text/scanner"
 
@@ -107,7 +108,11 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		dslc := pair.L.(*dsl.Container)
 		dbc := pair.R.(db.Container)
 
+		// By sorting the labels we prevent the database from getting confused
+		// when their order is non determinisitic.
 		dbc.Labels = dslc.Labels()
+		sort.Sort(sort.StringSlice(dbc.Labels))
+
 		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
 		dbc.Placement.Exclusive = dslc.Placement.Exclusive
