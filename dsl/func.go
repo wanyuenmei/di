@@ -18,6 +18,7 @@ import (
 type funcImpl struct {
 	do      func(*evalCtx, []ast) (ast, error)
 	minArgs int
+	lazy    bool // True if arguments shoudl not be evaluated automatically.
 }
 
 var funcImplMap map[astIdent]funcImpl
@@ -26,61 +27,64 @@ var funcImplMap map[astIdent]funcImpl
 // will complain about an initialization loop (funcImplMap -> letImpl ->
 // astSexp.eval -> funcImplMap).
 func init() {
+	mod := arithFun(func(a, b int) int { return a % b })
+	mul := arithFun(func(a, b int) int { return a * b })
+	add := arithFun(func(a, b int) int { return a + b })
+	sub := arithFun(func(a, b int) int { return a - b })
+	div := arithFun(func(a, b int) int { return a / b })
+
+	less := compareFun(func(a, b int) bool { return a < b })
+	more := compareFun(func(a, b int) bool { return a > b })
+
 	funcImplMap = map[astIdent]funcImpl{
-		"!":                {notImpl, 1},
-		"%":                {arithFun(func(a, b int) int { return a % b }), 2},
-		"*":                {arithFun(func(a, b int) int { return a * b }), 2},
-		"+":                {arithFun(func(a, b int) int { return a + b }), 2},
-		"-":                {arithFun(func(a, b int) int { return a - b }), 2},
-		"/":                {arithFun(func(a, b int) int { return a / b }), 2},
-		"<":                {compareFun(func(a, b int) bool { return a < b }), 2},
-		"=":                {eqImpl, 2},
-		">":                {compareFun(func(a, b int) bool { return a > b }), 2},
-		"and":              {andImpl, 1},
-		"apply":            {applyImpl, 2},
-		"car":              {carImpl, 1},
-		"cdr":              {cdrImpl, 1},
-		"connect":          {connectImpl, 3},
-		"cons":             {consImpl, 2},
-		"cpu":              {rangeImpl("cpu"), 1},
-		"define":           {defineImpl, 2},
-		"docker":           {dockerImpl, 1},
-		"githubKey":        {githubKeyImpl, 1},
-		"hashmap":          {hashmapImpl, 0},
-		"hashmapGet":       {hashmapGetImpl, 2},
-		"hashmapSet":       {hashmapSetImpl, 3},
-		"if":               {ifImpl, 2},
-		"import":           {importImpl, 1},
-		"label":            {labelImpl, 2},
-		"lambda":           {lambdaImpl, 2},
-		"let":              {letImpl, 2},
-		"list":             {listImpl, 0},
-		"machine":          {machineImpl, 0},
-		"machineAttribute": {machineAttributeImpl, 2},
-		"makeList":         {makeListImpl, 2},
-		"map":              {mapImpl, 2},
-		"module":           {moduleImpl, 2},
-		"nth":              {nthImpl, 2},
-		"or":               {orImpl, 1},
-		"placement":        {placementImpl, 3},
-		"plaintextKey":     {plaintextKeyImpl, 1},
-		"progn":            {prognImpl, 1},
-		"provider":         {providerImpl, 1},
-		"ram":              {rangeImpl("ram"), 1},
-		"size":             {sizeImpl, 1},
-		"sprintf":          {sprintfImpl, 1},
+		"!":                {notImpl, 1, false},
+		"%":                {mod, 2, false},
+		"*":                {mul, 2, false},
+		"+":                {add, 2, false},
+		"-":                {sub, 2, false},
+		"/":                {div, 2, false},
+		"<":                {less, 2, false},
+		"=":                {eqImpl, 2, false},
+		">":                {more, 2, false},
+		"and":              {andImpl, 1, true},
+		"apply":            {applyImpl, 2, false},
+		"car":              {carImpl, 1, false},
+		"cdr":              {cdrImpl, 1, false},
+		"connect":          {connectImpl, 3, false},
+		"cons":             {consImpl, 2, false},
+		"cpu":              {rangeImpl("cpu"), 1, false},
+		"define":           {defineImpl, 2, true},
+		"docker":           {dockerImpl, 1, false},
+		"githubKey":        {githubKeyImpl, 1, false},
+		"hashmap":          {hashmapImpl, 0, true},
+		"hashmapGet":       {hashmapGetImpl, 2, false},
+		"hashmapSet":       {hashmapSetImpl, 3, false},
+		"if":               {ifImpl, 2, true},
+		"import":           {importImpl, 1, true},
+		"label":            {labelImpl, 2, false},
+		"lambda":           {lambdaImpl, 2, true},
+		"let":              {letImpl, 2, true},
+		"list":             {listImpl, 0, false},
+		"machine":          {machineImpl, 0, false},
+		"machineAttribute": {machineAttributeImpl, 2, false},
+		"makeList":         {makeListImpl, 2, true},
+		"map":              {mapImpl, 2, false},
+		"module":           {moduleImpl, 2, true},
+		"nth":              {nthImpl, 2, false},
+		"or":               {orImpl, 1, true},
+		"placement":        {placementImpl, 3, false},
+		"plaintextKey":     {plaintextKeyImpl, 1, false},
+		"progn":            {prognImpl, 1, false},
+		"provider":         {providerImpl, 1, false},
+		"ram":              {rangeImpl("ram"), 1, false},
+		"size":             {sizeImpl, 1, false},
+		"sprintf":          {sprintfImpl, 1, false},
 	}
 }
 
 // XXX: support float operators?
 func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
-	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
-		args, err := evalArgs(ctx, argsAst)
-
-		if err != nil {
-			return nil, err
-		}
-
+	return func(ctx *evalCtx, args []ast) (ast, error) {
 		var ints []int
 		for _, arg := range args {
 			ival, ok := arg.(astInt)
@@ -100,23 +104,12 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 	}
 }
 
-func eqImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-
-	if err != nil {
-		return nil, err
-	}
+func eqImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astBool(reflect.DeepEqual(args[0], args[1])), nil
 }
 
 func compareFun(do func(a, b int) bool) func(*evalCtx, []ast) (ast, error) {
-	return func(ctx *evalCtx, argsAst []ast) (ast, error) {
-		args, err := evalArgs(ctx, argsAst)
-
-		if err != nil {
-			return nil, err
-		}
-
+	return func(ctx *evalCtx, args []ast) (ast, error) {
 		var ints []int
 		for _, arg := range args {
 			ival, ok := arg.(astInt)
@@ -131,12 +124,7 @@ func compareFun(do func(a, b int) bool) func(*evalCtx, []ast) (ast, error) {
 	}
 }
 
-func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 	var args []string
 	for _, ev := range evalArgs {
 		arg, ok := ev.(astString)
@@ -160,33 +148,17 @@ func dockerImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astAtom{astFunc(astIdent("docker"), evalArgs), addAtom(ctx, container)}, nil
 }
 
-func githubKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-	key := &githubKey{username: string(evalArgs[0].(astString))}
-
-	return astAtom{astFunc(astIdent("githubKey"), evalArgs), addAtom(ctx, key)}, nil
+func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
+	key := &githubKey{username: string(args[0].(astString))}
+	return astAtom{astFunc(astIdent("githubKey"), args), addAtom(ctx, key)}, nil
 }
 
-func plaintextKeyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
-	key := &plaintextKey{key: string(evalArgs[0].(astString))}
-
-	return astAtom{astFunc(astIdent("plaintextKey"), evalArgs), addAtom(ctx, key)}, nil
+func plaintextKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
+	key := &plaintextKey{key: string(args[0].(astString))}
+	return astAtom{astFunc(astIdent("plaintextKey"), args), addAtom(ctx, key)}, nil
 }
 
-func placementImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 	str, ok := args[0].(astString)
 	if !ok {
 		return nil, fmt.Errorf("placement type must be a string, found: %s", args[0])
@@ -259,29 +231,19 @@ func setMachineAttributes(machine *Machine, args []ast) error {
 }
 
 func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
 	machine := &Machine{}
-	err = setMachineAttributes(machine, evalArgs)
+	err := setMachineAttributes(machine, args)
 	if err != nil {
 		return nil, err
 	}
 
-	return astAtom{astFunc(astIdent("machine"), evalArgs), addAtom(ctx, machine)}, nil
+	return astAtom{astFunc(astIdent("machine"), args), addAtom(ctx, machine)}, nil
 }
 
-func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
-	key, ok := evalArgs[0].(astString)
+func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
+	key, ok := args[0].(astString)
 	if !ok {
-		return nil, fmt.Errorf("machineAttribute key must be a string: %s", evalArgs[0])
+		return nil, fmt.Errorf("machineAttribute key must be a string: %s", args[0])
 	}
 
 	target, ok := ctx.globalCtx().labels[string(key)]
@@ -294,31 +256,21 @@ func machineAttributeImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 		if !ok {
 			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", val)
 		}
-		err = setMachineAttributes(machine, evalArgs[1:])
+		err := setMachineAttributes(machine, args[1:])
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return astFunc(astIdent("machineAttribute"), evalArgs), nil
+	return astFunc(astIdent("machineAttribute"), args), nil
 }
 
 func providerImpl(ctx *evalCtx, args []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return astProvider((evalArgs[0].(astString))), nil
+	return astProvider((args[0].(astString))), nil
 }
 
 func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {
-	evalArgs, err := evalArgs(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return astSize((evalArgs[0].(astString))), nil
+	return astSize((args[0].(astString))), nil
 }
 
 func toFloat(x ast) (astFloat, error) {
@@ -330,37 +282,26 @@ func toFloat(x ast) (astFloat, error) {
 	default:
 		return astFloat(0), fmt.Errorf("%v is not convertable to a float", x)
 	}
-
 }
 
 func rangeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
-	return func(ctx *evalCtx, args__ []ast) (ast, error) {
-		evalArgs, err := evalArgs(ctx, args__)
-		if err != nil {
-			return nil, err
-		}
-
+	return func(ctx *evalCtx, args []ast) (ast, error) {
 		var max astFloat
 		var maxErr error
-		if len(evalArgs) > 1 {
-			max, maxErr = toFloat(evalArgs[1])
+		if len(args) > 1 {
+			max, maxErr = toFloat(args[1])
 		}
-		min, minErr := toFloat(evalArgs[0])
+		min, minErr := toFloat(args[0])
 
 		if minErr != nil || maxErr != nil {
-			return nil, fmt.Errorf("range arguments must be convertable to floats: %v", evalArgs)
+			return nil, fmt.Errorf("range arguments must be convertable to floats: %v", args)
 		}
 
 		return astRange{ident: astIdent(rangeType), min: min, max: max}, nil
 	}
 }
 
-func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 	var min, max int
 	switch t := args[0].(type) {
 	case astInt:
@@ -425,12 +366,7 @@ func connectImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astFunc(astIdent("connect"), newArgs), nil
 }
 
-func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	str, ok := args[0].(astString)
 	if !ok {
 		return nil, fmt.Errorf("label must be a string, found: %s", args[0])
@@ -482,9 +418,8 @@ func labelImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astFunc(astIdent("label"), args), nil
 }
 
-func listImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	return astList(args), err
+func listImpl(ctx *evalCtx, args []ast) (ast, error) {
+	return astList(args), nil
 }
 
 func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -531,11 +466,6 @@ func hashmapImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 func hashmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
-	args, err := evalArgs(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
 	m, ok := args[0].(astHashmap)
 	if !ok {
 		return nil, fmt.Errorf("%s must be a hashmap", args[0])
@@ -549,11 +479,6 @@ func hashmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 func hashmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
-	args, err := evalArgs(ctx, args)
-	if err != nil {
-		return nil, err
-	}
-
 	m, ok := args[0].(astHashmap)
 	if !ok {
 		return nil, fmt.Errorf("%s must be a hashmap", args[0])
@@ -565,12 +490,7 @@ func hashmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return value, nil
 }
 
-func sprintfImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {
 	format, ok := args[0].(astString)
 	if !ok {
 		return nil, fmt.Errorf("sprintf format must be a string: %s", args[0])
@@ -751,12 +671,7 @@ func notImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astBool(!pred), nil
 }
 
-func applyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func applyImpl(ctx *evalCtx, args []ast) (ast, error) {
 	list, ok := args[1].(astList)
 	if !ok {
 		return nil, fmt.Errorf("apply requires a lists: %s", args[1])
@@ -816,23 +731,10 @@ func moduleImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 func prognImpl(ctx *evalCtx, args []ast) (ast, error) {
-	var res ast
-	var err error
-	for _, arg := range args {
-		res, err = arg.eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
+	return args[len(args)-1], nil
 }
 
-func carImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func carImpl(ctx *evalCtx, args []ast) (ast, error) {
 	list, ok := args[0].(astList)
 	if !ok || len(list) <= 0 {
 		return nil, fmt.Errorf("car applies to populated lists: %s", args[0])
@@ -841,12 +743,7 @@ func carImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return list[0], nil
 }
 
-func cdrImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func cdrImpl(ctx *evalCtx, args []ast) (ast, error) {
 	list, ok := args[0].(astList)
 	if !ok || len(list) <= 0 {
 		return nil, fmt.Errorf("cdr applies to populated lists: %s", args[0])
@@ -855,12 +752,7 @@ func cdrImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astList(list[1:]), nil
 }
 
-func consImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func consImpl(ctx *evalCtx, args []ast) (ast, error) {
 	list, ok := args[1].(astList)
 	if !ok {
 		return nil, fmt.Errorf("cons applies to lists: %s", args[0])
@@ -869,12 +761,7 @@ func consImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return astList(append([]ast{args[0]}, list...)), nil
 }
 
-func nthImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func nthImpl(ctx *evalCtx, args []ast) (ast, error) {
 	index, ok := args[0].(astInt)
 	if !ok {
 		return nil, fmt.Errorf("nth list index must be an int: %s", args[0])
@@ -892,12 +779,7 @@ func nthImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	return list[index], nil
 }
 
-func mapImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
-	args, err := evalArgs(ctx, argsAst)
-	if err != nil {
-		return nil, err
-	}
-
+func mapImpl(ctx *evalCtx, args []ast) (ast, error) {
 	var lists [][]ast
 	for _, ast := range args[1:] {
 		list, ok := ast.(astList)
@@ -931,19 +813,6 @@ func mapImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
 	}
 
 	return mapped, nil
-}
-
-func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
-	var result []ast
-	for _, a := range args {
-		eval, err := a.eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, eval)
-	}
-
-	return result, nil
 }
 
 func flatten(lst []ast) []ast {

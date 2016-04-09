@@ -116,12 +116,21 @@ func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 	case astIdent:
 		fnImpl := funcImplMap[fn]
 		if len(sexp)-1 < fnImpl.minArgs {
-			return nil, dslError{metaSexp.pos, fmt.Sprintf("not enough arguments: %s", fn)}
+			return nil, dslError{metaSexp.pos,
+				fmt.Sprintf("not enough arguments: %s", fn)}
 		}
-		res, err = fnImpl.do(ctx, sexp[1:])
+
+		args := sexp[1:]
+		if !fnImpl.lazy {
+			args, err = evalList(ctx, args)
+			if err != nil {
+				break
+			}
+		}
+		res, err = fnImpl.do(ctx, args)
 	case astLambda:
 		var args []ast
-		args, err = evalArgs(ctx, sexp[1:])
+		args, err = evalList(ctx, sexp[1:])
 		if err != nil {
 			break
 		}
@@ -234,4 +243,17 @@ func (m astModule) eval(ctx *evalCtx) (ast, error) {
 	// Return the eval'd version of the body instead of the original version. This
 	// way, nested import statements are all converted to module statements.
 	return astModule{moduleName: m.moduleName, body: res.(astRoot)}, nil
+}
+
+func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
+	var result []ast
+	for _, a := range args {
+		eval, err := a.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, eval)
+	}
+
+	return result, nil
 }
