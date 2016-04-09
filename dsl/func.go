@@ -52,7 +52,7 @@ func init() {
 		"cdr":              {cdrImpl, 1, false},
 		"connect":          {connectImpl, 3, false},
 		"cons":             {consImpl, 2, false},
-		"cpu":              {rangeImpl("cpu"), 1, false},
+		"cpu":              {rangeTypeImpl("cpu"), 1, false},
 		"define":           {defineImpl, 2, true},
 		"docker":           {dockerImpl, 1, false},
 		"githubKey":        {githubKeyImpl, 1, false},
@@ -76,7 +76,8 @@ func init() {
 		"plaintextKey":     {plaintextKeyImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
-		"ram":              {rangeImpl("ram"), 1, false},
+		"ram":              {rangeTypeImpl("ram"), 1, false},
+		"range":            {rangeImpl, 1, false},
 		"size":             {sizeImpl, 1, false},
 		"sprintf":          {sprintfImpl, 1, false},
 	}
@@ -284,7 +285,7 @@ func toFloat(x ast) (astFloat, error) {
 	}
 }
 
-func rangeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
+func rangeTypeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
 	return func(ctx *evalCtx, args []ast) (ast, error) {
 		var max astFloat
 		var maxErr error
@@ -813,6 +814,49 @@ func mapImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return mapped, nil
+}
+
+// `range` operates like the range function in python.  If there's one argument, it
+// counts from 1 to n, if there's to, the first argument is considered the start, and the
+// second is considered the stop, and if there's three then the third argument is
+// considered a steparator.
+func rangeImpl(ctx *evalCtx, args []ast) (ast, error) {
+	for _, arg := range args {
+		if _, ok := arg.(astInt); !ok {
+			err := fmt.Errorf("range arguments must be integers: %v", arg)
+			return nil, err
+		}
+	}
+
+	var start, stop, step int
+	switch len(args) {
+	case 1:
+		start = 0
+		stop = int(args[0].(astInt))
+		step = 1
+	case 2:
+		start = int(args[0].(astInt))
+		stop = int(args[1].(astInt))
+		step = 1
+	case 3:
+		start = int(args[0].(astInt))
+		stop = int(args[1].(astInt))
+		step = int(args[2].(astInt))
+	default:
+		return nil, fmt.Errorf("range expects 1, 2 or 3 arguments, found: %d",
+			len(args))
+	}
+
+	if step <= 0 {
+		return nil, fmt.Errorf("step must be greater than zero")
+	}
+
+	var asts astList
+	for i := start; i < stop; i += step {
+		asts = append(asts, astInt(i))
+	}
+
+	return asts, nil
 }
 
 func flatten(lst []ast) []ast {

@@ -13,6 +13,21 @@ import (
 	"github.com/spf13/afero"
 )
 
+func TestRange(t *testing.T) {
+	parseTestNoPath(t, "(range 0)", "(list)")
+	parseTestNoPath(t, "(range 1)", "(list 0)")
+	parseTestNoPath(t, "(range 2)", "(list 0 1)")
+
+	parseTestNoPath(t, "(range 1 1)", "(list)")
+	parseTestNoPath(t, "(range 1 2)", "(list 1)")
+	parseTestNoPath(t, "(range 1 3)", "(list 1 2)")
+
+	parseTestNoPath(t, "(range 0 5 2)", "(list 0 2 4)")
+	parseTestNoPath(t, "(range 0 1 2)", "(list 0)")
+
+	parseTestNoPath(t, "(map (lambda (x) (+ 1 x)) (range 3))", "(list 1 2 3)")
+}
+
 func TestArith(t *testing.T) {
 	parseTestNoPath(t, "2", "2")
 
