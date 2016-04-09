@@ -36,6 +36,7 @@ func init() {
 		"=":                {eqImpl, 2},
 		">":                {compareFun(func(a, b int) bool { return a > b }), 2},
 		"and":              {andImpl, 1},
+		"apply":            {applyImpl, 2},
 		"connect":          {connectImpl, 3},
 		"cpu":              {rangeImpl("cpu"), 1},
 		"define":           {defineImpl, 2},
@@ -742,6 +743,20 @@ func notImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
 	}
 	return astBool(!pred), nil
+}
+
+func applyImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	list, ok := args[1].(astList)
+	if !ok {
+		return nil, fmt.Errorf("apply requires a lists: %s", args[1])
+	}
+
+	return astSexp{sexp: append(args[0:1], list...)}.eval(ctx)
 }
 
 func shouldExport(name string) bool {

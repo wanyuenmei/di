@@ -71,6 +71,12 @@ func TestLet(t *testing.T) {
 	parseTestNoPath(t, "(let ((a 2)) (define b 3) (* a b))", "6")
 }
 
+func TestApply(t *testing.T) {
+	parseTestNoPath(t, "(apply + (list 3 5))", "8")
+	parseTestNoPath(t,
+		"(apply (lambda (x y) (+ x y)) (let ((x 3)) (list x 5)))", "8")
+}
+
 func TestLambda(t *testing.T) {
 	// Single argument lambda
 	parseTestNoPath(t, "((lambda (x) (* x x)) 5)", "25")
