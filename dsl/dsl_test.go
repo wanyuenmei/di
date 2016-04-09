@@ -249,6 +249,38 @@ func TestList(t *testing.T) {
 	parseTestNoPath(t, `(makeList 2 1)`, `(list 1 1)`)
 	parseTestNoPath(t, `(makeList 3 (+ 1 1))`, `(list 2 2 2)`)
 	parseTestNoPath(t, `(let ((a 2)) (makeList a 3))`, `(list 3 3)`)
+
+	parseTestNoPath(t, "(cons 1 (list))", "(list 1)")
+	parseTestNoPath(t, "(cons 1 (cons 2 (list)))", "(list 1 2)")
+
+	parseTestNoPath(t, "(car (list 1))", "1")
+	parseTestNoPath(t, "(car (list 1 2))", "1")
+
+	parseTestNoPath(t, "(cdr (list 1))", "(list)")
+	parseTestNoPath(t, "(cdr (list 1 2))", "(list 2)")
+	parseTestNoPath(t, "(cdr (list 1 2 3))", "(list 2 3)")
+
+	parseTestNoPath(t, "(cons 1 (cdr (list 1 2 3)))", "(list 1 2 3)")
+	parseTestNoPath(t, "(car (cons 1 (cdr (list 1 2 3))))", "1")
+
+	parseTestNoPath(t, `(nth 0 (list 1 2 3))`, "1")
+	parseTestNoPath(t, `(nth 1 (list 1 2 3))`, "2")
+	parseTestNoPath(t, `(nth 2 (list 1 2 3))`, "3")
+
+	runtimeErrNoPath(t, `(nth (- 0 1) (list 1 2 3))`,
+		"1: array index out of bounds: -1")
+	runtimeErrNoPath(t, `(nth 5 (list 1 2 3))`,
+		"1: array index out of bounds: 5")
+
+	parseTestNoPath(t, `(map (lambda (x) (+ 1 x)) (list 1 2 3))`, "(list 2 3 4)")
+	parseTestNoPath(t, `(map (lambda (x y) (+ x y)) (list 1 2 3) (list 4 5 6))`,
+		"(list 5 7 9)")
+
+	parseTestNoPath(t, `(map * (list 0 1 2) (list 3 4 5))`,
+		"(list 0 4 10)")
+
+	parseTestNoPath(t, `(map + (cons 1 (list 2)) (cons 3 (cons 4 (list))))`,
+		"(list 4 6)")
 }
 
 func TestHashmap(t *testing.T) {

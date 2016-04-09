@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -37,7 +38,10 @@ func init() {
 		">":                {compareFun(func(a, b int) bool { return a > b }), 2},
 		"and":              {andImpl, 1},
 		"apply":            {applyImpl, 2},
+		"car":              {carImpl, 1},
+		"cdr":              {cdrImpl, 1},
 		"connect":          {connectImpl, 3},
+		"cons":             {consImpl, 2},
 		"cpu":              {rangeImpl("cpu"), 1},
 		"define":           {defineImpl, 2},
 		"docker":           {dockerImpl, 1},
@@ -54,7 +58,9 @@ func init() {
 		"machine":          {machineImpl, 0},
 		"machineAttribute": {machineAttributeImpl, 2},
 		"makeList":         {makeListImpl, 2},
+		"map":              {mapImpl, 2},
 		"module":           {moduleImpl, 2},
+		"nth":              {nthImpl, 2},
 		"or":               {orImpl, 1},
 		"placement":        {placementImpl, 3},
 		"plaintextKey":     {plaintextKeyImpl, 1},
@@ -819,6 +825,112 @@ func prognImpl(ctx *evalCtx, args []ast) (ast, error) {
 		}
 	}
 	return res, nil
+}
+
+func carImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	list, ok := args[0].(astList)
+	if !ok || len(list) <= 0 {
+		return nil, fmt.Errorf("car applies to populated lists: %s", args[0])
+	}
+
+	return list[0], nil
+}
+
+func cdrImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	list, ok := args[0].(astList)
+	if !ok || len(list) <= 0 {
+		return nil, fmt.Errorf("cdr applies to populated lists: %s", args[0])
+	}
+
+	return astList(list[1:]), nil
+}
+
+func consImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	list, ok := args[1].(astList)
+	if !ok {
+		return nil, fmt.Errorf("cons applies to lists: %s", args[0])
+	}
+
+	return astList(append([]ast{args[0]}, list...)), nil
+}
+
+func nthImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	index, ok := args[0].(astInt)
+	if !ok {
+		return nil, fmt.Errorf("nth list index must be an int: %s", args[0])
+	}
+
+	list, ok := args[1].(astList)
+	if !ok {
+		return nil, fmt.Errorf("nth applies to lists: %s", args[1])
+	}
+
+	if int(index) < 0 || int(index) >= len(list) {
+		return nil, fmt.Errorf("array index out of bounds: %d", index)
+	}
+
+	return list[index], nil
+}
+
+func mapImpl(ctx *evalCtx, argsAst []ast) (ast, error) {
+	args, err := evalArgs(ctx, argsAst)
+	if err != nil {
+		return nil, err
+	}
+
+	var lists [][]ast
+	for _, ast := range args[1:] {
+		list, ok := ast.(astList)
+		if !ok {
+			return nil, fmt.Errorf("map applies to list: %s", ast)
+		}
+
+		lists = append(lists, list)
+	}
+
+	listLen := len(lists[0])
+	for _, list := range lists[1:] {
+		if len(list) != listLen {
+			return nil, errors.New("unbalanced lists")
+		}
+	}
+
+	var mapped astList
+	for i := 0; i < listLen; i++ {
+		sexp := []ast{args[0]}
+		for _, list := range lists {
+			sexp = append(sexp, list[i])
+		}
+
+		elem, err := astSexp{sexp: sexp}.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		mapped = append(mapped, elem)
+	}
+
+	return mapped, nil
 }
 
 func evalArgs(ctx *evalCtx, args []ast) ([]ast, error) {
