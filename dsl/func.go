@@ -76,6 +76,7 @@ func init() {
 		"plaintextKey":     {plaintextKeyImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
+		"reduce":           {reduceImpl, 2, false},
 		"ram":              {rangeTypeImpl("ram"), 1, false},
 		"range":            {rangeImpl, 1, false},
 		"size":             {sizeImpl, 1, false},
@@ -814,6 +815,27 @@ func mapImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return mapped, nil
+}
+
+func reduceImpl(ctx *evalCtx, args []ast) (ast, error) {
+	list, ok := args[1].(astList)
+	if !ok {
+		return nil, fmt.Errorf("reduce applies to lists: %s", args[1])
+	}
+
+	if len(list) < 2 {
+		return nil, fmt.Errorf("not enough elements to reduce: %s", list)
+	}
+
+	res := list[0]
+	for _, item := range list[1:] {
+		var err error
+		res, err = astSexp{sexp: []ast{args[0], res, item}}.eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 // `range` operates like the range function in python.  If there's one argument, it

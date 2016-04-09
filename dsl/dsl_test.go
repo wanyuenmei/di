@@ -296,6 +296,11 @@ func TestList(t *testing.T) {
 
 	parseTestNoPath(t, `(map + (cons 1 (list 2)) (cons 3 (cons 4 (list))))`,
 		"(list 4 6)")
+
+	parseTestNoPath(t, `(reduce * (list 1 2 3 4))`, "24")
+	parseTestNoPath(t, `(reduce (lambda (x y) (+ (* x 10) y)) (list 1 2 3 4))`, "1234")
+	parseTestNoPath(t, `(reduce (lambda (x y) (sprintf "%s,%s" x y)) (list "a" "b" "c"))`, `"a,b,c"`)
+	runtimeErrNoPath(t, `(reduce * (list 1))`, "1: not enough elements to reduce: (list 1)")
 }
 
 func TestHashmap(t *testing.T) {
