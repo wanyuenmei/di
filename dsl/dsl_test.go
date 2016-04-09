@@ -130,6 +130,10 @@ func TestLambda(t *testing.T) {
 	// Test variable masking
 	adder = "((let ((x 5)) (lambda (x) (+ x 1))) 1)"
 	parseTest(t, adder, "2")
+
+	// Test that recursion DOESN'T work
+	fibDef := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1))))))"
+	runtimeErr(t, fibDef+"\n"+"(fib 5)", "1: unknown function: fib")
 }
 
 func TestProgn(t *testing.T) {
@@ -228,10 +232,6 @@ func TestIf(t *testing.T) {
 
 	notTest = "(! true)"
 	parseTest(t, notTest, "false")
-
-	// Putting it together..
-	fibDef := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1))))))"
-	parseTest(t, fibDef+"\n"+"(fib 5)", fibDef+"\n"+"120")
 }
 
 func TestDefine(t *testing.T) {
@@ -555,6 +555,17 @@ func TestMachineAttribute(t *testing.T) {
 	expCode := `(define large (list (ram 16) (cpu 8)))
 (label "machines" (machine (provider "AmazonSpot")))
 (machineAttribute "machines" (list (ram 16) (cpu 8)))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, expCode, expMachine)
+
+	// Test setting attributes from within a lambda
+	code = `(label "machines" (machine (provider "AmazonSpot")))
+(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
+(makeLarge "machines")`
+	expCode = `(label "machines" (machine (provider "AmazonSpot")))
+(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
+(machineAttribute "machines" (ram 16) (cpu 8))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)

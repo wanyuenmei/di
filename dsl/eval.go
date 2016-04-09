@@ -35,6 +35,26 @@ func (ctx *evalCtx) globalCtx() *evalCtx {
 	return ctx.parent.globalCtx()
 }
 
+func (ctx *evalCtx) deepCopy() *evalCtx {
+	var parentCopy *evalCtx
+	if ctx.parent != nil {
+		parentCopy = ctx.parent.deepCopy()
+	}
+
+	bindsCopy := make(map[astIdent]ast)
+	for k, v := range ctx.binds {
+		bindsCopy[k] = v
+	}
+
+	return &evalCtx{
+		binds:       bindsCopy,
+		labels:      ctx.labels,
+		connections: ctx.connections,
+		atoms:       ctx.atoms,
+		parent:      parentCopy,
+	}
+}
+
 func eval(parsed ast) (ast, evalCtx, error) {
 	globalCtx := evalCtx{
 		make(map[astIdent]ast),

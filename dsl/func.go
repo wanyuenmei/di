@@ -559,7 +559,7 @@ func lambdaImpl(ctx *evalCtx, args []ast) (ast, error) {
 		}
 		argNames = append(argNames, ident)
 	}
-	return astLambda{argNames: argNames, do: args[1], ctx: ctx}, nil
+	return astLambda{argNames: argNames, do: args[1], ctx: ctx.deepCopy()}, nil
 }
 
 func letImpl(ctx *evalCtx, args []ast) (ast, error) {
