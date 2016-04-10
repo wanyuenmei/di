@@ -10,7 +10,7 @@ import (
 
 var errUnbalancedParens = "unbalanced Parenthesis"
 
-func parse(s scanner.Scanner) (astRoot, error) {
+func parse(s scanner.Scanner) ([]ast, error) {
 	scanErrors := []string{}
 	s.Error = func(s *scanner.Scanner, msg string) {
 		scanErrors = append(scanErrors, msg)

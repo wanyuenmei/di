@@ -42,11 +42,12 @@ type astSexp struct {
 
 /* The top level is a list of abstract syntax trees, typically populated by define
 * statements. */
+// XXX Should ditch astRoot all together.
 type astRoot astList
 
 type astModule struct {
 	moduleName astString
-	body       astRoot
+	body       []ast
 }
 
 type astIdent string /* Identities, i.e. key words, variable names etc. */
@@ -86,7 +87,8 @@ func (root astRoot) String() string {
 }
 
 func (module astModule) String() string {
-	return fmt.Sprintf("(module %s %s)", module.moduleName, module.body)
+	return fmt.Sprintf("(module %s %s)", module.moduleName,
+		sliceStr(module.body, "\n"))
 }
 
 func (sexp astSexp) String() string {

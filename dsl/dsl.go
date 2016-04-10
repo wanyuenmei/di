@@ -9,7 +9,7 @@ import (
 
 // A Dsl is an abstract representation of the policy language.
 type Dsl struct {
-	spec ast
+	code string
 	ctx  evalCtx
 }
 
@@ -65,11 +65,17 @@ func New(sc scanner.Scanner, path []string) (Dsl, error) {
 		return Dsl{}, err
 	}
 
-	spec, ctx, err := eval(parsed, path)
+	parsed, err = resolveImports(parsed, path)
 	if err != nil {
 		return Dsl{}, err
 	}
-	return Dsl{spec, ctx}, nil
+
+	_, ctx, err := eval(astRoot(parsed))
+	if err != nil {
+		return Dsl{}, err
+	}
+
+	return Dsl{astRoot(parsed).String(), ctx}, nil
 }
 
 // QueryContainers retreives all containers declared in dsl.
@@ -223,7 +229,7 @@ func (dsl Dsl) QueryStrSlice(key string) []string {
 
 // String returns the dsl in its code form.
 func (dsl Dsl) String() string {
-	return dsl.spec.String()
+	return dsl.code
 }
 
 type dslError struct {

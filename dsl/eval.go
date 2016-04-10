@@ -8,9 +8,7 @@ type evalCtx struct {
 	connections map[Connection]struct{}
 	atoms       []atom
 
-	parent   *evalCtx
-	path     []string
-	imported []string // Used to detect import loops.
+	parent *evalCtx
 }
 
 type atom interface {
@@ -37,12 +35,12 @@ func (ctx *evalCtx) globalCtx() *evalCtx {
 	return ctx.parent.globalCtx()
 }
 
-func eval(parsed ast, path []string) (ast, evalCtx, error) {
+func eval(parsed ast) (ast, evalCtx, error) {
 	globalCtx := evalCtx{
 		make(map[astIdent]ast),
 		make(map[string][]atom),
 		make(map[Connection]struct{}),
-		nil, nil, path, nil}
+		nil, nil}
 
 	evaluated, err := parsed.eval(&globalCtx)
 	if err != nil {
@@ -84,7 +82,7 @@ func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 		make(map[astIdent]ast),
 		make(map[string][]atom),
 		make(map[Connection]struct{}),
-		nil, parentCtx, parentCtx.path, parentCtx.imported}
+		nil, parentCtx}
 
 	for i, ident := range fn.argNames {
 		fnArg, err := funcArgs[i].eval(parentCtx)
@@ -208,21 +206,13 @@ func (l astLambda) eval(ctx *evalCtx) (ast, error) {
 
 func (m astModule) eval(ctx *evalCtx) (ast, error) {
 	moduleName := string(m.moduleName)
-
-	// Check for any import cycles.
-	for _, importedModule := range ctx.imported {
-		if moduleName == importedModule {
-			return nil, fmt.Errorf("import cycle: %s", append(ctx.imported, moduleName))
-		}
-	}
-
 	importCtx := evalCtx{
 		make(map[astIdent]ast),
 		make(map[string][]atom),
 		make(map[Connection]struct{}),
-		nil, nil, ctx.path, append(ctx.imported, moduleName)}
+		nil, nil}
 
-	res, err := m.body.eval(&importCtx)
+	res, err := astList(m.body).eval(&importCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +232,7 @@ func (m astModule) eval(ctx *evalCtx) (ast, error) {
 
 	// Return the eval'd version of the body instead of the original version. This
 	// way, nested import statements are all converted to module statements.
-	return astModule{moduleName: m.moduleName, body: res.(astRoot)}, nil
+	return astModule{moduleName: m.moduleName, body: res.(astList)}, nil
 }
 
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
