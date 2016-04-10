@@ -14,11 +14,7 @@
            (label "zoo2" (docker image "2" zooHosts))
            (label "zoo3" (docker image "3" zooHosts))))
 
-// XXX: Sigh -- need a much better way to do this.
 (let ((zooList (list "zoo1" "zoo2" "zoo3")) (portRange (list 1000 65535)))
-  (list
-    (connect portRange  "zoo1" zooList)
-    (connect portRange  "zoo2" zooList)
-    (connect portRange  "zoo3" zooList)))
+    (connect portRange zooList zooList))
 
 (placement "exclusive" "zoo1" "zoo2" "zoo3")

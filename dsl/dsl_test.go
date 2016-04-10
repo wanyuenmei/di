@@ -3,6 +3,7 @@ package dsl
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -722,7 +723,8 @@ func TestPlacement(t *testing.T) {
 }
 
 func TestConnect(t *testing.T) {
-	code := `(label "a" (docker "alpine"))
+	code := `(progn
+(label "a" (docker "alpine"))
 (label "b" (docker "alpine"))
 (label "c" (docker "alpine"))
 (label "d" (docker "alpine"))
@@ -734,8 +736,8 @@ func TestConnect(t *testing.T) {
 (connect (list 1 65534) "b" "c")
 (connect (list 0 65535) "a" "c")
 (connect 443 "c" "d" "e" "f")
-(connect (list 100 65535) "g" "g")`
-	ctx := parseTest(t, code, code)
+(connect (list 100 65535) "g" "g"))`
+	ctx := parseTest(t, code, `(list)`)
 
 	expected := map[Connection]struct{}{
 		{"a", "b", 80, 80}:     {},
@@ -774,7 +776,7 @@ func TestConnect(t *testing.T) {
 		"1: port range must be an int or a list of ints: \"80\"")
 	runtimeErr(t, `(connect (list "a" "b") "foo" "bar")`,
 		"1: port range must have two ints: (list \"a\" \"b\")")
-	runtimeErr(t, `(connect 80 4 5)`, "1: connect applies to labels: 4")
+	runtimeErr(t, `(connect 80 4 5)`, "1: expected string, found: 4")
 	runtimeErr(t, `(connect 80 "foo" "foo")`, "1: connect undefined label: \"foo\"")
 }
 
@@ -866,7 +868,7 @@ func TestImport(t *testing.T) {
 
 	// Test that non-capitalized labels are not exported
 	runtimeErr(t, `(module "A" (label "a-container" (docker "A")))
-(connect 80 "A.a-container" (docker "B"))`, `2: connect undefined label: "A.a-container"`)
+(connect 80 "A.a-container" "A.a-container")`, `2: connect undefined label: "A.a-container"`)
 
 	// Test that capitalized labels are properly exported
 	code := `(module "keys" (label "Grads" (plaintextKey "ejj")))`
@@ -1093,7 +1095,7 @@ func parseTest(t *testing.T, code, evalExpected string) evalCtx {
 }
 
 func parseTestCheck(t *testing.T, parsed ast, code, evalExpected string) evalCtx {
-	if str := parsed.String(); str != code {
+	if str := parsed.String(); !codeEq(str, code) {
 		t.Errorf("\nParse expected \"%s\"\ngot \"%s\"", code, str)
 		return evalCtx{}
 	}
@@ -1104,21 +1106,8 @@ func parseTestCheck(t *testing.T, parsed ast, code, evalExpected string) evalCtx
 		return evalCtx{}
 	}
 
-	if result.String() != evalExpected {
+	if !codeEq(result.String(), evalExpected) {
 		t.Errorf("\nEval expected \"%s\"\ngot \"%s\"", evalExpected, result)
-		return evalCtx{}
-	}
-
-	// The code may be re-evaluated by the minions.  If that happens, the result
-	// should be exactly the same.
-	eval2, _, err := eval(result)
-	if err != nil {
-		t.Errorf("%s: %s", code, err)
-		return evalCtx{}
-	}
-
-	if eval2.String() != result.String() {
-		t.Errorf("\nEval expected \"%s\"\ngot \"%s\"", result, eval2)
 		return evalCtx{}
 	}
 
@@ -1182,4 +1171,12 @@ func importErr(t *testing.T, code, expectedErr string, path []string) {
 		t.Errorf("%s\n\t%s: %s", code, err, expectedErr)
 		return
 	}
+}
+
+var codeEqRE = regexp.MustCompile(`\s+`)
+
+func codeEq(a, b string) bool {
+	a = strings.TrimSpace(codeEqRE.ReplaceAllString(a, " "))
+	b = strings.TrimSpace(codeEqRE.ReplaceAllString(b, " "))
+	return a == b
 }

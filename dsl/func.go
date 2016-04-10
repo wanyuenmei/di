@@ -329,39 +329,35 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
 	}
 
-	var labels []string
-	for _, arg := range flatten(args[1:]) {
-		label, ok := arg.(astString)
-		if !ok {
-			err := fmt.Errorf("connect applies to labels: %s", arg)
-			return nil, err
-		}
+	fromLabels, err := flattenString([]ast{args[1]})
+	if err != nil {
+		return nil, err
+	}
 
+	toLabels, err := flattenString(args[2:])
+	if err != nil {
+		return nil, err
+	}
+
+	for _, label := range append(fromLabels, toLabels...) {
 		if _, ok := ctx.globalCtx().labels[string(label)]; !ok {
-			return nil, fmt.Errorf("connect undefined label: %s",
-				label)
+			return nil, fmt.Errorf("connect undefined label: \"%v\"", label)
 		}
-
-		labels = append(labels, string(label))
 	}
 
-	from := labels[0]
-	for _, to := range labels[1:] {
-		cn := Connection{
-			From:    from,
-			To:      to,
-			MinPort: min,
-			MaxPort: max,
+	for _, from := range fromLabels {
+		for _, to := range toLabels {
+			cn := Connection{
+				From:    from,
+				To:      to,
+				MinPort: min,
+				MaxPort: max,
+			}
+			ctx.connections[cn] = struct{}{}
 		}
-		ctx.connections[cn] = struct{}{}
 	}
 
-	newArgs := args[0:1]
-	for _, label := range labels {
-		newArgs = append(newArgs, astString(label))
-	}
-
-	return astFunc(astIdent("connect"), newArgs), nil
+	return astList{}, nil
 }
 
 func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -863,6 +859,19 @@ func flatten(lst []ast) []ast {
 	}
 
 	return result
+}
+
+func flattenString(lst []ast) ([]string, error) {
+	var strings []string
+	for _, elem := range flatten(lst) {
+		str, ok := elem.(astString)
+		if !ok {
+			return nil, fmt.Errorf("expected string, found: %v", elem)
+		}
+		strings = append(strings, string(str))
+	}
+
+	return strings, nil
 }
 
 func astFunc(ident astIdent, args []ast) astSexp {
