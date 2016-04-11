@@ -85,6 +85,9 @@ func TestLet(t *testing.T) {
 
 	// Test the implicit progn
 	parseTest(t, "(let ((a 2)) (define b 3) (* a b))", "6")
+
+	// Test let*-ness
+	parseTest(t, "(let ((a 1) (b (+ a a)) (c (+ a b)) (d (* b c))) (+ d d))", "12")
 }
 
 func TestApply(t *testing.T) {

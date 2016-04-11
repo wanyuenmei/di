@@ -56,11 +56,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 }
 
 func eval(parsed ast) (ast, evalCtx, error) {
-	globalCtx := evalCtx{
-		make(map[astIdent]ast),
-		make(map[string][]atom),
-		make(map[Connection]struct{}),
-		nil, nil}
+	globalCtx := newEvalCtx(nil)
 
 	evaluated, err := parsed.eval(&globalCtx)
 	if err != nil {
@@ -98,11 +94,7 @@ func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 	}
 
 	// Modify the eval context with the argument binds.
-	fnCtx := evalCtx{
-		make(map[astIdent]ast),
-		make(map[string][]atom),
-		make(map[Connection]struct{}),
-		nil, parentCtx}
+	fnCtx := newEvalCtx(parentCtx)
 
 	for i, ident := range fn.argNames {
 		fnArg, err := funcArgs[i].eval(parentCtx)
@@ -226,11 +218,7 @@ func (l astLambda) eval(ctx *evalCtx) (ast, error) {
 
 func (m astModule) eval(ctx *evalCtx) (ast, error) {
 	moduleName := string(m.moduleName)
-	importCtx := evalCtx{
-		make(map[astIdent]ast),
-		make(map[string][]atom),
-		make(map[Connection]struct{}),
-		nil, nil}
+	importCtx := newEvalCtx(nil)
 
 	res, err := astList(m.body).eval(&importCtx)
 	if err != nil {
@@ -266,4 +254,12 @@ func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	}
 
 	return result, nil
+}
+
+func newEvalCtx(parent *evalCtx) evalCtx {
+	return evalCtx{
+		make(map[astIdent]ast),
+		make(map[string][]atom),
+		make(map[Connection]struct{}),
+		nil, parent}
 }

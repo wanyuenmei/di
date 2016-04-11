@@ -573,6 +573,8 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, err
 	}
 
+	bindCtx := newEvalCtx(ctx)
+
 	var names []astIdent
 	var vals []ast
 	for _, pair := range bindings {
@@ -580,10 +582,15 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		if !ok {
 			return nil, fmt.Errorf("bind name must be an ident: %s", pair.key)
 		}
-		val, err := pair.val.eval(ctx)
+		val, err := pair.val.eval(&bindCtx)
 		if err != nil {
 			return nil, err
 		}
+
+		// Our let is similar to let* in other lisps.  The result of earlier
+		// bindings are available to later ones.
+		bindCtx.binds[key] = val
+
 		names = append(names, key)
 		vals = append(vals, val)
 	}
