@@ -68,7 +68,7 @@ func init() {
 		"module":           {moduleImpl, 2, true},
 		"nth":              {nthImpl, 2, false},
 		"or":               {orImpl, 1, true},
-		"placement":        {placementImpl, 3, false},
+		"placement":        {placementImpl, 2, false},
 		"plaintextKey":     {plaintextKeyImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
@@ -163,13 +163,13 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	ptype := string(str)
 
-	var labels []string
-	for _, arg := range args[1:] {
-		str, ok = arg.(astString)
-		if !ok {
-			return nil, fmt.Errorf("placement arg must be a string, found: %s", arg)
-		}
-		labels = append(labels, string(str))
+	labels, err := flattenString(args[1:])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(labels) < 2 {
+		return nil, fmt.Errorf("placment requires at least 2 labels.")
 	}
 
 	parsedLabels := make(map[[2]string]struct{})

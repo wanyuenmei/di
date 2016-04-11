@@ -677,7 +677,7 @@ func TestPlacement(t *testing.T) {
 	code = `(label "red" (docker "a"))
 (label "blue" "red")
 (label "yellow" "red")
-(placement "exclusive" "red" "blue" "yellow")`
+(placement "exclusive" "red" (list "blue" "yellow"))`
 	ctx = parseTest(t, code, code)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
