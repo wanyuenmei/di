@@ -104,7 +104,7 @@ func (clst *azureCluster) Get() ([]Machine, error) {
 		roleInstance := deploymentResponse.RoleInstanceList[0]
 		privateIP := roleInstance.IPAddress
 		publicIP := roleInstance.InstanceEndpoints[0].Vip
-		size := roleInstance.RoleName
+		size := roleInstance.InstanceSize
 
 		mList = append(mList, Machine{
 			ID:        id,
