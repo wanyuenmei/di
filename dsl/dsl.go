@@ -81,7 +81,7 @@ func New(sc scanner.Scanner, path []string) (Dsl, error) {
 // QueryContainers retreives all containers declared in dsl.
 func (dsl Dsl) QueryContainers() []*Container {
 	var containers []*Container
-	for _, atom := range dsl.ctx.atoms {
+	for _, atom := range *dsl.ctx.atoms {
 		switch atom.(type) {
 		case *Container:
 			containers = append(containers, atom.(*Container))

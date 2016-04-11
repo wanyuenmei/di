@@ -399,6 +399,11 @@ func TestDocker(t *testing.T) {
 	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "bar", Placement: Placement{make(map[[2]string]struct{})}})
 
+	// Test creating containers from within a lambda function
+	code = `((lambda () (docker "foo")))`
+	exp = `(docker "foo")`
+	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}})
+
 	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `1: docker arguments must be strings: 1`)
 }

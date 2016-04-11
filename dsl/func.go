@@ -379,7 +379,7 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
 		case astAtom:
-			atoms = append(atoms, globalCtx.atoms[t.index])
+			atoms = append(atoms, (*globalCtx.atoms)[t.index])
 		case astString:
 			children, ok := globalCtx.labels[string(t)]
 			if !ok {
@@ -894,6 +894,6 @@ func astFunc(ident astIdent, args []ast) astSexp {
 // conflict.
 func addAtom(ctx *evalCtx, a atom) int {
 	globalCtx := ctx.globalCtx()
-	globalCtx.atoms = append(globalCtx.atoms, a)
-	return len(globalCtx.atoms) - 1
+	*globalCtx.atoms = append(*globalCtx.atoms, a)
+	return len(*globalCtx.atoms) - 1
 }

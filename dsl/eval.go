@@ -6,7 +6,7 @@ type evalCtx struct {
 	binds       map[astIdent]ast
 	labels      map[string][]atom
 	connections map[Connection]struct{}
-	atoms       []atom
+	atoms       *[]atom
 
 	parent *evalCtx
 }
@@ -261,5 +261,5 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		make(map[astIdent]ast),
 		make(map[string][]atom),
 		make(map[Connection]struct{}),
-		nil, parent}
+		&[]atom{}, parent}
 }
