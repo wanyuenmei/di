@@ -745,11 +745,13 @@ func TestConnect(t *testing.T) {
 (label "e" (docker "alpine"))
 (label "f" (docker "alpine"))
 (label "g" (docker "alpine"))
+(label "h" (docker "alpine"))
 (connect 80 "a" "b")
 (connect 80 "a" "b" "c")
 (connect (list 1 65534) "b" "c")
 (connect (list 0 65535) "a" "c")
 (connect 443 "c" "d" "e" "f")
+((lambda () (connect 80 "h" "h")))
 (connect (list 100 65535) "g" "g"))`
 	ctx := parseTest(t, code, `(list)`)
 
@@ -761,6 +763,7 @@ func TestConnect(t *testing.T) {
 		{"c", "d", 443, 443}:   {},
 		{"c", "e", 443, 443}:   {},
 		{"c", "f", 443, 443}:   {},
+		{"h", "h", 80, 80}:     {},
 		{"g", "g", 100, 65535}: {},
 	}
 

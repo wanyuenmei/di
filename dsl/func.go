@@ -353,7 +353,7 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 				MinPort: min,
 				MaxPort: max,
 			}
-			ctx.connections[cn] = struct{}{}
+			ctx.globalCtx().connections[cn] = struct{}{}
 		}
 	}
 
