@@ -58,6 +58,7 @@ func init() {
 		"if":               {ifImpl, 2, true},
 		"import":           {importImpl, 1, true},
 		"label":            {labelImpl, 2, false},
+		"labelName":        {labelNameImpl, 1, false},
 		"lambda":           {lambdaImpl, 2, true},
 		"let":              {letImpl, 2, true},
 		"len":              {lenImpl, 1, false},
@@ -407,6 +408,14 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	ctx.globalCtx().labels[label] = newLabel
 
 	return newLabel, nil
+}
+
+func labelNameImpl(ctx *evalCtx, args []ast) (ast, error) {
+	label, ok := ctx.resolveLabel(args[0])
+	if !ok {
+		return nil, fmt.Errorf("labelName applies to labels: %s", args[0])
+	}
+	return label.ident, nil
 }
 
 func listImpl(ctx *evalCtx, args []ast) (ast, error) {

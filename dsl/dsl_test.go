@@ -658,6 +658,11 @@ func TestLabel(t *testing.T) {
 			code, machineResult, expMachines))
 	}
 
+	// Test getting label name
+	code = `(define foo (label "bar" (docker "baz"))) (labelName foo)`
+	exp = `(list) "bar"`
+	parseTest(t, code, exp)
+
 	runtimeErr(t, `(label 1 2)`, "1: label must be a string, found: 1")
 	runtimeErr(t, `(label "foo" "bar")`, `1: undefined label: "bar"`)
 	runtimeErr(t, `(label "foo" 1)`,
