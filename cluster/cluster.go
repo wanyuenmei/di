@@ -100,7 +100,7 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 		return
 	}
 
-	actionString := "stop"
+	actionString := "halt"
 	if boot {
 		actionString = "boot"
 	}
