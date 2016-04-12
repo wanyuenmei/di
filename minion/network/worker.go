@@ -135,11 +135,15 @@ func runWorker(conn db.Conn, dk docker.Client) {
 	if ovsdbIsRunning(dk) {
 		updatePorts(containers)
 	}
+	if exists, err := linkExists("", diBridge); exists {
+		updateDefaultGw()
+		updateOpenFlow(dk, containers, labels)
+	} else if err != nil {
+		log.WithError(err).Error("failed to check if link exists")
+	}
 	updateNameservers(dk, containers)
-	updateDefaultGw()
 	updateContainerIPs(containers, labels)
 	updateRoutes(containers)
-	updateOpenFlow(dk, containers, labels)
 	updateEtcHosts(dk, containers, labels, connections)
 }
 
@@ -711,13 +715,15 @@ func updateContainerIPs(containers []db.Container, labels []db.Label) {
 
 		currMac, err := getMac(ns, innerVeth)
 		if err != nil {
-			log.WithError(err).Error("failed to get MAC")
+			log.WithError(err).Errorf("failed to get MAC for %s in %s",
+				innerVeth, namespaceName(ns))
 			continue
 		}
 
 		if currMac != dbc.Mac {
 			if err := setMac(ns, innerVeth, dbc.Mac); err != nil {
-				log.WithError(err).Error("failed to set MAC.")
+				log.WithError(err).Errorf("failed to set MAC for %s in %s",
+					innerVeth, namespaceName(ns))
 				continue
 			}
 		}
