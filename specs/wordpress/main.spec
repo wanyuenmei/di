@@ -25,6 +25,7 @@
     masterCount
     workerCount
     (list (provider "AmazonSpot")
+          (region "us-west-2")
           (size "m4.large")
           (githubKey "nlsun"))))
 

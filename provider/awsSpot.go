@@ -17,22 +17,48 @@ import (
 
 const spotPrice = "0.5"
 
-// Ubuntu 15.10, us-west-2, 64-bit hvm-ssd
-const ami = "ami-acd63bcc"
-const awsRegion = "us-west-2"
+// Ubuntu 15.10, 64-bit hvm-ssd
+var amis = map[string]string{
+	"us-west-2": "ami-acd63bcc",
+	"us-west-1": "ami-af671bcf",
+}
 
 type awsSpotCluster struct {
-	*ec2.EC2
+	sessions map[string]*ec2.EC2
 
 	namespace  string
 	aclTrigger db.Trigger
 }
 
-func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string) error {
-	session := session.New()
-	session.Config.Region = aws.String(awsRegion)
+type awsID struct {
+	spotID string
+	region string
+}
 
-	clst.EC2 = ec2.New(session)
+func getSpotIDs(ids []awsID) []string {
+	var spotIDs []string
+	for _, id := range ids {
+		spotIDs = append(spotIDs, id.spotID)
+	}
+
+	return spotIDs
+}
+
+func groupByRegion(ids []awsID) map[string][]awsID {
+	grouped := make(map[string][]awsID)
+	for _, id := range ids {
+		region := id.region
+		if _, ok := grouped[region]; !ok {
+			grouped[region] = []awsID{}
+		}
+		grouped[region] = append(grouped[region], id)
+	}
+
+	return grouped
+}
+
+func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+	clst.sessions = make(map[string]*ec2.EC2)
 	clst.namespace = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
 
@@ -47,32 +73,49 @@ func (clst *awsSpotCluster) Disconnect() {
 	clst.aclTrigger.Stop()
 }
 
+func (clst awsSpotCluster) getSession(region string) *ec2.EC2 {
+	if _, ok := clst.sessions[region]; ok {
+		return clst.sessions[region]
+	}
+
+	session := session.New()
+	session.Config.Region = aws.String(region)
+
+	newEC2 := ec2.New(session)
+	clst.sessions[region] = newEC2
+
+	return newEC2
+}
+
 func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	if len(bootSet) <= 0 {
 		return nil
 	}
 
 	type bootReq struct {
-		cfg  string
-		size string
+		cfg    string
+		size   string
+		region string
 	}
 
 	bootReqMap := make(map[bootReq]int64) // From boot request to an instance count.
 	for _, m := range bootSet {
 		br := bootReq{
-			cfg:  cloudConfigUbuntu(m.SSHKeys, "wily"),
-			size: m.Size,
+			cfg:    cloudConfigUbuntu(m.SSHKeys, "wily"),
+			size:   m.Size,
+			region: m.Region,
 		}
 		bootReqMap[br] = bootReqMap[br] + 1
 	}
 
-	var spotIds []string
+	var awsIDs []awsID
 	for br, count := range bootReqMap {
+		session := clst.getSession(br.region)
 		cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(br.cfg))
-		resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
+		resp, err := session.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 			SpotPrice: aws.String(spotPrice),
 			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-				ImageId:        aws.String(ami),
+				ImageId:        aws.String(amis[br.region]),
 				InstanceType:   aws.String(br.size),
 				UserData:       &cloudConfig64,
 				SecurityGroups: []*string{&clst.namespace},
@@ -85,15 +128,17 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 		}
 
 		for _, request := range resp.SpotInstanceRequests {
-			spotIds = append(spotIds, *request.SpotInstanceRequestId)
+			awsIDs = append(awsIDs, awsID{
+				spotID: *request.SpotInstanceRequestId,
+				region: br.region})
 		}
 	}
 
-	if err := clst.tagSpotRequests(spotIds); err != nil {
+	if err := clst.tagSpotRequests(awsIDs); err != nil {
 		return err
 	}
 
-	if err := clst.wait(spotIds, true); err != nil {
+	if err := clst.wait(awsIDs, true); err != nil {
 		return err
 	}
 
@@ -101,136 +146,148 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 }
 
 func (clst awsSpotCluster) Stop(machines []Machine) error {
-	var ids []string
+	var awsIDs []awsID
 	for _, m := range machines {
-		ids = append(ids, m.ID)
-	}
-
-	spots, err := clst.DescribeSpotInstanceRequests(
-		&ec2.DescribeSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: aws.StringSlice(ids),
+		awsIDs = append(awsIDs, awsID{
+			region: m.Region,
+			spotID: m.ID,
 		})
-	if err != nil {
-		return err
 	}
+	for region, ids := range groupByRegion(awsIDs) {
+		session := clst.getSession(region)
+		spotIDs := getSpotIDs(ids)
 
-	instIds := []string{}
-	for _, spot := range spots.SpotInstanceRequests {
-		if spot.InstanceId != nil {
-			instIds = append(instIds, *spot.InstanceId)
+		spots, err := session.DescribeSpotInstanceRequests(
+			&ec2.DescribeSpotInstanceRequestsInput{
+				SpotInstanceRequestIds: aws.StringSlice(spotIDs),
+			})
+		if err != nil {
+			return err
 		}
-	}
 
-	if len(instIds) > 0 {
-		_, err = clst.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: aws.StringSlice(instIds),
+		instIds := []string{}
+		for _, spot := range spots.SpotInstanceRequests {
+			if spot.InstanceId != nil {
+				instIds = append(instIds, *spot.InstanceId)
+			}
+		}
+
+		if len(instIds) > 0 {
+			_, err = session.TerminateInstances(&ec2.TerminateInstancesInput{
+				InstanceIds: aws.StringSlice(instIds),
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = session.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: aws.StringSlice(spotIDs),
 		})
 		if err != nil {
 			return err
 		}
-	}
 
-	_, err = clst.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: aws.StringSlice(ids),
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := clst.wait(ids, false); err != nil {
-		return err
+		if err := clst.wait(ids, false); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (clst awsSpotCluster) Get() ([]Machine, error) {
-	spots, err := clst.DescribeSpotInstanceRequests(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	insts, err := clst.DescribeInstances(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("instance.group-name"),
-				Values: []*string{aws.String(clst.namespace)},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	instMap := make(map[string]*ec2.Instance)
-	for _, res := range insts.Reservations {
-		for _, inst := range res.Instances {
-			instMap[*inst.InstanceId] = inst
-		}
-	}
-
 	machines := []Machine{}
-	for _, spot := range spots.SpotInstanceRequests {
-		if *spot.State != ec2.SpotInstanceStateActive &&
-			*spot.State != ec2.SpotInstanceStateOpen {
-			continue
+	for region, _ := range amis {
+		session := clst.getSession(region)
+
+		spots, err := session.DescribeSpotInstanceRequests(nil)
+		if err != nil {
+			return nil, err
 		}
 
-		var inst *ec2.Instance
-		if spot.InstanceId != nil {
-			inst = instMap[*spot.InstanceId]
+		insts, err := session.DescribeInstances(&ec2.DescribeInstancesInput{
+			Filters: []*ec2.Filter{
+				{
+					Name:   aws.String("instance.group-name"),
+					Values: []*string{aws.String(clst.namespace)},
+				},
+			},
+		})
+		if err != nil {
+			return nil, err
 		}
 
-		// Due to a race condition in the AWS API, it's possible that spot
-		// requests might lose their Tags.  If handled naively, those spot
-		// requests would technically be without a namespace, meaning the
-		// instances they create would be live forever as zombies.
-		//
-		// To mitigate this issue, we rely not only on the spot request tags, but
-		// additionally on the instance security group.  If a spot request has a
-		// running instance in the appropriate security group, it is by
-		// definition in our namespace.  Thus, we only check the tags for spot
-		// requests without running instances.
-		if inst == nil {
-			var isOurs bool
-			for _, tag := range spot.Tags {
-				ns := clst.namespace
-				if tag != nil && tag.Key != nil && *tag.Key == ns {
-					isOurs = true
-					break
+		instMap := make(map[string]*ec2.Instance)
+		for _, res := range insts.Reservations {
+			for _, inst := range res.Instances {
+				instMap[*inst.InstanceId] = inst
+			}
+		}
+
+		for _, spot := range spots.SpotInstanceRequests {
+			if *spot.State != ec2.SpotInstanceStateActive &&
+				*spot.State != ec2.SpotInstanceStateOpen {
+				continue
+			}
+
+			var inst *ec2.Instance
+			if spot.InstanceId != nil {
+				inst = instMap[*spot.InstanceId]
+			}
+
+			// Due to a race condition in the AWS API, it's possible that spot
+			// requests might lose their Tags.  If handled naively, those spot
+			// requests would technically be without a namespace, meaning the
+			// instances they create would be live forever as zombies.
+			//
+			// To mitigate this issue, we rely not only on the spot request tags, but
+			// additionally on the instance security group.  If a spot request has a
+			// running instance in the appropriate security group, it is by
+			// definition in our namespace.  Thus, we only check the tags for spot
+			// requests without running instances.
+			if inst == nil {
+				var isOurs bool
+				for _, tag := range spot.Tags {
+					ns := clst.namespace
+					if tag != nil && tag.Key != nil && *tag.Key == ns {
+						isOurs = true
+						break
+					}
+				}
+
+				if !isOurs {
+					continue
 				}
 			}
 
-			if !isOurs {
-				continue
+			machine := Machine{
+				ID:       *spot.SpotInstanceRequestId,
+				Region:   region,
+				Provider: db.AmazonSpot,
 			}
+
+			if inst != nil {
+				if *inst.State.Name != ec2.InstanceStateNamePending &&
+					*inst.State.Name != ec2.InstanceStateNameRunning {
+					continue
+				}
+
+				if inst.PublicIpAddress != nil {
+					machine.PublicIP = *inst.PublicIpAddress
+				}
+
+				if inst.PrivateIpAddress != nil {
+					machine.PrivateIP = *inst.PrivateIpAddress
+				}
+
+				if inst.InstanceType != nil {
+					machine.Size = *inst.InstanceType
+				}
+			}
+
+			machines = append(machines, machine)
 		}
-
-		machine := Machine{
-			ID:       *spot.SpotInstanceRequestId,
-			Provider: db.AmazonSpot,
-		}
-
-		if inst != nil {
-			if *inst.State.Name != ec2.InstanceStateNamePending &&
-				*inst.State.Name != ec2.InstanceStateNameRunning {
-				continue
-			}
-
-			if inst.PublicIpAddress != nil {
-				machine.PublicIP = *inst.PublicIpAddress
-			}
-
-			if inst.PrivateIpAddress != nil {
-				machine.PrivateIP = *inst.PrivateIpAddress
-			}
-
-			if inst.InstanceType != nil {
-				machine.Size = *inst.InstanceType
-			}
-		}
-
-		machines = append(machines, machine)
 	}
 
 	return machines, nil
@@ -240,33 +297,41 @@ func (clst *awsSpotCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice 
 	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 
-func (clst *awsSpotCluster) tagSpotRequests(spotIds []string) error {
-	var err error
-	for i := 0; i < 30; i++ {
-		_, err = clst.CreateTags(&ec2.CreateTagsInput{
-			Tags: []*ec2.Tag{
-				{Key: aws.String(clst.namespace), Value: aws.String("")},
-			},
-			Resources: aws.StringSlice(spotIds),
-		})
-		if err == nil {
-			return nil
+func (clst *awsSpotCluster) tagSpotRequests(awsIDs []awsID) error {
+OuterLoop:
+	for region, ids := range groupByRegion(awsIDs) {
+		session := clst.getSession(region)
+		spotIDs := getSpotIDs(ids)
+
+		var err error
+		for i := 0; i < 30; i++ {
+			_, err = session.CreateTags(&ec2.CreateTagsInput{
+				Tags: []*ec2.Tag{
+					{Key: aws.String(clst.namespace), Value: aws.String("")},
+				},
+				Resources: aws.StringSlice(spotIDs),
+			})
+			if err == nil {
+				continue OuterLoop
+			}
+			time.Sleep(5 * time.Second)
 		}
-		time.Sleep(5 * time.Second)
+
+		log.Warn("Failed to tag spot requests: ", err)
+		session.CancelSpotInstanceRequests(
+			&ec2.CancelSpotInstanceRequestsInput{
+				SpotInstanceRequestIds: aws.StringSlice(spotIDs),
+			})
+
+		return err
 	}
 
-	log.Warn("Failed to tag spot requests: ", err)
-	clst.CancelSpotInstanceRequests(
-		&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: aws.StringSlice(spotIds),
-		})
-
-	return err
+	return nil
 }
 
 /* Wait for the spot request 'ids' to have booted or terminated depending on the value of
 * 'boot' */
-func (clst *awsSpotCluster) wait(ids []string, boot bool) error {
+func (clst *awsSpotCluster) wait(awsIDs []awsID, boot bool) error {
 OuterLoop:
 	for i := 0; i < 100; i++ {
 		machines, err := clst.Get()
@@ -276,12 +341,17 @@ OuterLoop:
 			continue
 		}
 
-		exists := make(map[string]struct{})
+		exists := make(map[awsID]struct{})
 		for _, inst := range machines {
-			exists[inst.ID] = struct{}{}
+			id := awsID{
+				spotID: inst.ID,
+				region: inst.Region,
+			}
+
+			exists[id] = struct{}{}
 		}
 
-		for _, id := range ids {
+		for _, id := range awsIDs {
 			if _, ok := exists[id]; ok != boot {
 				time.Sleep(2 * time.Second)
 				continue OuterLoop
@@ -295,116 +365,118 @@ OuterLoop:
 }
 
 func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
-	resp, err := clst.DescribeSecurityGroups(
-		&ec2.DescribeSecurityGroupsInput{
-			Filters: []*ec2.Filter{
-				{
-					Name:   aws.String("group-name"),
-					Values: []*string{aws.String(clst.namespace)},
+	for _, session := range clst.sessions {
+		resp, err := session.DescribeSecurityGroups(
+			&ec2.DescribeSecurityGroupsInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   aws.String("group-name"),
+						Values: []*string{aws.String(clst.namespace)},
+					},
 				},
-			},
-		})
+			})
 
-	if err != nil {
-		return err
-	}
-
-	ingress := []*ec2.IpPermission{}
-	groups := resp.SecurityGroups
-	if len(groups) > 1 {
-		return errors.New("Multiple Security Groups with the same name: " +
-			clst.namespace)
-	} else if len(groups) == 0 {
-		clst.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-			Description: aws.String("Declarative Infrastructure Group"),
-			GroupName:   aws.String(clst.namespace),
-		})
-	} else {
-		/* XXX: Deal with egress rules. */
-		ingress = groups[0].IpPermissions
-	}
-
-	permMap := make(map[string]bool)
-	for _, acl := range acls {
-		permMap[acl] = true
-	}
-
-	groupIngressExists := false
-	for i, p := range ingress {
-		if (i > 0 || p.FromPort != nil || p.ToPort != nil ||
-			*p.IpProtocol != "-1") && p.UserIdGroupPairs == nil {
-			log.Info("Revoke ingress security group: ", *p)
-			_, err = clst.RevokeSecurityGroupIngress(
-				&ec2.RevokeSecurityGroupIngressInput{
-					GroupName:     aws.String(clst.namespace),
-					IpPermissions: []*ec2.IpPermission{p}})
-			if err != nil {
-				return err
-			}
-
-			continue
+		if err != nil {
+			return err
 		}
 
-		for _, ipr := range p.IpRanges {
-			ip := *ipr.CidrIp
-			if !permMap[ip] {
-				log.Info("Revoke ingress security group: ", ip)
-				_, err = clst.RevokeSecurityGroupIngress(
+		ingress := []*ec2.IpPermission{}
+		groups := resp.SecurityGroups
+		if len(groups) > 1 {
+			return errors.New("Multiple Security Groups with the same name: " +
+				clst.namespace)
+		} else if len(groups) == 0 {
+			session.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+				Description: aws.String("Declarative Infrastructure Group"),
+				GroupName:   aws.String(clst.namespace),
+			})
+		} else {
+			/* XXX: Deal with egress rules. */
+			ingress = groups[0].IpPermissions
+		}
+
+		permMap := make(map[string]bool)
+		for _, acl := range acls {
+			permMap[acl] = true
+		}
+
+		groupIngressExists := false
+		for i, p := range ingress {
+			if (i > 0 || p.FromPort != nil || p.ToPort != nil ||
+				*p.IpProtocol != "-1") && p.UserIdGroupPairs == nil {
+				log.Info("Revoke ingress security group: ", *p)
+				_, err = session.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
-						GroupName:  aws.String(clst.namespace),
-						CidrIp:     aws.String(ip),
-						FromPort:   p.FromPort,
-						IpProtocol: p.IpProtocol,
-						ToPort:     p.ToPort})
+						GroupName:     aws.String(clst.namespace),
+						IpPermissions: []*ec2.IpPermission{p}})
 				if err != nil {
 					return err
 				}
-			} else {
-				permMap[ip] = false
-			}
-		}
 
-		if len(groups) > 0 {
-			for _, grp := range p.UserIdGroupPairs {
-				if *grp.GroupId != *groups[0].GroupId {
-					log.Info("Revoke ingress security group GroupID: ",
-						*grp.GroupId)
-					_, err = clst.RevokeSecurityGroupIngress(
+				continue
+			}
+
+			for _, ipr := range p.IpRanges {
+				ip := *ipr.CidrIp
+				if !permMap[ip] {
+					log.Info("Revoke ingress security group: ", ip)
+					_, err = session.RevokeSecurityGroupIngress(
 						&ec2.RevokeSecurityGroupIngressInput{
-							GroupName:               aws.String(clst.namespace),
-							SourceSecurityGroupName: grp.GroupName})
+							GroupName:  aws.String(clst.namespace),
+							CidrIp:     aws.String(ip),
+							FromPort:   p.FromPort,
+							IpProtocol: p.IpProtocol,
+							ToPort:     p.ToPort})
 					if err != nil {
 						return err
 					}
 				} else {
-					groupIngressExists = true
+					permMap[ip] = false
+				}
+			}
+
+			if len(groups) > 0 {
+				for _, grp := range p.UserIdGroupPairs {
+					if *grp.GroupId != *groups[0].GroupId {
+						log.Info("Revoke ingress security group GroupID: ",
+							*grp.GroupId)
+						_, err = session.RevokeSecurityGroupIngress(
+							&ec2.RevokeSecurityGroupIngressInput{
+								GroupName:               aws.String(clst.namespace),
+								SourceSecurityGroupName: grp.GroupName})
+						if err != nil {
+							return err
+						}
+					} else {
+						groupIngressExists = true
+					}
 				}
 			}
 		}
-	}
 
-	if !groupIngressExists {
-		log.Info("Add intragroup ACL")
-		_, err = clst.AuthorizeSecurityGroupIngress(
-			&ec2.AuthorizeSecurityGroupIngressInput{
-				GroupName:               aws.String(clst.namespace),
-				SourceSecurityGroupName: aws.String(clst.namespace)})
-	}
-
-	for perm, install := range permMap {
-		if !install {
-			continue
+		if !groupIngressExists {
+			log.Info("Add intragroup ACL")
+			_, err = session.AuthorizeSecurityGroupIngress(
+				&ec2.AuthorizeSecurityGroupIngressInput{
+					GroupName:               aws.String(clst.namespace),
+					SourceSecurityGroupName: aws.String(clst.namespace)})
 		}
 
-		log.Info("Add ACL: ", perm)
-		_, err = clst.AuthorizeSecurityGroupIngress(
-			&ec2.AuthorizeSecurityGroupIngressInput{
-				CidrIp:     aws.String(perm),
-				GroupName:  aws.String(clst.namespace),
-				IpProtocol: aws.String("-1")})
+		for perm, install := range permMap {
+			if !install {
+				continue
+			}
 
-		if err != nil {
-			return err
+			log.Info("Add ACL: ", perm)
+			_, err = session.AuthorizeSecurityGroupIngress(
+				&ec2.AuthorizeSecurityGroupIngressInput{
+					CidrIp:     aws.String(perm),
+					GroupName:  aws.String(clst.namespace),
+					IpProtocol: aws.String("-1")})
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
