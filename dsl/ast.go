@@ -32,8 +32,8 @@ type astRange struct {
 	max astFloat
 }
 
-type astList []ast          /* A data list after evaluation. */
-type astHashmap map[ast]ast /* A map after evaluation. */
+type astList []ast       /* A data list after evaluation. */
+type astHmap map[ast]ast /* A map after evaluation. */
 
 type astSexp struct {
 	sexp []ast
@@ -103,9 +103,9 @@ func (list astList) String() string {
 	return fmt.Sprintf("(list %s)", sliceStr(list, " "))
 }
 
-func (h astHashmap) String() string {
+func (h astHmap) String() string {
 	if len(h) == 0 {
-		return "(hashmap)"
+		return "(hmap)"
 	}
 
 	keyValues := []string{}
@@ -114,7 +114,7 @@ func (h astHashmap) String() string {
 	}
 	sort.Strings(keyValues)
 
-	return fmt.Sprintf("(hashmap %s)", strings.Join(keyValues[:], " "))
+	return fmt.Sprintf("(hmap %s)", strings.Join(keyValues[:], " "))
 }
 
 func (ident astIdent) String() string {

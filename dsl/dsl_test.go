@@ -307,57 +307,57 @@ func TestList(t *testing.T) {
 	runtimeErr(t, `(reduce * (list 1))`, "1: not enough elements to reduce: (list 1)")
 }
 
-func TestHashmap(t *testing.T) {
-	parseTest(t, "(hashmap)", "(hashmap)")
-	code := `(define a (hashmap))
-(hashmapSet a "key" "value")`
-	exp := `(define a (hashmap))
-(hashmap ("key" "value"))`
+func TestHmap(t *testing.T) {
+	parseTest(t, "(hmap)", "(hmap)")
+	code := `(define a (hmap))
+(hmapSet a "key" "value")`
+	exp := `(define a (hmap))
+(hmap ("key" "value"))`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap))
-(define b (hashmapSet a "key" "value"))
-(hashmapGet b "key")`
-	exp = `(define a (hashmap))
-(define b (hashmap ("key" "value")))
+	code = `(define a (hmap))
+(define b (hmapSet a "key" "value"))
+(hmapGet b "key")`
+	exp = `(define a (hmap))
+(define b (hmap ("key" "value")))
 "value"`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap))
-(hashmapGet (hashmapSet a "key" "value") "key")`
-	exp = `(define a (hashmap))
+	code = `(define a (hmap))
+(hmapGet (hmapSet a "key" "value") "key")`
+	exp = `(define a (hmap))
 "value"`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap ("key1" "value1")))
-(hashmapGet a "key1")`
-	exp = `(define a (hashmap ("key1" "value1")))
+	code = `(define a (hmap ("key1" "value1")))
+(hmapGet a "key1")`
+	exp = `(define a (hmap ("key1" "value1")))
 "value1"`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap ("key1" "value1") ("key2" "value2")))
-(hashmapGet a "key1")
-(hashmapGet a "key2")`
-	exp = `(define a (hashmap ("key1" "value1") ("key2" "value2")))
+	code = `(define a (hmap ("key1" "value1") ("key2" "value2")))
+(hmapGet a "key1")
+(hmapGet a "key2")`
+	exp = `(define a (hmap ("key1" "value1") ("key2" "value2")))
 "value1"
 "value2"`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap ("key1" "value1")))
-(hashmapGet a "key1")
-(define b (hashmapSet a "key2" "value2"))
-(hashmapGet b "key1")
-(hashmapGet b "key2")`
-	exp = `(define a (hashmap ("key1" "value1")))
+	code = `(define a (hmap ("key1" "value1")))
+(hmapGet a "key1")
+(define b (hmapSet a "key2" "value2"))
+(hmapGet b "key1")
+(hmapGet b "key2")`
+	exp = `(define a (hmap ("key1" "value1")))
 "value1"
-(define b (hashmap ("key1" "value1") ("key2" "value2")))
+(define b (hmap ("key1" "value1") ("key2" "value2")))
 "value1"
 "value2"`
 	parseTest(t, code, exp)
-	code = `(define a (hashmap ("key1" "value1")))
-(hashmapGet a "key1")
-(define b (hashmapSet (hashmapSet a "key2" "value2") "key3" "value3"))
-(hashmapGet b "key1")
-(hashmapGet b "key2")
-(hashmapGet b "key3")`
-	exp = `(define a (hashmap ("key1" "value1")))
+	code = `(define a (hmap ("key1" "value1")))
+(hmapGet a "key1")
+(define b (hmapSet (hmapSet a "key2" "value2") "key3" "value3"))
+(hmapGet b "key1")
+(hmapGet b "key2")
+(hmapGet b "key3")`
+	exp = `(define a (hmap ("key1" "value1")))
 "value1"
-(define b (hashmap ("key1" "value1") ("key2" "value2") ("key3" "value3")))
+(define b (hmap ("key1" "value1") ("key2" "value2") ("key3" "value3")))
 "value1"
 "value2"
 "value3"`

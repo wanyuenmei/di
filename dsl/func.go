@@ -52,9 +52,9 @@ func init() {
 		"define":           {defineImpl, 2, true},
 		"docker":           {dockerImpl, 1, false},
 		"githubKey":        {githubKeyImpl, 1, false},
-		"hashmap":          {hashmapImpl, 0, true},
-		"hashmapGet":       {hashmapGetImpl, 2, false},
-		"hashmapSet":       {hashmapSetImpl, 3, false},
+		"hmap":             {hmapImpl, 0, true},
+		"hmapGet":          {hmapGetImpl, 2, false},
+		"hmapSet":          {hmapSetImpl, 3, false},
 		"if":               {ifImpl, 2, true},
 		"import":           {importImpl, 1, true},
 		"label":            {labelImpl, 2, false},
@@ -445,8 +445,8 @@ func makeListImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astList(result), nil
 }
 
-func hashmapImpl(ctx *evalCtx, args []ast) (ast, error) {
-	m := astHashmap(make(map[ast]ast))
+func hmapImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m := astHmap(make(map[ast]ast))
 	bindings, err := parseBindings(ctx, astSexp{sexp: args})
 	if err != nil {
 		return nil, err
@@ -465,12 +465,12 @@ func hashmapImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return m, nil
 }
 
-func hashmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
-	m, ok := args[0].(astHashmap)
+func hmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m, ok := args[0].(astHmap)
 	if !ok {
-		return nil, fmt.Errorf("%s must be a hashmap", args[0])
+		return nil, fmt.Errorf("%s must be a hmap", args[0])
 	}
-	newM := astHashmap(make(map[ast]ast))
+	newM := astHmap(make(map[ast]ast))
 	for k, v := range m {
 		newM[k] = v
 	}
@@ -478,10 +478,10 @@ func hashmapSetImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return newM, nil
 }
 
-func hashmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
-	m, ok := args[0].(astHashmap)
+func hmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m, ok := args[0].(astHmap)
 	if !ok {
-		return nil, fmt.Errorf("%s must be a hashmap", args[0])
+		return nil, fmt.Errorf("%s must be a hmap", args[0])
 	}
 	value, ok := m[args[1]]
 	if !ok {

@@ -172,7 +172,7 @@ func (ident astIdent) eval(ctx *evalCtx) (ast, error) {
 	return ident.eval(ctx.parent)
 }
 
-func (m astHashmap) eval(ctx *evalCtx) (ast, error) {
+func (m astHmap) eval(ctx *evalCtx) (ast, error) {
 	return m, nil
 }
 
