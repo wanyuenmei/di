@@ -76,13 +76,13 @@ func (clst vagrantCluster) Get() ([]Machine, error) {
 	return machines, nil
 }
 
-func (clst vagrantCluster) Stop(ids []string) error {
+func (clst vagrantCluster) Stop(machines []Machine) error {
 	vagrant := clst.vagrant
-	if ids == nil {
+	if machines == nil {
 		return nil
 	}
-	for _, id := range ids {
-		err := vagrant.Destroy(id)
+	for _, m := range machines {
+		err := vagrant.Destroy(m.ID)
 		if err != nil {
 			return err
 		}

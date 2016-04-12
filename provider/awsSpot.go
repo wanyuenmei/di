@@ -100,7 +100,12 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	return nil
 }
 
-func (clst awsSpotCluster) Stop(ids []string) error {
+func (clst awsSpotCluster) Stop(machines []Machine) error {
+	var ids []string
+	for _, m := range machines {
+		ids = append(ids, m.ID)
+	}
+
 	spots, err := clst.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: aws.StringSlice(ids),

@@ -24,7 +24,7 @@ type Provider interface {
 
 	Boot(bootSet []Machine) error
 
-	Stop(ids []string) error
+	Stop([]Machine) error
 
 	Disconnect()
 
@@ -59,13 +59,4 @@ func GroupBy(machines []Machine) map[db.Provider][]Machine {
 	}
 
 	return machineMap
-}
-
-// IDs returns the cloud IDs of `machines`.
-func IDs(machines []Machine) []string {
-	var IDs []string
-	for _, m := range machines {
-		IDs = append(IDs, m.ID)
-	}
-	return IDs
 }

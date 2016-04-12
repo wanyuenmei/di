@@ -133,9 +133,9 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 }
 
 // Delete Azure instances (blocking by calling instanceDel).
-func (clst *azureCluster) Stop(ids []string) error {
-	for _, id := range ids {
-		if err := clst.instanceDel(id); err != nil {
+func (clst *azureCluster) Stop(machines []Machine) error {
+	for _, m := range machines {
+		if err := clst.instanceDel(m.ID); err != nil {
 			return err
 		}
 	}

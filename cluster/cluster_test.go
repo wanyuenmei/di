@@ -67,10 +67,10 @@ func (p *fakeProvider) Boot(bootSet []provider.Machine) error {
 	return nil
 }
 
-func (p *fakeProvider) Stop(ids []string) error {
-	for _, id := range ids {
-		delete(p.machines, id)
-		p.stopRequests = append(p.stopRequests, id)
+func (p *fakeProvider) Stop(machines []provider.Machine) error {
+	for _, machine := range machines {
+		delete(p.machines, machine.ID)
+		p.stopRequests = append(p.stopRequests, machine.ID)
 	}
 	return nil
 }

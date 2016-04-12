@@ -156,17 +156,17 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 // successfully started before returning.
 //
 // XXX: should probably have a better clean up routine if an error is encountered
-func (clst *gceCluster) Stop(ids []string) error {
+func (clst *gceCluster) Stop(machines []Machine) error {
 	var names []string
-	for _, id := range ids {
-		if _, err := clst.instanceDel(id); err != nil {
+	for _, m := range machines {
+		if _, err := clst.instanceDel(m.ID); err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
-				"id":    id,
+				"id":    m.ID,
 			}).Error("Failed to delete instance.")
 			continue
 		}
-		names = append(names, id)
+		names = append(names, m.ID)
 	}
 	if err := clst.wait(names, false); err != nil {
 		return err

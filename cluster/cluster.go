@@ -120,7 +120,7 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 		if boot {
 			err = providerInst.Boot(providerMachines)
 		} else {
-			err = providerInst.Stop(provider.IDs(providerMachines))
+			err = providerInst.Stop(providerMachines)
 		}
 		if err != nil {
 			noFailures = false
