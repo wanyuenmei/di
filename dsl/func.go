@@ -123,14 +123,9 @@ func compareFun(do func(a, b int) bool) func(*evalCtx, []ast) (ast, error) {
 }
 
 func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
-	var args []string
-	for _, ev := range evalArgs {
-		arg, ok := ev.(astString)
-		if !ok {
-			return nil, fmt.Errorf("docker arguments must be strings: %s",
-				ev)
-		}
-		args = append(args, string(arg))
+	args, err := flattenString(evalArgs)
+	if err != nil {
+		return nil, err
 	}
 
 	var command []string

@@ -389,7 +389,7 @@ func TestDocker(t *testing.T) {
 		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}})
-	code = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
+	code = `(list (docker "a" "c") (docker "b" (list "d" "e" "f")))`
 	checkContainers(code, code,
 		&Container{Image: "a", Command: []string{"c"}, Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "b", Command: []string{"d", "e", "f"}, Placement: Placement{make(map[[2]string]struct{})}})
@@ -405,7 +405,7 @@ func TestDocker(t *testing.T) {
 	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}})
 
 	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
-	runtimeErr(t, `(docker 1)`, `1: docker arguments must be strings: 1`)
+	runtimeErr(t, `(docker 1)`, `1: expected string, found: 1`)
 }
 
 func TestMachines(t *testing.T) {
