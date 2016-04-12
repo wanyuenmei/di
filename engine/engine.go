@@ -119,7 +119,7 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		dbMachine := right.(db.Machine)
 
 		switch {
-		case dslMachine.Provider != dslMachine.Provider:
+		case dbMachine.Provider != dslMachine.Provider:
 			return -1
 		case dbMachine.Size != "" && dslMachine.Size != dbMachine.Size:
 			return -1
