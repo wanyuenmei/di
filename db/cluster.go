@@ -10,7 +10,6 @@ type Cluster struct {
 	Spec      string
 
 	/* XXX: These belong in a separate Adminstration table of some sort. */
-	SSHKeys  []string
 	AdminACL []string
 }
 

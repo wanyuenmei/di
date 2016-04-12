@@ -55,10 +55,9 @@ type gceCluster struct {
 	intFW     string // gce internal firewall name
 	extFW     string // gce external firewall name
 
-	ns          string // cluster namespace
-	cloudConfig string
-	id          int        // the id of the cluster, used externally
-	aclTrigger  db.Trigger // for watching the acls
+	ns         string     // cluster namespace
+	id         int        // the id of the cluster, used externally
+	aclTrigger db.Trigger // for watching the acls
 }
 
 // Create a GCE cluster.
@@ -67,7 +66,7 @@ type gceCluster struct {
 // filtering off of that.
 //
 // XXX: A lot of the fields are hardcoded.
-func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
+func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) error {
 	if err := gceInit(); err != nil {
 		log.WithError(err).Debug("failed to start up gce")
 		return err
@@ -77,7 +76,6 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string, key
 	clst.zone = "us-central1-a"
 	clst.id = clusterID
 	clst.ns = namespace
-	clst.cloudConfig = cloudConfigUbuntu(keys, "wily")
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
 	clst.imgURL = fmt.Sprintf(
 		"%s/%s",
@@ -136,7 +134,7 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 	var names []string
 	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		_, err := clst.instanceNew(name, m.Size, clst.cloudConfig)
+		_, err := clst.instanceNew(name, m.Size, cloudConfigUbuntu(m.SSHKeys, "wily"))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,

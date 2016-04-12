@@ -59,7 +59,6 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 
 	cluster.Namespace = Namespace
 	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
-	cluster.SSHKeys = dsl.QueryKeySlice("sshkeys")
 	cluster.Spec = dsl.String()
 	view.Commit(cluster)
 
@@ -92,6 +91,7 @@ func toDBMachine(machines []dsl.Machine, role db.Role, maxPrice float64) []db.Ma
 			log.Errorf("No valid size for %v, skipping.", m)
 			continue
 		}
+		m.SSHKeys = dslm.SSHKeys
 		dbMachines = append(dbMachines, m)
 	}
 	return dbMachines
@@ -154,6 +154,7 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		dbMachine.Role = dslMachine.Role
 		dbMachine.Size = dslMachine.Size
 		dbMachine.Provider = dslMachine.Provider
+		dbMachine.SSHKeys = dslMachine.SSHKeys
 		dbMachine.ClusterID = clusterID
 		view.Commit(dbMachine)
 	}

@@ -11,12 +11,13 @@ type Machine struct {
 	PublicIP  string
 	PrivateIP string
 	Size      string
+	SSHKeys   []string
 	Provider  db.Provider
 }
 
 // Provider defines an interface for interacting with cloud providers.
 type Provider interface {
-	Start(conn db.Conn, id int, namespace string, keys []string) error
+	Start(conn db.Conn, id int, namespace string) error
 
 	Get() ([]Machine, error)
 

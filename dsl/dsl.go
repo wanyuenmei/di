@@ -42,6 +42,7 @@ type Machine struct {
 	Size     string
 	CPU      Range
 	RAM      Range
+	SSHKeys  []string
 
 	atomImpl
 }
@@ -88,37 +89,6 @@ func (dsl Dsl) QueryContainers() []*Container {
 		}
 	}
 	return containers
-}
-
-// QueryKeySlice returns the ssh keys associated with a label.
-func (dsl Dsl) QueryKeySlice(label string) []string {
-	result, ok := dsl.ctx.labels[label]
-	if !ok {
-		log.Warnf("%s undefined", label)
-		return nil
-	}
-
-	var keys []string
-	for _, val := range result {
-		key, ok := val.(key)
-		if !ok {
-			log.Warnf("%s: Requested []key, found %s", key, val)
-			continue
-		}
-
-		parsedKeys, err := key.keys()
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-				"key":   key,
-			}).Warning("Failed to retrieve key.")
-			continue
-		}
-
-		keys = append(keys, parsedKeys...)
-	}
-
-	return keys
 }
 
 // QueryMachineSlice returns the machines associated with a label.

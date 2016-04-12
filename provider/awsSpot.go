@@ -24,19 +24,17 @@ const awsRegion = "us-west-2"
 type awsSpotCluster struct {
 	*ec2.EC2
 
-	cloudConfig string
-	namespace   string
-	aclTrigger  db.Trigger
+	namespace  string
+	aclTrigger db.Trigger
 }
 
-func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
+func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string) error {
 	session := session.New()
 	session.Config.Region = aws.String(awsRegion)
 
 	clst.EC2 = ec2.New(session)
 	clst.namespace = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
-	clst.cloudConfig = cloudConfigUbuntu(keys, "wily")
 
 	go clst.watchACLs(conn, clusterID)
 
@@ -55,9 +53,9 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	}
 
 	one := int64(1)
-	cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(clst.cloudConfig))
 	var spotIds []string
 	for _, m := range bootSet {
+		cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(cloudConfigUbuntu(m.SSHKeys, "wily")))
 		resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 			SpotPrice: aws.String(spotPrice),
 			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{

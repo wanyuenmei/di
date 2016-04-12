@@ -26,8 +26,7 @@ func TestEngine(t *testing.T) {
 (define WorkerCount 3)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list "1.2.3.4/32"))
-(label "sshkeys" (list (plaintextKey "foo")))`
+(define AdminACL (list "1.2.3.4/32"))`
 
 	UpdatePolicy(conn, prog(t, code))
 	err := conn.Transact(func(view db.Database) error {
@@ -39,8 +38,7 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Worker
 		})
 
-		if len(clusters) != 1 || len(clusters[0].AdminACL) != 1 ||
-			len(clusters[0].SSHKeys) != 1 {
+		if len(clusters) != 1 || len(clusters[0].AdminACL) != 1 {
 			return fmt.Errorf("bad clusters: %s", spew.Sdump(clusters))
 		}
 
@@ -64,8 +62,7 @@ func TestEngine(t *testing.T) {
 (define WorkerCount 5)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list "1.2.3.4/32"))
-(label "sshkeys" (list (plaintextKey "foo")))`
+(define AdminACL (list "1.2.3.4/32"))`
 
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -122,8 +119,7 @@ func TestEngine(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list "1.2.3.4/32"))
-(label "sshkeys" (list (plaintextKey "foo")))`
+(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -154,8 +150,7 @@ func TestEngine(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list "1.2.3.4/32"))
-(label "sshkeys" (list (plaintextKey "foo")))`
+(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -187,8 +182,7 @@ func TestEngine(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list "1.2.3.4/32"))
-(label "sshkeys" (list (plaintextKey "foo")))`
+(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -229,8 +223,7 @@ func TestEngine(t *testing.T) {
 	(define Namespace "Namespace")
 	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant") (size "v.large"))))
 	(label "workers" (list (machine (provider "Azure") (size "a.large")) (machine (provider "Google") (size "g.large"))))
-	(define AdminACL (list "1.2.3.4/32"))
-	(label "sshkeys" (list (plaintextKey "foo")))`
+	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -258,8 +251,7 @@ func TestEngine(t *testing.T) {
 	(define Namespace "Namespace")
 	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Azure") (size "a.large"))))
 	(label "workers" (list (machine (provider "AmazonSpot") (size "m4.large"))))
-	(define AdminACL (list "1.2.3.4/32"))
-	(label "sshkeys" (list (plaintextKey "foo")))`
+	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
@@ -378,8 +370,7 @@ func TestSort(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list))
-(label "sshkeys" (list))`))
+(define AdminACL (list))`))
 	err := conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -408,8 +399,7 @@ func TestSort(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list))
-(label "sshkeys" (list))`))
+(define AdminACL (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -438,8 +428,7 @@ func TestSort(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(define AdminACL (list))
-(label "sshkeys" (list))`))
+(define AdminACL (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
@@ -475,8 +464,7 @@ func TestLocal(t *testing.T) {
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
 (label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
-(define AdminACL (list "1.2.3.4/32" "local"))
-(label "sshkeys" (list))`
+(define AdminACL (list "1.2.3.4/32" "local"))`
 
 	myIP = func() (string, error) {
 		return "5.6.7.8", nil

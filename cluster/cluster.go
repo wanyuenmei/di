@@ -34,7 +34,7 @@ func Run(conn db.Conn) {
 		for _, row := range dbClusters {
 			clst, ok := clusters[row.ID]
 			if !ok {
-				new := newCluster(conn, row.ID, row.Namespace, row.SSHKeys)
+				new := newCluster(conn, row.ID, row.Namespace)
 				clst = &new
 				clusters[row.ID] = clst
 			}
@@ -54,7 +54,7 @@ func Run(conn db.Conn) {
 	}
 }
 
-func newCluster(conn db.Conn, id int, namespace string, keys []string) cluster {
+func newCluster(conn db.Conn, id int, namespace string) cluster {
 	clst := cluster{
 		id:        id,
 		conn:      conn,
@@ -65,7 +65,7 @@ func newCluster(conn db.Conn, id int, namespace string, keys []string) cluster {
 
 	for _, p := range []db.Provider{db.AmazonSpot, db.Google, db.Azure, db.Vagrant} {
 		inst := provider.New(p)
-		err := inst.Start(conn, id, namespace, keys)
+		err := inst.Start(conn, id, namespace)
 		if err == nil {
 			clst.providers[p] = inst
 		}
@@ -174,6 +174,7 @@ func (clst cluster) sync() {
 					dbm.Size = m.Size
 				}
 				dbm.Provider = m.Provider
+				// XXX: Get the SSH keys?
 				view.Commit(dbm)
 			}
 			return nil
@@ -216,8 +217,10 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 
 	for _, dbm := range dbmIface {
 		m := dbm.(db.Machine)
-		bootSet = append(bootSet, provider.Machine{Size: m.Size,
-			Provider: m.Provider})
+		bootSet = append(bootSet, provider.Machine{
+			Size:     m.Size,
+			Provider: m.Provider,
+			SSHKeys:  m.SSHKeys})
 	}
 
 	return pairs, bootSet, terminateSet

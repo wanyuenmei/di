@@ -14,6 +14,7 @@ type Machine struct {
 	Role      Role
 	Provider  Provider
 	Size      string
+	SSHKeys   []string `rowStringer:"omit"`
 
 	/* Populated by the cloud provider. */
 	CloudID   string //Cloud Provider ID

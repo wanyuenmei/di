@@ -34,7 +34,6 @@ type azureCluster struct {
 	hsClient       hostedservice.HostedServiceClient
 	vmClient       virtualmachine.VirtualMachineClient
 	namespace      string
-	cloudConfig    string
 	storageAccount string
 	location       string
 	vmImage        string
@@ -43,7 +42,7 @@ type azureCluster struct {
 }
 
 // Create an Azure cluster.
-func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
+func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string) error {
 	if namespace == "" {
 		return errors.New("namespace cannot be empty")
 	}
@@ -59,7 +58,6 @@ func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string, k
 	clst.hsClient = hostedservice.NewClient(azureClient)
 	clst.vmClient = virtualmachine.NewClient(azureClient)
 	clst.namespace = namespace
-	clst.cloudConfig = cloudConfigUbuntu(keys, "wily")
 	clst.storageAccount = storageAccount
 	clst.location = clusterLocation
 	clst.vmImage = vmImage
@@ -126,7 +124,7 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 
 	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		if err := clst.instanceNew(name, m.Size, clst.cloudConfig); err != nil {
+		if err := clst.instanceNew(name, m.Size, cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
 			return err
 		}
 	}

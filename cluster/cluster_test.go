@@ -77,7 +77,7 @@ func (p *fakeProvider) Stop(ids []string) error {
 
 func (p *fakeProvider) Disconnect() {}
 
-func (p *fakeProvider) Start(conn db.Conn, id int, namespace string, keys []string) error { return nil }
+func (p *fakeProvider) Start(conn db.Conn, id int, namespace string) error { return nil }
 
 func (p *fakeProvider) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return ""

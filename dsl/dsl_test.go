@@ -543,11 +543,11 @@ func TestMachineAttribute(t *testing.T) {
 	runtimeErr(t, code, `1: machineAttribute key not defined: "badlabel"`)
 
 	// Test setting attribute on a non-machine
-	code = `(label "badlabel" (plaintextKey "key"))
+	code = `(label "badlabel" (docker "foo"))
 (machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
-	badKey := plaintextKey{key: "key"}
-	badKey.SetLabels([]string{"badlabel"})
-	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: %s`, &badKey))
+	badLabel := Container{Image: "foo"}
+	badLabel.SetLabels([]string{"badlabel"})
+	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: %s`, &badLabel))
 
 	// Test setting range attributes
 	code = `(label "machines" (machine (provider "AmazonSpot")))
@@ -586,20 +586,24 @@ func TestKeys(t *testing.T) {
 
 	checkKeys := func(code, expectedCode string, expected ...string) {
 		ctx := parseTest(t, code, expectedCode)
-		keyResult := Dsl{"", ctx}.QueryKeySlice("sshkeys")
-		if !reflect.DeepEqual(keyResult, expected) {
+		machineResult := Dsl{"", ctx}.QueryMachineSlice("sshkeys")
+		if len(machineResult) == 0 {
+			t.Error("no machine found")
+			return
+		}
+		if !reflect.DeepEqual(machineResult[0].SSHKeys, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
-				code, keyResult, expected))
+				code, machineResult[0].SSHKeys, expected))
 		}
 	}
 
-	code := `(label "sshkeys" (list (plaintextKey "key")))`
+	code := `(label "sshkeys" (machine (plaintextKey "key")))`
 	checkKeys(code, code, "key")
 
-	code = `(label "sshkeys" (list (githubKey "user")))`
+	code = `(label "sshkeys" (machine (githubKey "user")))`
 	checkKeys(code, code, "user")
 
-	code = `(label "sshkeys" (list (githubKey "user") (plaintextKey "key")))`
+	code = `(label "sshkeys" (machine (githubKey "user") (plaintextKey "key")))`
 	checkKeys(code, code, "user", "key")
 }
 
@@ -893,12 +897,11 @@ func TestImport(t *testing.T) {
 (connect 80 "A.a-container" "A.a-container")`, `2: connect undefined label: "A.a-container"`)
 
 	// Test that capitalized labels are properly exported
-	code := `(module "keys" (label "Grads" (plaintextKey "ejj")))`
+	code := `(module "machines" (label "AmazonMachine" (machine (provider "AmazonSpot"))))`
 	ctx := parseTest(t, code, code)
-	keyResult := Dsl{"", ctx}.QueryKeySlice("keys.Grads")
-	if len(keyResult) != 1 || keyResult[0] != "ejj" {
-		t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
-			code, keyResult, "ejj"))
+	machineResult := Dsl{"", ctx}.QueryMachineSlice("machines.AmazonMachine")
+	if len(machineResult) != 1 {
+		t.Error(spew.Sprintf("test: %s, result: %v", code, machineResult))
 	}
 }
 
@@ -1026,7 +1029,6 @@ func TestQuery(t *testing.T) {
 		(define c (list "This" "is" "b"))
 		(define d (list "1" 2 "3"))
 		(define e 1.5)
-		(label "sshkeys" (list (plaintextKey "key") (githubKey "github")))
 		(docker b)
 		(docker b)`)), []string{})
 	if err != nil {
@@ -1080,10 +1082,6 @@ func TestQuery(t *testing.T) {
 	}
 
 	if val := dsl.QueryContainers(); len(val) != 2 {
-		t.Error(val)
-	}
-
-	if val := dsl.QueryKeySlice("sshkeys"); len(val) != 2 {
 		t.Error(val)
 	}
 }

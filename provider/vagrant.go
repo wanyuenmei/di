@@ -10,19 +10,17 @@ import (
 )
 
 type vagrantCluster struct {
-	cloudConfig string
-	namespace   string
-	vagrant     vagrantAPI
+	namespace string
+	vagrant   vagrantAPI
 }
 
-func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string, keys []string) error {
+func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string) error {
 	vagrant := newVagrantAPI()
 	err := vagrant.AddBox("boxcutter/ubuntu1504", "virtualbox")
 	if err != nil {
 		return err
 	}
 	clst.namespace = namespace
-	clst.cloudConfig = cloudConfigUbuntu(keys, "vivid")
 	clst.vagrant = vagrant
 	return nil
 }
@@ -33,7 +31,7 @@ func (clst vagrantCluster) Boot(bootSet []Machine) error {
 	wg.Add(len(bootSet))
 	for _, m := range bootSet {
 		id := uuid.NewV4().String()
-		err := vagrant.Init(clst.cloudConfig, m.Size, id)
+		err := vagrant.Init(cloudConfigUbuntu(m.SSHKeys, "vivid"), m.Size, id)
 		if err != nil {
 			vagrant.Destroy(id)
 			return err

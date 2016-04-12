@@ -1,6 +1,5 @@
 (define Namespace "CHANGE_ME")
 (define AdminACL (list "local"))
-(label "sshkeys" (githubKey "ejj"))
 
 (define sparkWorkerCount 3)
 
@@ -10,7 +9,8 @@
 
 (machineAttribute "all-machines"
         (provider "AmazonSpot")
-        (size "m4.large"))
+        (size "m4.large")
+        (githubKey "ejj"))
 
 (label "spark-master"
     (docker "quay.io/netsys/spark" "di-start-master.sh"))

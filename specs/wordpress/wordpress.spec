@@ -1,13 +1,12 @@
 (define Namespace "nlsun-wp")
 (define AdminACL (list "local"))
-(label "sshkeys" (githubKey "nlsun"))
 
 (define MasterCount 1)
 (define WorkerCount 1)
 (label "masters" (makeList MasterCount (machine)))
 (label "workers" (makeList WorkerCount (machine)))
 (label "all-machines" "masters" "workers")
-(machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large"))
+(machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large") (githubKey "nlsun"))
 
 // Redis is turned on here, but if you didn't want it you can just run it
 // without any arguments

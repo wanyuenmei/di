@@ -142,13 +142,19 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 }
 
 func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
-	key := &githubKey{username: string(args[0].(astString))}
-	return astAtom{astFunc(astIdent("githubKey"), args), addAtom(ctx, key)}, nil
+	username, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("github username must be a string: %s", args[0])
+	}
+	return astGithubKey(username), nil
 }
 
 func plaintextKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
-	key := &plaintextKey{key: string(args[0].(astString))}
-	return astAtom{astFunc(astIdent("plaintextKey"), args), addAtom(ctx, key)}, nil
+	key, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("key must be a string: %s", args[0])
+	}
+	return astPlaintextKey(key), nil
 }
 
 func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -200,15 +206,14 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 func setMachineAttributes(machine *Machine, args []ast) error {
 	for _, arg := range flatten(args) {
-		switch arg.(type) {
+		switch val := arg.(type) {
 		case astProvider:
-			machine.Provider = string(arg.(astProvider))
+			machine.Provider = string(val)
 		case astSize:
-			machine.Size = string(arg.(astSize))
+			machine.Size = string(val)
 		case astRange:
-			r := arg.(astRange)
-			dslr := Range{Min: float64(r.min), Max: float64(r.max)}
-			switch string(r.ident) {
+			dslr := Range{Min: float64(val.min), Max: float64(val.max)}
+			switch string(val.ident) {
 			case "ram":
 				machine.RAM = dslr
 			case "cpu":
@@ -216,6 +221,12 @@ func setMachineAttributes(machine *Machine, args []ast) error {
 			default:
 				return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
 			}
+		case key:
+			keys, err := val.keys()
+			if err != nil {
+				return err
+			}
+			machine.SSHKeys = append(machine.SSHKeys, keys...)
 		default:
 			return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
 		}
