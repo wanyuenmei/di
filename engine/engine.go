@@ -137,6 +137,7 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 			continue
 		}
 		m.SSHKeys = dslm.SSHKeys
+		m.Region = dslm.Region
 		dbMachines = append(dbMachines, m)
 	}
 	return dbMachines
@@ -175,6 +176,8 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		switch {
 		case dbMachine.Provider != dslMachine.Provider:
 			return -1
+		case dbMachine.Region != dslMachine.Region:
+			return -1
 		case dbMachine.Size != "" && dslMachine.Size != dbMachine.Size:
 			return -1
 		case dbMachine.Role != db.None && dbMachine.Role != dslMachine.Role:
@@ -208,6 +211,7 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		dbMachine.Role = dslMachine.Role
 		dbMachine.Size = dslMachine.Size
 		dbMachine.Provider = dslMachine.Provider
+		dbMachine.Region = dslMachine.Region
 		dbMachine.SSHKeys = dslMachine.SSHKeys
 		dbMachine.ClusterID = clusterID
 		view.Commit(dbMachine)

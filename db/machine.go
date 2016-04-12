@@ -13,6 +13,7 @@ type Machine struct {
 	ClusterID int //Parent Cluster ID
 	Role      Role
 	Provider  Provider
+	Region    string
 	Size      string
 	SSHKeys   []string `rowStringer:"omit"`
 

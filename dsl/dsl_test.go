@@ -579,6 +579,12 @@ func TestMachines(t *testing.T) {
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	checkMachines(code, expCode, expMachine)
 
+	// Test setting region
+	code = `(label "machines" (machine (region "us-west-1")))`
+	expMachine = Machine{Region: "us-west-1"}
+	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, code, expMachine)
+
 	// Test invalid attribute type
 	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
 }

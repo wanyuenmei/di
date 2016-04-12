@@ -13,6 +13,7 @@ type Machine struct {
 	Size      string
 	SSHKeys   []string
 	Provider  db.Provider
+	Region    string
 }
 
 // Provider defines an interface for interacting with cloud providers.

@@ -82,6 +82,7 @@ func init() {
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
 		"reduce":           {reduceImpl, 2, false},
+		"region":           {regionImpl, 1, false},
 		"ram":              {rangeTypeImpl("ram"), 1, false},
 		"range":            {rangeImpl, 1, false},
 		"role":             {roleImpl, 1, false},
@@ -273,6 +274,8 @@ func setMachineAttributes(machine *astMachine, args []ast) error {
 		switch val := arg.(type) {
 		case astProvider:
 			machine.provider = val
+		case astRegion:
+			machine.region = val
 		case astSize:
 			machine.size = val
 		case astRole:
@@ -337,6 +340,14 @@ func roleImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("role must be a string: %s", args[0])
 	}
 	return astRole(role), nil
+}
+
+func regionImpl(ctx *evalCtx, args []ast) (ast, error) {
+	regionStr, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("region must be a string: %s", args[0])
+	}
+	return astRegion(regionStr), nil
 }
 
 func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {

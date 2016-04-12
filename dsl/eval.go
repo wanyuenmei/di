@@ -196,6 +196,10 @@ func (p astProvider) eval(ctx *evalCtx) (ast, error) {
 	return p, nil
 }
 
+func (r astRegion) eval(ctx *evalCtx) (ast, error) {
+	return r, nil
+}
+
 func (r astRange) eval(ctx *evalCtx) (ast, error) {
 	return r, nil
 }

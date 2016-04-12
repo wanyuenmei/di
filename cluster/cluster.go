@@ -200,6 +200,8 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 		switch {
 		case dbm.Provider != m.Provider:
 			return -1
+		case m.Region != "" && dbm.Region != m.Region:
+			return -1
 		case m.Size != "" && dbm.Size != m.Size:
 			return -1
 		case dbm.CloudID == m.ID:
@@ -225,6 +227,7 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 		bootSet = append(bootSet, provider.Machine{
 			Size:     m.Size,
 			Provider: m.Provider,
+			Region:   m.Region,
 			SSHKeys:  m.SSHKeys})
 	}
 

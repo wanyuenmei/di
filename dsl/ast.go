@@ -85,10 +85,12 @@ type astPlaintextKey astString
 type astSize astString
 type astProvider astString
 type astRole astString
+type astRegion astString
 type astMachine struct {
 	provider astProvider
 	role     astRole
 	size     astSize
+	region   astRegion
 	cpu      astRange
 	ram      astRange
 	sshKeys  []key
@@ -104,6 +106,10 @@ type astContainer struct {
 	Placement
 
 	atomImpl
+}
+
+func (r astRegion) String() string {
+	return fmt.Sprintf("(region %s)", astString(r).String())
 }
 
 func (p astProvider) String() string {
@@ -211,6 +217,9 @@ func (m *astMachine) String() string {
 	var args []ast
 	if m.provider != "" {
 		args = append(args, m.provider)
+	}
+	if m.region != "" {
+		args = append(args, m.region)
 	}
 	if m.size != "" {
 		args = append(args, m.size)
