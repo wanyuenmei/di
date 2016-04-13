@@ -266,6 +266,9 @@ func TestList(t *testing.T) {
 	parseTest(t, `(makeList 3 (+ 1 1))`, `(list 2 2 2)`)
 	parseTest(t, `(let ((a 2)) (makeList a 3))`, `(list 3 3)`)
 
+	parseTest(t, `(len (list))`, `0`)
+	parseTest(t, `(len (list 1))`, `1`)
+
 	parseTest(t, "(cons 1 (list))", "(list 1)")
 	parseTest(t, "(cons 1 (cons 2 (list)))", "(list 1 2)")
 

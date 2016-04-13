@@ -60,6 +60,7 @@ func init() {
 		"label":            {labelImpl, 2, false},
 		"lambda":           {lambdaImpl, 2, true},
 		"let":              {letImpl, 2, true},
+		"len":              {lenImpl, 1, false},
 		"list":             {listImpl, 0, false},
 		"machine":          {machineImpl, 0, false},
 		"machineAttribute": {machineAttributeImpl, 2, false},
@@ -739,6 +740,15 @@ func moduleImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 func prognImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return args[len(args)-1], nil
+}
+
+func lenImpl(ctx *evalCtx, args []ast) (ast, error) {
+	list, ok := args[0].(astList)
+	if !ok {
+		return nil, fmt.Errorf("len applies to lists: %s", args[0])
+	}
+
+	return astInt(len(list)), nil
 }
 
 func carImpl(ctx *evalCtx, args []ast) (ast, error) {
