@@ -99,6 +99,7 @@ type astMachine struct {
 type astContainer struct {
 	image   astString
 	command astList
+	env     astHmap
 
 	Placement
 
@@ -236,7 +237,10 @@ func (c *astContainer) String() string {
 	if len(c.command) == 0 {
 		return fmt.Sprintf("(docker %s)", c.image)
 	}
-	return fmt.Sprintf("(docker %s %s)", c.image, sliceStr(c.command, " "))
+	if len(c.env) == 0 {
+		return fmt.Sprintf("(docker %s %s)", c.image, sliceStr(c.command, " "))
+	}
+	return fmt.Sprintf("(docker %s %s %s)", c.image, sliceStr(c.command, " "), c.env.String())
 }
 
 func sliceStr(asts []ast, sep string) string {
