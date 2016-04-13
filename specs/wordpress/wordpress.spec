@@ -3,8 +3,8 @@
 
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine)))
-(label "workers" (makeList WorkerCount (machine)))
+(label "masters" (makeList MasterCount (machine (role "Master"))))
+(label "workers" (makeList WorkerCount (machine (role "Worker"))))
 (label "all-machines" "masters" "workers")
 (machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large") (githubKey "nlsun"))
 

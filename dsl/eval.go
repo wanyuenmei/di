@@ -6,6 +6,7 @@ type evalCtx struct {
 	binds       map[astIdent]ast
 	labels      map[string]astLabel
 	connections map[Connection]struct{}
+	machines    *[]*astMachine
 	containers  *[]*astContainer
 
 	parent *evalCtx
@@ -33,6 +34,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 		binds:       bindsCopy,
 		labels:      ctx.labels,
 		connections: ctx.connections,
+		machines:    ctx.machines,
 		containers:  ctx.containers,
 		parent:      parentCopy,
 	}
@@ -235,6 +237,10 @@ func (c *astContainer) eval(ctx *evalCtx) (ast, error) {
 	return c, nil
 }
 
+func (r astRole) eval(ctx *evalCtx) (ast, error) {
+	return r, nil
+}
+
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {
@@ -253,5 +259,5 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		make(map[astIdent]ast),
 		make(map[string]astLabel),
 		make(map[Connection]struct{}),
-		&[]*astContainer{}, parent}
+		&[]*astMachine{}, &[]*astContainer{}, parent}
 }

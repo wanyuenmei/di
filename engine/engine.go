@@ -69,11 +69,16 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 // be compared against what's already in the db.
 // Specifically, it sets the role of the db.Machine, the size (which may depend
 // on RAM and CPU constraints), and the provider.
-// Additionally, it skips machines with invalid sizes or providers
-func toDBMachine(machines []dsl.Machine, role db.Role, maxPrice float64) []db.Machine {
+// Additionally, it skips machines with invalid roles, sizes or providers.
+func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 	var dbMachines []db.Machine
 	for _, dslm := range machines {
 		var m db.Machine
+		role, err := db.ParseRole(dslm.Role)
+		if err != nil {
+			log.WithError(err).Error("Error parsing role.")
+			continue
+		}
 		m.Role = role
 		p, err := db.ParseProvider(dslm.Provider)
 		if err != nil {
@@ -97,17 +102,26 @@ func toDBMachine(machines []dsl.Machine, role db.Role, maxPrice float64) []db.Ma
 	return dbMachines
 }
 
+// DI can only boot if there is at least one master and one worker.
+func canBoot(machines []db.Machine) bool {
+	hasMaster := false
+	hasWorker := false
+	for _, machine := range machines {
+		hasMaster = hasMaster || machine.Role == db.Master
+		hasWorker = hasWorker || machine.Role == db.Worker
+	}
+	return hasMaster && hasWorker
+}
+
 func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	// XXX: How best to deal with machines that don't specify enough information?
-	dslMasters := dsl.QueryMachineSlice("masters")
-	dslWorkers := dsl.QueryMachineSlice("workers")
+	dslMachinesRaw := dsl.QueryMachines()
 	maxPrice, _ := dsl.QueryFloat("MaxPrice")
 
-	var dslMachines []db.Machine
-	if len(dslMasters) == 0 || len(dslWorkers) == 0 {
+	var dslMachines = toDBMachine(dslMachinesRaw, maxPrice)
+
+	if !canBoot(dslMachines) {
 		dslMachines = []db.Machine{}
-	} else {
-		dslMachines = append(toDBMachine(dslMasters, db.Master, maxPrice), toDBMachine(dslWorkers, db.Worker, maxPrice)...)
 	}
 
 	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {

@@ -3,8 +3,8 @@
 
 (define sparkWorkerCount 3)
 
-(label "masters" (machine))
-(label "workers" (makeList (+ 1 sparkWorkerCount) (machine)))
+(label "masters" (machine (role "Master")))
+(label "workers" (makeList (+ 1 sparkWorkerCount) (machine (role "Worker"))))
 (label "all-machines" "masters" "workers")
 
 (machineAttribute "all-machines"

@@ -39,6 +39,7 @@ type Connection struct {
 // A Machine specifies the type of VM that should be booted.
 type Machine struct {
 	Provider string
+	Role     string
 	Size     string
 	CPU      Range
 	RAM      Range
@@ -121,6 +122,18 @@ func parseKeys(rawKeys []key) []string {
 	return keys
 }
 
+func convertAstMachine(machineAst astMachine) Machine {
+	return Machine{
+		Provider: string(machineAst.provider),
+		Size:     string(machineAst.size),
+		Role:     string(machineAst.role),
+		RAM:      Range{Min: float64(machineAst.ram.min), Max: float64(machineAst.ram.max)},
+		CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
+		SSHKeys:  parseKeys(machineAst.sshKeys),
+		atomImpl: machineAst.atomImpl,
+	}
+}
+
 // QueryMachineSlice returns the machines associated with a label.
 func (dsl Dsl) QueryMachineSlice(key string) []Machine {
 	label, ok := dsl.ctx.labels[key]
@@ -137,16 +150,18 @@ func (dsl Dsl) QueryMachineSlice(key string) []Machine {
 			log.Warnf("%s: Requested []machine, found %s", key, val)
 			return nil
 		}
-		machines = append(machines, Machine{
-			Provider: string(machineAst.provider),
-			Size:     string(machineAst.size),
-			RAM:      Range{Min: float64(machineAst.ram.min), Max: float64(machineAst.ram.max)},
-			CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
-			SSHKeys:  parseKeys(machineAst.sshKeys),
-			atomImpl: machineAst.atomImpl,
-		})
+		machines = append(machines, convertAstMachine(*machineAst))
 	}
 
+	return machines
+}
+
+// QueryMachines returns all machines declared in the dsl.
+func (dsl Dsl) QueryMachines() []Machine {
+	var machines []Machine
+	for _, machineAst := range *dsl.ctx.machines {
+		machines = append(machines, convertAstMachine(*machineAst))
+	}
 	return machines
 }
 

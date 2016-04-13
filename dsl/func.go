@@ -77,6 +77,7 @@ func init() {
 		"reduce":           {reduceImpl, 2, false},
 		"ram":              {rangeTypeImpl("ram"), 1, false},
 		"range":            {rangeImpl, 1, false},
+		"role":             {roleImpl, 1, false},
 		"size":             {sizeImpl, 1, false},
 		"sprintf":          {sprintfImpl, 1, false},
 	}
@@ -219,6 +220,8 @@ func setMachineAttributes(machine *astMachine, args []ast) error {
 			machine.provider = val
 		case astSize:
 			machine.size = val
+		case astRole:
+			machine.role = val
 		case astRange:
 			switch string(val.ident) {
 			case "ram":
@@ -243,6 +246,9 @@ func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	globalCtx := ctx.globalCtx()
+	*globalCtx.machines = append(*globalCtx.machines, machine)
 
 	return machine, nil
 }
@@ -271,6 +277,14 @@ func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 func providerImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astProvider((args[0].(astString))), nil
+}
+
+func roleImpl(ctx *evalCtx, args []ast) (ast, error) {
+	role, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("role must be a string: %s", args[0])
+	}
+	return astRole(role), nil
 }
 
 func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {

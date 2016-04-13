@@ -88,3 +88,16 @@ func ParseProvider(name string) (Provider, error) {
 		return "", errors.New("unknown provider")
 	}
 }
+
+func ParseRole(role string) (Role, error) {
+	switch role {
+	case "Master":
+		return Master, nil
+	case "Worker":
+		return Worker, nil
+	case "":
+		return None, nil
+	default:
+		return None, errors.New("unknown role")
+	}
+}

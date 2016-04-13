@@ -1,8 +1,8 @@
 (define Namespace "CHANGE_ME")
 (define AdminACL (list "local"))
 
-(label "masters" (machine))
-(label "workers" (makeList 3 (machine)))
+(label "masters" (machine (role "Master")))
+(label "workers" (makeList 3 (machine (role "Worker"))))
 (label "all-machines" "masters" "workers")
 (machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large") (githubKey "ejj"))
 

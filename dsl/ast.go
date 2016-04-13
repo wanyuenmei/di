@@ -84,8 +84,10 @@ type astPlaintextKey astString
 /* Machine configurations */
 type astSize astString
 type astProvider astString
+type astRole astString
 type astMachine struct {
 	provider astProvider
+	role     astRole
 	size     astSize
 	cpu      astRange
 	ram      astRange
@@ -109,6 +111,10 @@ func (p astProvider) String() string {
 
 func (size astSize) String() string {
 	return fmt.Sprintf("(size %s)", astString(size).String())
+}
+
+func (role astRole) String() string {
+	return fmt.Sprintf("(role %s)", astString(role).String())
 }
 
 func (key astGithubKey) String() string {
@@ -213,6 +219,9 @@ func (m *astMachine) String() string {
 	}
 	if m.cpu.ident != "" {
 		args = append(args, m.cpu)
+	}
+	if m.role != "" {
+		args = append(args, m.role)
 	}
 	for _, key := range m.sshKeys {
 		args = append(args, key)

@@ -24,8 +24,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 2)
 (define WorkerCount 3)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32"))`
 
 	UpdatePolicy(conn, prog(t, code))
@@ -60,8 +60,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 4)
 (define WorkerCount 5)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32"))`
 
 	UpdatePolicy(conn, prog(t, code))
@@ -117,8 +117,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -148,8 +148,8 @@ func TestEngine(t *testing.T) {
 	code = `
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -180,8 +180,8 @@ func TestEngine(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 0)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -221,8 +221,8 @@ func TestEngine(t *testing.T) {
 	/* Test mixed providers. */
 	code = `
 	(define Namespace "Namespace")
-	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant") (size "v.large"))))
-	(label "workers" (list (machine (provider "Azure") (size "a.large")) (machine (provider "Google") (size "g.large"))))
+	(list (machine (provider "AmazonSpot") (size "m4.large") (role "Master")) (machine (provider "Vagrant") (size "v.large") (role "Master")))
+	(list (machine (provider "Azure") (size "a.large") (role "Worker")) (machine (provider "Google") (size "g.large") (role "Worker")))
 	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -249,8 +249,8 @@ func TestEngine(t *testing.T) {
 	/* Test that machines with different providers don't match. */
 	code = `
 	(define Namespace "Namespace")
-	(label "masters" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Azure") (size "a.large"))))
-	(label "workers" (list (machine (provider "AmazonSpot") (size "m4.large"))))
+	(list (machine (provider "AmazonSpot") (size "m4.large") (role "Master")) (machine (provider "Azure") (size "a.large") (role "Master")))
+	(list (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -312,8 +312,8 @@ func TestContainer(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))
 (label "Red"  (makeList 2 (docker "alpine")))
 (label "Blue" (makeList 2 (docker "alpine")))`
 	check(code, 2, 2, 0)
@@ -322,8 +322,8 @@ func TestContainer(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))
 (label "Red"  (makeList 3 (docker "alpine")))`
 	check(code, 3, 0, 0)
 
@@ -331,8 +331,8 @@ func TestContainer(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))
 (label "Red"  (makeList 1 (docker "alpine")))
 (label "Blue"  (makeList 5 (docker "alpine")))
 (label "Yellow"  (makeList 10 (docker "alpine")))`
@@ -342,8 +342,8 @@ func TestContainer(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))
 (label "Red"  (makeList 30 (docker "alpine")))
 (label "Blue"  (makeList 4 (docker "alpine")))
 (label "Yellow"  (makeList 7 (docker "alpine")))`
@@ -353,8 +353,8 @@ func TestContainer(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))`
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))`
 	check(code, 0, 0, 0)
 }
 
@@ -368,8 +368,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 3)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list))`))
 	err := conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
@@ -397,8 +397,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 2)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
@@ -426,8 +426,8 @@ func TestSort(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (size "m4.large") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (size "m4.large") (role "Worker")))
 (define AdminACL (list))`))
 	err = conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
@@ -462,8 +462,8 @@ func TestLocal(t *testing.T) {
 (define Namespace "Namespace")
 (define MasterCount 1)
 (define WorkerCount 1)
-(label "masters" (makeList MasterCount (machine (provider "AmazonSpot"))))
-(label "workers" (makeList WorkerCount (machine (provider "AmazonSpot"))))
+(makeList MasterCount (machine (provider "AmazonSpot") (role "Master")))
+(makeList WorkerCount (machine (provider "AmazonSpot") (role "Worker")))
 (define AdminACL (list "1.2.3.4/32" "local"))`
 
 	myIP = func() (string, error) {
