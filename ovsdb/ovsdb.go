@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	ovs "github.com/socketplane/libovsdb"
@@ -581,19 +582,21 @@ func (ovsdb Ovsdb) DeleteOFPort(bridge, name string) error {
 //
 // Returns an error of type *ExistError if the port does not exist
 func (ovsdb Ovsdb) GetOFPortNo(name string) (int, error) {
-	results, err := ovsdb.getOFGeneric("Interface", name)
-	if err != nil {
-		return 0, err
-	}
-
-	port, ok := results[0]["ofport"].(float64)
-	if !ok {
-		return 0, &ExistError{
-			fmt.Sprintf("interface %s has no openflow port", name),
+	// It takes some time for the OF port to get up, so we give
+	// it a few chances, before we return an error.
+	for i := 0; i < 3; i++ {
+		results, err := ovsdb.getOFGeneric("Interface", name)
+		if err != nil {
+			return 0, err
 		}
+
+		if port, ok := results[0]["ofport"].(float64); ok {
+			return int(port), nil
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	return int(port), nil
+	return 0, &ExistError{fmt.Sprintf("interface %s has no openflow port", name)}
 }
 
 // CreateOFPort creates an openflow port on specified bridge
