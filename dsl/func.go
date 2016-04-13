@@ -531,7 +531,7 @@ func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	ctx.binds[ident] = result
 
-	return astFunc(astIdent("define"), []ast{ident, result}), nil
+	return astList{}, nil
 }
 
 type binding struct {

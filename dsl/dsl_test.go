@@ -109,34 +109,30 @@ func TestLambda(t *testing.T) {
 	parseTest(t, "((lambda (x y) (+ x y)) 5 (* 2 6))", "17")
 
 	// Named lambda
-	squareDef := "(define Square (lambda (x) (* x x)))\n"
-	parseTest(t, squareDef+"(Square 5)", squareDef+"25")
+	parseTest(t, "(progn (define Square (lambda (x) (* x x))) (Square 5))", "25")
 
 	// Named lambda in let
-	squareDef = "(let ((Square (lambda (x) (* x x))))\n"
 	parseTest(t, "(let ((Square (lambda (x) (* x x)))) (Square 6))", "36")
 
 	// Two named lambdas
 	cubeDef := "(define Square (lambda (x) (* x x)))\n" +
 		"(define Cube (lambda (x) (* x (Square x))))\n"
-	parseTest(t, cubeDef+"(Cube 5)", cubeDef+"125")
+	parseTest(t, fmt.Sprintf("(progn %s %s", cubeDef, "(Cube 5))"), "125")
 
 	// Test closure
-	adder := "(define nAdder (lambda (n) (lambda (x) (+ n x))))\n" +
+	adder := "(progn " +
+		"(define nAdder (lambda (n) (lambda (x) (+ n x))))\n" +
 		"(define fiveAdder (nAdder 5))\n" +
-		"(fiveAdder 10)"
-	adderRes := "(define nAdder (lambda (n) (lambda (x) (+ n x))))\n" +
-		"(define fiveAdder (lambda (x) (+ n x)))\n" +
-		"15"
-	parseTest(t, adder, adderRes)
+		"(fiveAdder 10))"
+	parseTest(t, adder, "15")
 
 	// Test variable masking
 	adder = "((let ((x 5)) (lambda (x) (+ x 1))) 1)"
 	parseTest(t, adder, "2")
 
 	// Test that recursion DOESN'T work
-	fibDef := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1))))))"
-	runtimeErr(t, fibDef+"\n"+"(fib 5)", "1: unknown function: fib")
+	fib := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1)))))) (fib 5)"
+	runtimeErr(t, fib, "1: unknown function: fib")
 }
 
 func TestProgn(t *testing.T) {
@@ -238,21 +234,17 @@ func TestIf(t *testing.T) {
 }
 
 func TestDefine(t *testing.T) {
-	code := "(define a 1)"
-	parseTest(t, code, code)
+	parseTest(t, "(progn (define a 1) a)", "1")
 
-	code = "(define a 1)\n(define b 2)"
-	parseTest(t, code, code)
+	parseTest(t, "(progn (define a 1) (define b 2) (list a b))", "(list 1 2)")
 
-	code = "(define a 1)\n3\n(define b 2)"
-	parseTest(t, code, code)
+	parseTest(t, "(list (define a 1) 3 (define b 2) a b)",
+		"(list (list) 3 (list) 1 2)")
 
-	parseTest(t, "(define a (+ 5 7))", "(define a 12)")
+	parseTest(t, "(list (define a (+ 5 7)) a)", "(list (list) 12)")
 
-	parseTest(t, "(define a (+ 5 7))", "(define a 12)")
-
-	parseTest(t, "(define a (+ 1 1))\n(define b (* a 2))",
-		"(define a 2)\n(define b 4)")
+	parseTest(t, "(progn (define a (+ 1 1)) (define b (* a 2)) (list a b))",
+		"(list 2 4)")
 }
 
 func TestList(t *testing.T) {
@@ -309,58 +301,44 @@ func TestList(t *testing.T) {
 
 func TestHmap(t *testing.T) {
 	parseTest(t, "(hmap)", "(hmap)")
-	code := `(define a (hmap))
-(hmapSet a "key" "value")`
-	exp := `(define a (hmap))
-(hmap ("key" "value"))`
+
+	code := `(define a (hmap)) (hmapSet a "key" "value")`
+	exp := `(list) (hmap ("key" "value"))`
 	parseTest(t, code, exp)
-	code = `(define a (hmap))
-(define b (hmapSet a "key" "value"))
-(hmapGet b "key")`
-	exp = `(define a (hmap))
-(define b (hmap ("key" "value")))
-"value"`
+
+	code = `(define a (hmap)) (define b (hmapSet a "key" "value")) (hmapGet b "key")`
+	exp = `(list) (list) "value"`
 	parseTest(t, code, exp)
-	code = `(define a (hmap))
-(hmapGet (hmapSet a "key" "value") "key")`
-	exp = `(define a (hmap))
-"value"`
+
+	code = `(define a (hmap)) (hmapGet (hmapSet a "key" "value") "key")`
+	exp = `(list) "value"`
 	parseTest(t, code, exp)
-	code = `(define a (hmap ("key1" "value1")))
-(hmapGet a "key1")`
-	exp = `(define a (hmap ("key1" "value1")))
-"value1"`
+
+	code = `(define a (hmap ("key1" "value1"))) (hmapGet a "key1")`
+	exp = `(list) "value1"`
 	parseTest(t, code, exp)
+
 	code = `(define a (hmap ("key1" "value1") ("key2" "value2")))
-(hmapGet a "key1")
-(hmapGet a "key2")`
-	exp = `(define a (hmap ("key1" "value1") ("key2" "value2")))
-"value1"
-"value2"`
+	(hmapGet a "key1")
+	(hmapGet a "key2")`
+	exp = `(list) "value1" "value2"`
 	parseTest(t, code, exp)
+
 	code = `(define a (hmap ("key1" "value1")))
-(hmapGet a "key1")
-(define b (hmapSet a "key2" "value2"))
-(hmapGet b "key1")
-(hmapGet b "key2")`
-	exp = `(define a (hmap ("key1" "value1")))
-"value1"
-(define b (hmap ("key1" "value1") ("key2" "value2")))
-"value1"
-"value2"`
+	(hmapGet a "key1")
+	(define b (hmapSet a "key2" "value2"))
+	(hmapGet b "key1")
+	(hmapGet b "key2")`
+	exp = `(list) "value1" (list) "value1" "value2"`
 	parseTest(t, code, exp)
+
 	code = `(define a (hmap ("key1" "value1")))
-(hmapGet a "key1")
-(define b (hmapSet (hmapSet a "key2" "value2") "key3" "value3"))
-(hmapGet b "key1")
-(hmapGet b "key2")
-(hmapGet b "key3")`
-	exp = `(define a (hmap ("key1" "value1")))
-"value1"
-(define b (hmap ("key1" "value1") ("key2" "value2") ("key3" "value3")))
-"value1"
-"value2"
-"value3"`
+	(hmapGet a "key1")
+	(define b (hmapSet (hmapSet a "key2" "value2") "key3" "value3"))
+	(hmapGet b "key1")
+	(hmapGet b "key2")
+	(hmapGet b "key3")`
+	exp = `(list) "value1" (list) "value1" "value2" "value3"`
 	parseTest(t, code, exp)
 }
 
@@ -478,9 +456,9 @@ func TestMachines(t *testing.T) {
 
 	// Test named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-(label "machines" (machine (provider "AmazonSpot") large))`
-	expCode = `(define large (list (ram 16) (cpu 8)))
-(label "machines" (machine (provider "AmazonSpot") (list (ram 16) (cpu 8))))`
+	(label "machines" (machine (provider "AmazonSpot") large))`
+	expCode = `(list)
+	(label "machines" (machine (provider "AmazonSpot") (list (ram 16) (cpu 8))))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -501,35 +479,35 @@ func TestMachineAttribute(t *testing.T) {
 
 	// Test adding an attribute to an empty machine definition
 	code := `(label "machines" (list (machine)))
-(machineAttribute "machines" (provider "AmazonSpot"))`
+	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expMachine := Machine{Provider: "AmazonSpot"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test adding an attribute to a machine that already has another attribute
 	code = `(label "machines" (list (machine (size "m4.large"))))
-(machineAttribute "machines" (provider "AmazonSpot"))`
+	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test adding two attributes
 	code = `(label "machines" (list (machine)))
-(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
+	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test replacing an attribute
 	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))
-(machineAttribute "machines" (size "m4.medium"))`
+	(machineAttribute "machines" (size "m4.medium"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test setting attributes on a single machine (non-list)
 	code = `(label "machines" (machine (provider "AmazonSpot")))
-(machineAttribute "machines" (size "m4.medium"))`
+	(machineAttribute "machines" (size "m4.medium"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
@@ -544,36 +522,36 @@ func TestMachineAttribute(t *testing.T) {
 
 	// Test setting attribute on a non-machine
 	code = `(label "badlabel" (docker "foo"))
-(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
+	(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
 	badLabel := Container{Image: "foo"}
 	badLabel.SetLabels([]string{"badlabel"})
 	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: %s`, &badLabel))
 
 	// Test setting range attributes
 	code = `(label "machines" (machine (provider "AmazonSpot")))
-(machineAttribute "machines" (ram 1))`
+	(machineAttribute "machines" (ram 1))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test setting using a named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-(label "machines" (machine (provider "AmazonSpot")))
-(machineAttribute "machines" large)`
-	expCode := `(define large (list (ram 16) (cpu 8)))
-(label "machines" (machine (provider "AmazonSpot")))
-(machineAttribute "machines" (list (ram 16) (cpu 8)))`
+	(label "machines" (machine (provider "AmazonSpot")))
+	(machineAttribute "machines" large)`
+	expCode := `(list)
+	(label "machines" (machine (provider "AmazonSpot")))
+	(machineAttribute "machines" (list (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes from within a lambda
 	code = `(label "machines" (machine (provider "AmazonSpot")))
-(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
-(makeLarge "machines")`
+	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
+	(makeLarge "machines")`
 	expCode = `(label "machines" (machine (provider "AmazonSpot")))
-(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
-(machineAttribute "machines" (ram 16) (cpu 8))`
+	(list)
+	(machineAttribute "machines" (ram 16) (cpu 8))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -808,59 +786,57 @@ func TestConnect(t *testing.T) {
 
 func TestImport(t *testing.T) {
 	// Test module keyword
-	parseTest(t, `(module "math" (define Square (lambda (x) (* x x))))
-(math.Square 2)`,
-		`(module "math" (define Square (lambda (x) (* x x))))
-4`)
+	code := `(module "math" (define Square (lambda (x) (* x x)))) (math.Square 2)`
+	parseTest(t, code, `(module "math" (list)) 4`)
 
 	// Test module with multiple-statement body
-	parseTest(t, `(module "math" (define three 3) (define Triple (lambda (x) (* three x))))
-(math.Triple 2)`,
+	parseTest(t,
 		`(module "math" (define three 3)
-(define Triple (lambda (x) (* three x))))
-6`)
+		(define Triple (lambda (x) (* three x))))
+		(math.Triple 2)`, `(module "math" (list) (list)) 6`)
 
 	// Test importing from disk
 	testFs := afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("math.spec", []byte("(define Square (lambda (x) (* x x)))"), 0644)
 	util.AppFs = testFs
-	parseTestImport(t, `(import "math")
-(math.Square 2)`, `(module "math" (define Square (lambda (x) (* x x))))
-4`, []string{"."})
+	parseTestImport(t, `(import "math") (math.Square 2)`, `(module "math" (list)) 4`,
+		[]string{"."})
 
 	// Test two imports in separate directories
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	testFs.Mkdir("square", 777)
-	util.WriteFile("square/square.spec", []byte("(define Square (lambda (x) (* x x)))"), 0644)
+	util.WriteFile("square/square.spec",
+		[]byte("(define Square (lambda (x) (* x x)))"), 0644)
 	testFs.Mkdir("cube", 777)
-	util.WriteFile("cube/cube.spec", []byte("(define Cube (lambda (x) (* x x x)))"), 0644)
-	parseTestImport(t, `(import "square")
-(import "cube")
-(square.Square 2)
-(cube.Cube 2)`, `(module "square" (define Square (lambda (x) (* x x))))
-(module "cube" (define Cube (lambda (x) (* x x x))))
-4
-8`, []string{"square", "cube"})
+	util.WriteFile("cube/cube.spec",
+		[]byte("(define Cube (lambda (x) (* x x x)))"), 0644)
+	parseTestImport(t,
+		`(import "square")
+		(import "cube")
+		(square.Square 2)
+		(cube.Cube 2)`,
+		`(module "square" (list))
+		(module "cube" (list)) 4 8`,
+		[]string{"square", "cube"})
 
 	// Test import with an import
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("square.spec", []byte("(define Square (lambda (x) (* x x)))"), 0644)
 	util.WriteFile("cube.spec", []byte(`(import "square")
-(define Cube (lambda (x) (* x (square.Square x))))`), 0644)
-	parseTestImport(t, `(import "cube")
-(cube.Cube 2)`, `(module "cube" (module "square" (define Square (lambda (x) (* x x))))
-(define Cube (lambda (x) (* x (square.Square x)))))
-8`, []string{"."})
+	(define Cube (lambda (x) (* x (square.Square x))))`), 0644)
+	parseTestImport(t, `(import "cube") (cube.Cube 2)`,
+		`(module "cube" (module "square" (list)) (list)) 8`,
+		[]string{"."})
 
 	// Test error in an imported module
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("bad.spec", []byte(`(define BadFunc (lambda () (+ 1 "1")))`), 0644)
-	runtimeErrImport(t, `(import "bad")
-(bad.BadFunc)`, `./bad.spec:1: bad arithmetic argument: "1"`, []string{"."})
+	runtimeErrImport(t, `(import "bad") (bad.BadFunc)`,
+		`./bad.spec:1: bad arithmetic argument: "1"`, []string{"."})
 
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
@@ -876,17 +852,15 @@ func TestImport(t *testing.T) {
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("A.spec", []byte(`(import "B")
-(import "C")
-(define AddTwo (lambda (x) (+ (B.AddOne x) C.One)))`), 0644)
+	(import "C")
+	(define AddTwo (lambda (x) (+ (B.AddOne x) C.One)))`), 0644)
 	util.WriteFile("B.spec", []byte(`(import "C")
-(define AddOne (lambda (x) (+ x C.One)))`), 0644)
+	(define AddOne (lambda (x) (+ x C.One)))`), 0644)
 	util.WriteFile("C.spec", []byte(`(define One 1)`), 0644)
-	parseTestImport(t, `(import "A")
-(A.AddTwo 1)`, `(module "A" (module "B" (module "C" (define One 1))
-(define AddOne (lambda (x) (+ x C.One))))
-(module "C" (define One 1))
-(define AddTwo (lambda (x) (+ (B.AddOne x) C.One))))
-3`, []string{"."})
+	parseTestImport(t, `(import "A") (A.AddTwo 1)`,
+		`(module "A" (module "B" (module "C" (list)) (list))
+		(module "C" (list))
+		(list)) 3`, []string{"."})
 
 	// Test that non-capitalized binds are not exported
 	runtimeErr(t, `(module "A" (define addOne (lambda (x) (+ x 1))))
@@ -897,7 +871,7 @@ func TestImport(t *testing.T) {
 (connect 80 "A.a-container" "A.a-container")`, `2: connect undefined label: "A.a-container"`)
 
 	// Test that capitalized labels are properly exported
-	code := `(module "machines" (label "AmazonMachine" (machine (provider "AmazonSpot"))))`
+	code = `(module "machines" (label "AmazonMachine" (machine (provider "AmazonSpot"))))`
 	ctx := parseTest(t, code, code)
 	machineResult := Dsl{"", ctx}.QueryMachineSlice("machines.AmazonMachine")
 	if len(machineResult) != 1 {
