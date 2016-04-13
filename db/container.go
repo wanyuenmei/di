@@ -20,6 +20,7 @@ type Container struct {
 	Image   string
 	Command []string
 	Labels  []string
+	Env     map[string]string
 
 	Placement
 }
@@ -84,7 +85,11 @@ func (c Container) String() string {
 	}
 
 	if len(c.Placement.Exclusive) > 0 {
-		tags = append(tags, fmt.Sprintf("Env: %s", c.Placement.Exclusive))
+		tags = append(tags, fmt.Sprintf("Placement: %s", c.Placement.Exclusive))
+	}
+
+	if len(c.Env) > 0 {
+		tags = append(tags, fmt.Sprintf("Env: %s", c.Env))
 	}
 
 	return fmt.Sprintf("Container-%d{%s}", c.ID, strings.Join(tags, ", "))

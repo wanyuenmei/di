@@ -393,51 +393,66 @@ func TestDocker(t *testing.T) {
 	}
 
 	code := `(docker "a")`
-	checkContainers(code, code, &Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, code, &Container{Image: "a",
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)})
 
 	code = "(docker \"a\")\n(docker \"a\")"
-	checkContainers(code, code, &Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, code, &Container{Image: "a",
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)},
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)})
 
 	code = `(makeList 2 (list (docker "a") (docker "b")))`
 	exp := `(list (list (docker "a") (docker "b"))` +
 		` (list (docker "a") (docker "b")))`
 	checkContainers(code, exp,
-		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}})
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)},
+		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)},
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)},
+		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)})
 	code = `(list (docker "a" "c") (docker "b" (list "d" "e" "f")))`
 	exp = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
 	checkContainers(code, exp,
-		&Container{Image: "a", Command: []string{"c"}, Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "b", Command: []string{"d", "e", "f"}, Placement: Placement{make(map[[2]string]struct{})}})
+		&Container{Image: "a", Command: []string{"c"},
+			Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)},
+		&Container{Image: "b", Command: []string{"d", "e", "f"},
+			Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
-	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "bar", Placement: Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, exp, &Container{Image: "foo",
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)},
+		&Container{Image: "bar", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)})
 
 	// Test creating containers from within a lambda function
 	code = `((lambda () (docker "foo")))`
 	exp = `(docker "foo")`
-	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, exp, &Container{Image: "foo",
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)})
 
 	code = `(define (make) (docker "a") (docker "b") (list)) (make)`
 	exp = `(list) (list)`
 	checkContainers(code, exp,
-		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
-		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}})
+		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)},
+		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})},
+			Env: make(map[string]string)})
 
 	// Test creating containers from within a module
-	code = `(module "foo" 
+	code = `(module "foo"
 			  (define (Bar)
 			    (docker "baz")))
 			(foo.Bar)`
-	exp = `(module "foo" 
+	exp = `(module "foo"
 			 (list))
 		   (docker "baz")`
-	checkContainers(code, exp, &Container{Image: "baz", Placement: Placement{make(map[[2]string]struct{})}})
+	checkContainers(code, exp, &Container{Image: "baz",
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)})
 
 	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `1: expected string, found: 1`)
@@ -687,11 +702,14 @@ func TestLabel(t *testing.T) {
 	(label "qux" (docker "c"))`
 	ctx := parseTest(t, code, expCode)
 
-	containerA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerA := &Container{Image: "a", Command: nil,
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)}
 	containerA.SetLabels([]string{"foo", "bar", "baz", "baz2"})
-	containerB := &Container{Image: "b", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerB := &Container{Image: "b", Command: nil,
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)}
 	containerB.SetLabels([]string{"bar", "baz", "baz2"})
-	containerC := &Container{Image: "c", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	containerC := &Container{Image: "c", Command: nil,
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)}
 	containerC.SetLabels([]string{"qux"})
 	expected := []*Container{containerA, containerB, containerC}
 	containerResult := Dsl{"", ctx}.QueryContainers()
@@ -705,7 +723,8 @@ func TestLabel(t *testing.T) {
 	exp := `(label "foo" (docker "a") (docker "a"))
 	(label "bar" (docker "a") (docker "a"))`
 	ctx = parseTest(t, code, exp)
-	expectedA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
+	expectedA := &Container{Image: "a", Command: nil,
+		Placement: Placement{make(map[[2]string]struct{})}, Env: make(map[string]string)}
 	expectedA.SetLabels([]string{"foo", "bar"})
 	expected = []*Container{expectedA, expectedA}
 	containerResult = Dsl{"", ctx}.QueryContainers()
@@ -760,21 +779,21 @@ func TestPlacement(t *testing.T) {
 			[2]string{"blue", "red"}:    {},
 			[2]string{"blue", "yellow"}: {},
 			[2]string{"red", "yellow"}:  {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerA.SetLabels([]string{"red"})
 	containerB := Container{
 		Image: "b", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"blue", "red"}:    {},
 			[2]string{"blue", "yellow"}: {},
 			[2]string{"red", "yellow"}:  {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerB.SetLabels([]string{"blue"})
 	containerC := Container{
 		Image: "c", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"blue", "red"}:    {},
 			[2]string{"blue", "yellow"}: {},
 			[2]string{"red", "yellow"}:  {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerC.SetLabels([]string{"yellow"})
 	expected := []*Container{&containerA, &containerB, &containerC}
 	containerResult := Dsl{"", ctx}.QueryContainers()
@@ -798,7 +817,7 @@ func TestPlacement(t *testing.T) {
 			[2]string{"blue", "red"}:    {},
 			[2]string{"blue", "yellow"}: {},
 			[2]string{"red", "yellow"}:  {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerA.SetLabels([]string{"red", "blue", "yellow"})
 	expected = []*Container{&containerA}
 	containerResult = Dsl{"", ctx}.QueryContainers()
@@ -814,7 +833,7 @@ func TestPlacement(t *testing.T) {
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"red", "red"}: {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerA.SetLabels([]string{"red"})
 	expected = []*Container{&containerA}
 	containerResult = Dsl{"", ctx}.QueryContainers()
@@ -832,14 +851,88 @@ func TestPlacement(t *testing.T) {
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"red", "red"}: {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerA.SetLabels([]string{"red"})
 	containerB = Container{
 		Image: "b", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"blue", "blue"}: {},
-		}}}
+		}}, Env: make(map[string]string)}
 	containerB.SetLabels([]string{"blue"})
 	expected = []*Container{&containerA, &containerB}
+	containerResult = Dsl{"", ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, containerResult, expected))
+	}
+}
+
+func TestEnv(t *testing.T) {
+	code := `(label "red" (docker "a"))
+	(setEnv "red" "key" "value")`
+	expCode := `(label "red" (docker "a"))
+	(list)`
+	ctx := parseTest(t, code, expCode)
+	containerA := Container{
+		Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+		Env: map[string]string{"key": "value"}}
+	containerA.SetLabels([]string{"red"})
+	expected := []*Container{&containerA}
+	containerResult := Dsl{"", ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, containerResult, expected))
+	}
+
+	code = `(label "red" (makeList 5 (docker "a")))
+	(setEnv "red" "key" "value")`
+	expCode = `(label "red" (docker "a") (docker "a") (docker "a") (docker "a") (docker "a"))
+	(list)`
+	ctx = parseTest(t, code, expCode)
+	containerA = Container{
+		Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+		Env: map[string]string{"key": "value"}}
+	containerA.SetLabels([]string{"red"})
+	expected = []*Container{&containerA, &containerA, &containerA, &containerA,
+		&containerA}
+	containerResult = Dsl{"", ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, containerResult, expected))
+	}
+
+	code = `(label "foo" (docker "a"))
+	(label "bar" "foo" (docker "b"))
+	(label "baz" "foo" "bar")
+	(setEnv "bar" "key1" "value1")
+	(setEnv "baz" "key2" "value2")`
+	expCode = `(label "foo" (docker "a"))
+	(label "bar" (docker "a") (docker "b"))
+	(label "baz" (docker "a") (docker "a") (docker "b"))
+	(list)
+	(list)`
+	ctx = parseTest(t, code, expCode)
+	containerA = Container{
+		Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+		Env: map[string]string{"key1": "value1", "key2": "value2"}}
+	containerA.SetLabels([]string{"foo", "bar", "baz"})
+	containerB := Container{
+		Image: "b", Placement: Placement{make(map[[2]string]struct{})},
+		Env: map[string]string{"key1": "value1", "key2": "value2"}}
+	containerB.SetLabels([]string{"bar", "baz"})
+	expected = []*Container{&containerA, &containerB}
+	containerResult = Dsl{"", ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, containerResult, expected))
+	}
+
+	code = `(setEnv (list (docker "a")) "key" "value")`
+	expCode = `(list)`
+	ctx = parseTest(t, code, expCode)
+	containerA = Container{
+		Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+		Env: map[string]string{"key": "value"}}
+	expected = []*Container{&containerA}
 	containerResult = Dsl{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",

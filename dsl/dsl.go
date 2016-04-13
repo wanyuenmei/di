@@ -17,6 +17,7 @@ type Dsl struct {
 type Container struct {
 	Image   string
 	Command []string
+	Env     map[string]string
 
 	Placement
 	atomImpl
@@ -88,11 +89,16 @@ func (dsl Dsl) QueryContainers() []*Container {
 		for _, co := range c.command {
 			command = append(command, string(co.(astString)))
 		}
+		env := make(map[string]string)
+		for key, val := range c.env {
+			env[string(key.(astString))] = string(val.(astString))
+		}
 		containers = append(containers, &Container{
 			Image:     string(c.image),
 			Command:   command,
 			Placement: c.Placement,
 			atomImpl:  c.atomImpl,
+			Env:       env,
 		})
 	}
 	return containers

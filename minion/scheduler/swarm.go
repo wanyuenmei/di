@@ -90,6 +90,10 @@ func makeEnv(dbc db.Container) map[string]struct{} {
 			}
 		}
 	}
+	for key, value := range dbc.Env {
+		envStr := fmt.Sprintf("%s=%s", key, value)
+		env[envStr] = struct{}{}
+	}
 	return env
 }
 

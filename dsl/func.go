@@ -51,6 +51,7 @@ func init() {
 		"cpu":              {rangeTypeImpl("cpu"), 1, false},
 		"define":           {defineImpl, 2, true},
 		"docker":           {dockerImpl, 1, false},
+		"setEnv":           {setEnvImpl, 3, false},
 		"githubKey":        {githubKeyImpl, 1, false},
 		"hmap":             {hmapImpl, 0, true},
 		"hmapGet":          {hmapGetImpl, 2, false},
@@ -161,12 +162,42 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 		image:     astArgs[0].(astString),
 		command:   astList(astArgs[1:]),
 		Placement: Placement{make(map[[2]string]struct{})},
+		env:       astHmap(make(map[ast]ast)),
 	}
 
 	globalCtx := ctx.globalCtx()
 	*globalCtx.containers = append(*globalCtx.containers, newContainer)
 
 	return newContainer, nil
+}
+
+func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
+	for _, arg := range flatten([]ast{args[0]}) {
+		switch val := arg.(type) {
+		case astString:
+			labels, err := ctx.flattenLabel([]ast{val})
+			if err != nil {
+				return nil, err
+			}
+			for _, label := range labels {
+				for _, c := range label.elems {
+					c, ok := c.(*astContainer)
+					if !ok {
+						continue
+					}
+					c.env[args[1]] = args[2]
+				}
+			}
+		default:
+			c, ok := val.(*astContainer)
+			if !ok {
+				return nil, fmt.Errorf("unrecognized type to set"+
+					"environment variables: %s", arg)
+			}
+			c.env[args[1]] = args[2]
+		}
+	}
+	return astList(make([]ast, 0)), nil
 }
 
 func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {

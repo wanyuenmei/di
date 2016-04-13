@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/NetSys/di/util"
@@ -49,6 +50,7 @@ type Container struct {
 	Path  string
 	Args  []string
 	Pid   int
+	Env   map[string]string
 }
 
 // A Client to the local docker daemon.
@@ -322,6 +324,14 @@ func (dk docker) Get(id string) (Container, error) {
 		return Container{}, err
 	}
 
+	env := make(map[string]string)
+	for _, value := range c.Config.Env {
+		e := strings.Split(value, "=")
+		if len(e) > 1 {
+			env[e[0]] = e[1]
+		}
+	}
+
 	return Container{
 		Name:  c.Name,
 		ID:    c.ID,
@@ -330,6 +340,7 @@ func (dk docker) Get(id string) (Container, error) {
 		Path:  c.Path,
 		Args:  c.Args,
 		Pid:   c.State.Pid,
+		Env:   env,
 	}, nil
 }
 
@@ -345,10 +356,8 @@ func (dk docker) create(name, image string, args []string,
 	}
 
 	envList := make([]string, len(env))
-	i := 0
 	for k := range env {
-		envList[i] = k
-		i++
+		envList = append(envList, k)
 	}
 
 	container, err := dk.CreateContainer(dkc.CreateContainerOptions{

@@ -77,6 +77,12 @@ func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Contai
 		cmd2 := append([]string{dkc.Path}, dkc.Args...)
 		dbcCmd := dbc.Command
 
+		for key, value := range dbc.Env {
+			if dkc.Env[key] != value {
+				return -1
+			}
+		}
+
 		switch {
 		case dkc.Image != dbc.Image:
 			return -1

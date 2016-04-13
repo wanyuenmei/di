@@ -90,6 +90,13 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 			}
 		}
 
+		for k, v := range dbc.Env {
+			v2 := dslc.Env[k]
+			if v != v2 {
+				return -1
+			}
+		}
+
 		return score
 	}
 
@@ -116,6 +123,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
 		dbc.Placement.Exclusive = dslc.Placement.Exclusive
+		dbc.Env = dslc.Env
 		view.Commit(dbc)
 	}
 }
