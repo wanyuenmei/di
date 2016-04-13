@@ -4,28 +4,11 @@ import "fmt"
 
 type evalCtx struct {
 	binds       map[astIdent]ast
-	labels      map[string][]atom
+	labels      map[string]astLabel
 	connections map[Connection]struct{}
-	atoms       *[]atom
+	containers  *[]*astContainer
 
 	parent *evalCtx
-}
-
-type atom interface {
-	Labels() []string
-	SetLabels([]string)
-}
-
-type atomImpl struct {
-	labels []string
-}
-
-func (l *atomImpl) Labels() []string {
-	return l.labels
-}
-
-func (l *atomImpl) SetLabels(labels []string) {
-	l.labels = labels
 }
 
 func (ctx *evalCtx) globalCtx() *evalCtx {
@@ -50,7 +33,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 		binds:       bindsCopy,
 		labels:      ctx.labels,
 		connections: ctx.connections,
-		atoms:       ctx.atoms,
+		containers:  ctx.containers,
 		parent:      parentCopy,
 	}
 }
@@ -243,6 +226,18 @@ func (m astModule) eval(ctx *evalCtx) (ast, error) {
 	return astModule{moduleName: m.moduleName, body: res.(astList)}, nil
 }
 
+func (l astLabel) eval(ctx *evalCtx) (ast, error) {
+	return l, nil
+}
+
+func (m *astMachine) eval(ctx *evalCtx) (ast, error) {
+	return m, nil
+}
+
+func (c *astContainer) eval(ctx *evalCtx) (ast, error) {
+	return c, nil
+}
+
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {
@@ -259,7 +254,7 @@ func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 func newEvalCtx(parent *evalCtx) evalCtx {
 	return evalCtx{
 		make(map[astIdent]ast),
-		make(map[string][]atom),
+		make(map[string]astLabel),
 		make(map[Connection]struct{}),
-		&[]atom{}, parent}
+		&[]*astContainer{}, parent}
 }

@@ -7,6 +7,25 @@ import (
 	"text/scanner"
 )
 
+type atom interface {
+	Labels() []string
+	SetLabels([]string)
+
+	ast
+}
+
+type atomImpl struct {
+	labels []string
+}
+
+func (l *atomImpl) Labels() []string {
+	return l.labels
+}
+
+func (l *atomImpl) SetLabels(labels []string) {
+	l.labels = labels
+}
+
 /* An abstract syntax tree is the parsed representation of our specification language.
 * It can be transformed into its evaluated form my calling the eval() method. */
 type ast interface {
@@ -18,11 +37,6 @@ type astLambda struct {
 	argNames []astIdent
 	do       ast
 	ctx      *evalCtx // The evalCtx when the lambda was defined.
-}
-
-type astAtom struct {
-	astSexp
-	index int
 }
 
 type astRange struct {
@@ -38,6 +52,11 @@ type astHmap map[ast]ast /* A map after evaluation. */
 type astSexp struct {
 	sexp []ast
 	pos  scanner.Position
+}
+
+type astLabel struct {
+	ident astString
+	elems []atom
 }
 
 /* The top level is a list of abstract syntax trees, typically populated by define
@@ -65,6 +84,24 @@ type astPlaintextKey astString
 /* Machine configurations */
 type astSize astString
 type astProvider astString
+type astMachine struct {
+	provider astProvider
+	size     astSize
+	cpu      astRange
+	ram      astRange
+	sshKeys  []key
+
+	atomImpl
+}
+
+type astContainer struct {
+	image   astString
+	command astList
+
+	Placement
+
+	atomImpl
+}
 
 func (p astProvider) String() string {
 	return fmt.Sprintf("(provider %s)", astString(p).String())
@@ -153,6 +190,44 @@ func (l astLambda) String() string {
 		args = append(args, name)
 	}
 	return fmt.Sprintf("(lambda (%s) %s)", sliceStr(args, " "), l.do)
+}
+
+func (l astLabel) String() string {
+	var asts []ast
+	for _, elem := range l.elems {
+		asts = append(asts, ast(elem))
+	}
+	return fmt.Sprintf("(label %s %s)", l.ident, sliceStr(asts, " "))
+}
+
+func (m *astMachine) String() string {
+	var args []ast
+	if m.provider != "" {
+		args = append(args, m.provider)
+	}
+	if m.size != "" {
+		args = append(args, m.size)
+	}
+	if m.ram.ident != "" {
+		args = append(args, m.ram)
+	}
+	if m.cpu.ident != "" {
+		args = append(args, m.cpu)
+	}
+	for _, key := range m.sshKeys {
+		args = append(args, key)
+	}
+	if len(args) == 0 {
+		return "(machine)"
+	}
+	return fmt.Sprintf("(machine %s)", sliceStr(args, " "))
+}
+
+func (c *astContainer) String() string {
+	if len(c.command) == 0 {
+		return fmt.Sprintf("(docker %s)", c.image)
+	}
+	return fmt.Sprintf("(docker %s %s)", c.image, sliceStr(c.command, " "))
 }
 
 func sliceStr(asts []ast, sep string) string {

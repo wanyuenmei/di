@@ -376,7 +376,8 @@ func TestDocker(t *testing.T) {
 		&Container{Image: "a", Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "b", Placement: Placement{make(map[[2]string]struct{})}})
 	code = `(list (docker "a" "c") (docker "b" (list "d" "e" "f")))`
-	checkContainers(code, code,
+	exp = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
+	checkContainers(code, exp,
 		&Container{Image: "a", Command: []string{"c"}, Placement: Placement{make(map[[2]string]struct{})}},
 		&Container{Image: "b", Command: []string{"d", "e", "f"}, Placement: Placement{make(map[[2]string]struct{})}})
 
@@ -405,59 +406,59 @@ func TestMachines(t *testing.T) {
 	}
 
 	// Test no attributes
-	code := `(label "machines" (list (machine)))`
+	code := `(label "machines" (machine))`
 	expMachine := Machine{}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test specifying the provider
-	code = `(label "machines" (list (machine (provider "AmazonSpot"))))`
+	code = `(label "machines" (machine (provider "AmazonSpot")))`
 	expMachine = Machine{Provider: "AmazonSpot"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test making a list of machines
 	code = `(label "machines" (makeList 2 (machine (provider "AmazonSpot"))))`
-	expCode := `(label "machines" (list (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot"))))`
+	expCode := `(label "machines" (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot")))`
 	checkMachines(code, expCode, expMachine, expMachine)
 
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))`
 	checkMachines(code, code, expMachine)
 
 	// Test heterogenous sizes
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge"))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge")))`
 	expMachine2 := Machine{Provider: "AmazonSpot", Size: "m4.xlarge"}
 	expMachine2.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test heterogenous providers
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant"))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant")))`
 	expMachine2 = Machine{Provider: "Vagrant"}
 	expMachine2.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test cpu range (two args)
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (cpu 4 8))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (cpu 4 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4, Max: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test cpu range (one arg)
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (cpu 4))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (cpu 4)))`
 	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test ram range
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (ram 8 12))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (ram 8 12)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 8, Max: 12}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test float range
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (ram 0.5 2))))`
+	code = `(label "machines" (machine (provider "AmazonSpot") (ram 0.5 2)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 0.5, Max: 2}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
@@ -466,7 +467,7 @@ func TestMachines(t *testing.T) {
 	code = `(define large (list (ram 16) (cpu 8)))
 	(label "machines" (machine (provider "AmazonSpot") large))`
 	expCode = `(list)
-	(label "machines" (machine (provider "AmazonSpot") (list (ram 16) (cpu 8))))`
+	(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -488,41 +489,47 @@ func TestMachineAttribute(t *testing.T) {
 	// Test adding an attribute to an empty machine definition
 	code := `(label "machines" (list (machine)))
 	(machineAttribute "machines" (provider "AmazonSpot"))`
+	expCode := `(label "machines" (machine (provider "AmazonSpot")))
+	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expMachine := Machine{Provider: "AmazonSpot"}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
+	checkMachines(code, expCode, expMachine)
 
 	// Test adding an attribute to a machine that already has another attribute
 	code = `(label "machines" (list (machine (size "m4.large"))))
 	(machineAttribute "machines" (provider "AmazonSpot"))`
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
+	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
+	checkMachines(code, expCode, expMachine)
 
 	// Test adding two attributes
 	code = `(label "machines" (list (machine)))
 	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
+	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
+	checkMachines(code, expCode, expMachine)
 
 	// Test replacing an attribute
 	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))
 	(machineAttribute "machines" (size "m4.medium"))`
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
+	(machineAttribute "machines" (size "m4.medium"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
+	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes on a single machine (non-list)
 	code = `(label "machines" (machine (provider "AmazonSpot")))
 	(machineAttribute "machines" (size "m4.medium"))`
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
+	(machineAttribute "machines" (size "m4.medium"))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
-
-	// Test setting attributes on a bad label argument (non-string)
-	code = `(machineAttribute 1 (machine (provider "AmazonSpot")))`
-	runtimeErr(t, code, `1: machineAttribute key must be a string: 1`)
+	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes on a non-existent label
 	code = `(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
@@ -531,23 +538,23 @@ func TestMachineAttribute(t *testing.T) {
 	// Test setting attribute on a non-machine
 	code = `(label "badlabel" (docker "foo"))
 	(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
-	badLabel := Container{Image: "foo"}
-	badLabel.SetLabels([]string{"badlabel"})
-	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: %s`, &badLabel))
+	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
 
 	// Test setting range attributes
 	code = `(label "machines" (machine (provider "AmazonSpot")))
 	(machineAttribute "machines" (ram 1))`
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 1)))
+	(machineAttribute "machines" (ram 1))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
 	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, code, expMachine)
+	checkMachines(code, expCode, expMachine)
 
 	// Test setting using a named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
 	(label "machines" (machine (provider "AmazonSpot")))
 	(machineAttribute "machines" large)`
-	expCode := `(list)
-	(label "machines" (machine (provider "AmazonSpot")))
+	expCode = `(list)
+	(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
 	(machineAttribute "machines" (list (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
@@ -557,7 +564,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (machine (provider "AmazonSpot")))
 	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
 	(makeLarge "machines")`
-	expCode = `(label "machines" (machine (provider "AmazonSpot")))
+	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
 	(list)
 	(machineAttribute "machines" (ram 16) (cpu 8))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
@@ -595,11 +602,16 @@ func TestKeys(t *testing.T) {
 
 func TestLabel(t *testing.T) {
 	code := `(label "foo" (docker "a"))
-(label "bar" "foo" (docker "b"))
-(label "baz" "foo" "bar")
-(label "baz2" "baz")
-(label "qux" (docker "c"))`
-	ctx := parseTest(t, code, code)
+	(label "bar" "foo" (docker "b"))
+	(label "baz" "foo" "bar")
+	(label "baz2" "baz")
+	(label "qux" (docker "c"))`
+	expCode := `(label "foo" (docker "a"))
+	(label "bar" (docker "a") (docker "b"))
+	(label "baz" (docker "a") (docker "a") (docker "b"))
+	(label "baz2" (docker "a") (docker "a") (docker "b"))
+	(label "qux" (docker "c"))`
+	ctx := parseTest(t, code, expCode)
 
 	containerA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
 	containerA.SetLabels([]string{"foo", "bar", "baz", "baz2"})
@@ -616,8 +628,8 @@ func TestLabel(t *testing.T) {
 
 	code = `(label "foo" (makeList 2 (docker "a")))` +
 		"\n(label \"bar\" \"foo\")"
-	exp := `(label "foo" (list (docker "a") (docker "a")))` +
-		"\n(label \"bar\" \"foo\")"
+	exp := `(label "foo" (docker "a") (docker "a"))
+	(label "bar" (docker "a") (docker "a"))`
 	ctx = parseTest(t, code, exp)
 	expectedA := &Container{Image: "a", Command: nil, Placement: Placement{make(map[[2]string]struct{})}}
 	expectedA.SetLabels([]string{"foo", "bar"})
@@ -626,6 +638,24 @@ func TestLabel(t *testing.T) {
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, containerResult, expected))
+	}
+
+	// Test referring to a label directly
+	code = `(define myMachines (label "machines" (machine)))
+	(machineAttribute myMachines (provider "AmazonSpot"))`
+	exp = `(list)
+	(machineAttribute (label "machines" (machine (provider "AmazonSpot"))) (provider "AmazonSpot"))`
+	ctx = parseTest(t, code, exp)
+	expMachines := []Machine{
+		{
+			Provider: "AmazonSpot",
+			atomImpl: atomImpl{[]string{"machines"}},
+		},
+	}
+	machineResult := Dsl{"", ctx}.QueryMachineSlice("machines")
+	if !reflect.DeepEqual(machineResult, expMachines) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult: %v\nexpected: %v",
+			code, machineResult, expMachines))
 	}
 
 	runtimeErr(t, `(label 1 2)`, "1: label must be a string, found: 1")
@@ -639,10 +669,14 @@ func TestLabel(t *testing.T) {
 func TestPlacement(t *testing.T) {
 	// Normal
 	code := `(label "red" (docker "a"))
-(label "blue" (docker "b"))
-(label "yellow" (docker "c"))
-(placement "exclusive" "red" "blue" "yellow")`
-	ctx := parseTest(t, code, code)
+	(label "blue" (docker "b"))
+	(label "yellow" (docker "c"))
+	(placement "exclusive" "red" "blue" "yellow")`
+	expCode := `(label "red" (docker "a"))
+	(label "blue" (docker "b"))
+	(label "yellow" (docker "c"))
+	(placement "exclusive" "red" "blue" "yellow")`
+	ctx := parseTest(t, code, expCode)
 	containerA := Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"blue", "red"}:    {},
@@ -673,10 +707,14 @@ func TestPlacement(t *testing.T) {
 
 	// All on one
 	code = `(label "red" (docker "a"))
-(label "blue" "red")
-(label "yellow" "red")
-(placement "exclusive" "red" (list "blue" "yellow"))`
-	ctx = parseTest(t, code, code)
+	(label "blue" "red")
+	(label "yellow" "red")
+	(placement "exclusive" "red" (list "blue" "yellow"))`
+	expCode = `(label "red" (docker "a"))
+	(label "blue" (docker "a"))
+	(label "yellow" (docker "a"))
+	(placement "exclusive" "red" (list "blue" "yellow"))`
+	ctx = parseTest(t, code, expCode)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
 			[2]string{"blue", "red"}:    {},
@@ -693,7 +731,7 @@ func TestPlacement(t *testing.T) {
 
 	// Duplicates
 	code = `(label "red" (docker "a"))
-(placement "exclusive" "red" "red" "red")`
+	(placement "exclusive" "red" "red" "red")`
 	ctx = parseTest(t, code, code)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
@@ -709,9 +747,9 @@ func TestPlacement(t *testing.T) {
 
 	// Unrelated definitions
 	code = `(label "red" (docker "a"))
-(placement "exclusive" "red" "red")
-(label "blue" (docker "b"))
-(placement "exclusive" "blue" "blue")`
+	(placement "exclusive" "red" "red")
+	(label "blue" (docker "b"))
+	(placement "exclusive" "blue" "blue")`
 	ctx = parseTest(t, code, code)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
@@ -733,21 +771,23 @@ func TestPlacement(t *testing.T) {
 
 func TestConnect(t *testing.T) {
 	code := `(progn
-(label "a" (docker "alpine"))
-(label "b" (docker "alpine"))
-(label "c" (docker "alpine"))
-(label "d" (docker "alpine"))
-(label "e" (docker "alpine"))
-(label "f" (docker "alpine"))
-(label "g" (docker "alpine"))
-(label "h" (docker "alpine"))
-(connect 80 "a" "b")
-(connect 80 "a" "b" "c")
-(connect (list 1 65534) "b" "c")
-(connect (list 0 65535) "a" "c")
-(connect 443 "c" "d" "e" "f")
-((lambda () (connect 80 "h" "h")))
-(connect (list 100 65535) "g" "g"))`
+	(label "a" (docker "alpine"))
+	(label "b" (docker "alpine"))
+	(label "c" (docker "alpine"))
+	(label "d" (docker "alpine"))
+	(label "e" (docker "alpine"))
+	(label "f" (docker "alpine"))
+	(label "g" (docker "alpine"))
+	(label "h" (docker "alpine"))
+	(connect 80 "a" "b")
+	(connect 80 "a" "b" "c")
+	(connect (list 1 65534) "b" "c")
+	(connect (list 0 65535) "a" "c")
+	(connect 443 "c" "d" "e" "f")
+	((lambda () (connect 80 "h" "h")))
+	(let ((i (label "i" (docker "alpine"))))
+	  (connect 80  i i))
+	(connect (list 100 65535) "g" "g"))`
 	ctx := parseTest(t, code, `(list)`)
 
 	expected := map[Connection]struct{}{
@@ -760,6 +800,7 @@ func TestConnect(t *testing.T) {
 		{"c", "f", 443, 443}:   {},
 		{"h", "h", 80, 80}:     {},
 		{"g", "g", 100, 65535}: {},
+		{"i", "i", 80, 80}:     {},
 	}
 
 	for exp := range expected {
@@ -788,8 +829,8 @@ func TestConnect(t *testing.T) {
 		"1: port range must be an int or a list of ints: \"80\"")
 	runtimeErr(t, `(connect (list "a" "b") "foo" "bar")`,
 		"1: port range must have two ints: (list \"a\" \"b\")")
-	runtimeErr(t, `(connect 80 4 5)`, "1: expected string, found: 4")
-	runtimeErr(t, `(connect 80 "foo" "foo")`, "1: connect undefined label: \"foo\"")
+	runtimeErr(t, `(connect 80 4 5)`, "1: expected label, found: 4")
+	runtimeErr(t, `(connect 80 "foo" "foo")`, "1: expected label, found: \"foo\"")
 }
 
 func TestImport(t *testing.T) {
@@ -876,7 +917,7 @@ func TestImport(t *testing.T) {
 
 	// Test that non-capitalized labels are not exported
 	runtimeErr(t, `(module "A" (label "a-container" (docker "A")))
-(connect 80 "A.a-container" "A.a-container")`, `2: connect undefined label: "A.a-container"`)
+	(connect 80 "A.a-container" "A.a-container")`, `2: expected label, found: "A.a-container"`)
 
 	// Test that capitalized labels are properly exported
 	code = `(module "machines" (label "AmazonMachine" (machine (provider "AmazonSpot"))))`

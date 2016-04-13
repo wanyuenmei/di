@@ -129,17 +129,21 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 		return nil, err
 	}
 
-	var command []string
-	if len(args) > 1 {
-		command = args[1:]
+	var astArgs []ast
+	for _, arg := range args {
+		astArgs = append(astArgs, astString(arg))
 	}
 
-	container := &Container{
-		Image: args[0], Command: command,
+	newContainer := &astContainer{
+		image:     astArgs[0].(astString),
+		command:   astList(astArgs[1:]),
 		Placement: Placement{make(map[[2]string]struct{})},
 	}
 
-	return astAtom{astFunc(astIdent("docker"), evalArgs), addAtom(ctx, container)}, nil
+	globalCtx := ctx.globalCtx()
+	*globalCtx.containers = append(*globalCtx.containers, newContainer)
+
+	return newContainer, nil
 }
 
 func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -165,7 +169,7 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	ptype := string(str)
 
-	labels, err := flattenString(args[1:])
+	labels, err := ctx.flattenLabel(args[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -176,11 +180,13 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	parsedLabels := make(map[[2]string]struct{})
 	for i := 0; i < len(labels)-1; i++ {
+		labelNameI := string(labels[i].ident)
 		for j := i + 1; j < len(labels); j++ {
-			if labels[i] < labels[j] {
-				parsedLabels[[2]string{labels[i], labels[j]}] = struct{}{}
+			labelNameJ := string(labels[j].ident)
+			if labelNameI < labelNameJ {
+				parsedLabels[[2]string{labelNameI, labelNameJ}] = struct{}{}
 			} else {
-				parsedLabels[[2]string{labels[j], labels[i]}] = struct{}{}
+				parsedLabels[[2]string{labelNameJ, labelNameI}] = struct{}{}
 			}
 		}
 	}
@@ -188,8 +194,8 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 	switch ptype {
 	case "exclusive":
 		for _, label := range labels {
-			for _, c := range ctx.globalCtx().labels[label] {
-				c, ok := c.(*Container)
+			for _, c := range label.elems {
+				c, ok := c.(*astContainer)
 				if !ok {
 					return nil, fmt.Errorf("placement labels must contain containers: %s", label)
 				}
@@ -205,29 +211,24 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astFunc(astIdent("placement"), args), nil
 }
 
-func setMachineAttributes(machine *Machine, args []ast) error {
+func setMachineAttributes(machine *astMachine, args []ast) error {
 	for _, arg := range flatten(args) {
 		switch val := arg.(type) {
 		case astProvider:
-			machine.Provider = string(val)
+			machine.provider = val
 		case astSize:
-			machine.Size = string(val)
+			machine.size = val
 		case astRange:
-			dslr := Range{Min: float64(val.min), Max: float64(val.max)}
 			switch string(val.ident) {
 			case "ram":
-				machine.RAM = dslr
+				machine.ram = val
 			case "cpu":
-				machine.CPU = dslr
+				machine.cpu = val
 			default:
 				return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
 			}
 		case key:
-			keys, err := val.keys()
-			if err != nil {
-				return err
-			}
-			machine.SSHKeys = append(machine.SSHKeys, keys...)
+			machine.sshKeys = append(machine.sshKeys, val)
 		default:
 			return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
 		}
@@ -236,28 +237,23 @@ func setMachineAttributes(machine *Machine, args []ast) error {
 }
 
 func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
-	machine := &Machine{}
+	machine := &astMachine{}
 	err := setMachineAttributes(machine, args)
 	if err != nil {
 		return nil, err
 	}
 
-	return astAtom{astFunc(astIdent("machine"), args), addAtom(ctx, machine)}, nil
+	return machine, nil
 }
 
 func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
-	key, ok := args[0].(astString)
+	target, ok := ctx.resolveLabel(args[0])
 	if !ok {
-		return nil, fmt.Errorf("machineAttribute key must be a string: %s", args[0])
+		return nil, fmt.Errorf("machineAttribute key not defined: %s", args[0])
 	}
 
-	target, ok := ctx.globalCtx().labels[string(key)]
-	if !ok {
-		return nil, fmt.Errorf("machineAttribute key not defined: %s", key)
-	}
-
-	for _, val := range target {
-		machine, ok := val.(*Machine)
+	for _, val := range target.elems {
+		machine, ok := val.(*astMachine)
 		if !ok {
 			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", val)
 		}
@@ -336,27 +332,21 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
 	}
 
-	fromLabels, err := flattenString([]ast{args[1]})
+	fromLabels, err := ctx.flattenLabel([]ast{args[1]})
 	if err != nil {
 		return nil, err
 	}
 
-	toLabels, err := flattenString(args[2:])
+	toLabels, err := ctx.flattenLabel(args[2:])
 	if err != nil {
 		return nil, err
-	}
-
-	for _, label := range append(fromLabels, toLabels...) {
-		if _, ok := ctx.globalCtx().labels[string(label)]; !ok {
-			return nil, fmt.Errorf("connect undefined label: \"%v\"", label)
-		}
 	}
 
 	for _, from := range fromLabels {
 		for _, to := range toLabels {
 			cn := Connection{
-				From:    from,
-				To:      to,
+				From:    string(from.ident),
+				To:      string(to.ident),
 				MinPort: min,
 				MaxPort: max,
 			}
@@ -377,23 +367,22 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 		log.Error("Labels must be lowercase, sorry! https://github.com/docker/swarm/issues/1795")
 	}
 
-	globalCtx := ctx.globalCtx()
-	if _, ok := globalCtx.labels[label]; ok {
+	if _, ok := ctx.resolveLabel(str); ok {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)
 	}
 
 	var atoms []atom
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
-		case astAtom:
-			atoms = append(atoms, (*globalCtx.atoms)[t.index])
-		case astString:
-			children, ok := globalCtx.labels[string(t)]
+		case atom:
+			atoms = append(atoms, t)
+		case astString, astLabel:
+			l, ok := ctx.resolveLabel(t)
 			if !ok {
 				return nil, fmt.Errorf("undefined label: %s", t)
 			}
 
-			for _, c := range children {
+			for _, c := range l.elems {
 				atoms = append(atoms, c)
 			}
 		default:
@@ -414,9 +403,10 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 		a.SetLabels(append(labels, label))
 	}
 
-	globalCtx.labels[label] = atoms
+	newLabel := astLabel{ident: astString(label), elems: atoms}
+	ctx.globalCtx().labels[label] = newLabel
 
-	return astFunc(astIdent("label"), args), nil
+	return newLabel, nil
 }
 
 func listImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -924,19 +914,34 @@ func flattenString(lst []ast) ([]string, error) {
 	return strings, nil
 }
 
+func (ctx evalCtx) flattenLabel(lst []ast) ([]astLabel, error) {
+	var labels []astLabel
+	for _, elem := range flatten(lst) {
+		label, ok := ctx.resolveLabel(elem)
+		if !ok {
+			return nil, fmt.Errorf("expected label, found: %v", elem)
+		}
+		labels = append(labels, label)
+	}
+
+	return labels, nil
+}
+
 func astFunc(ident astIdent, args []ast) astSexp {
 	return astSexp{sexp: append([]ast{ident}, args...)}
 }
 
-// addAtom adds `a` to the global context. We have to place all atoms into
-// the same context because we extract them according to their index within
-// the atoms list.
-// If we didn't use the global scope, then if we created an atom (index 0) in one context,
-// and then created another atom (also index 0) in a lambda function, and then tried to reference
-// the first atom, we would actually retrieve the second one because of the indexing
-// conflict.
-func addAtom(ctx *evalCtx, a atom) int {
-	globalCtx := ctx.globalCtx()
-	*globalCtx.atoms = append(*globalCtx.atoms, a)
-	return len(*globalCtx.atoms) - 1
+func (ctx evalCtx) resolveLabel(labelRef ast) (astLabel, bool) {
+	switch val := labelRef.(type) {
+	case astString:
+		if label, ok := ctx.labels[string(val)]; ok {
+			return label, true
+		}
+	case astLabel:
+		return val, true
+	}
+	if ctx.parent != nil {
+		return ctx.parent.resolveLabel(labelRef)
+	}
+	return astLabel{}, false
 }

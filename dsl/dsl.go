@@ -82,31 +82,69 @@ func New(sc scanner.Scanner, path []string) (Dsl, error) {
 // QueryContainers retreives all containers declared in dsl.
 func (dsl Dsl) QueryContainers() []*Container {
 	var containers []*Container
-	for _, atom := range *dsl.ctx.atoms {
-		switch atom.(type) {
-		case *Container:
-			containers = append(containers, atom.(*Container))
+	for _, c := range *dsl.ctx.containers {
+		var command []string
+		for _, co := range c.command {
+			command = append(command, string(co.(astString)))
 		}
+		containers = append(containers, &Container{
+			Image:     string(c.image),
+			Command:   command,
+			Placement: c.Placement,
+			atomImpl:  c.atomImpl,
+		})
 	}
 	return containers
 }
 
+func parseKeys(rawKeys []key) []string {
+	var keys []string
+	for _, val := range rawKeys {
+		key, ok := val.(key)
+		if !ok {
+			log.Warnf("%s: Requested []key, found %s", key, val)
+			continue
+		}
+
+		parsedKeys, err := key.keys()
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+				"key":   key,
+			}).Warning("Failed to retrieve key.")
+			continue
+		}
+
+		keys = append(keys, parsedKeys...)
+	}
+
+	return keys
+}
+
 // QueryMachineSlice returns the machines associated with a label.
 func (dsl Dsl) QueryMachineSlice(key string) []Machine {
-	result, ok := dsl.ctx.labels[key]
+	label, ok := dsl.ctx.labels[key]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return nil
 	}
+	result := label.elems
 
 	var machines []Machine
 	for _, val := range result {
-		machine, ok := val.(*Machine)
+		machineAst, ok := val.(*astMachine)
 		if !ok {
 			log.Warnf("%s: Requested []machine, found %s", key, val)
 			return nil
 		}
-		machines = append(machines, *machine)
+		machines = append(machines, Machine{
+			Provider: string(machineAst.provider),
+			Size:     string(machineAst.size),
+			RAM:      Range{Min: float64(machineAst.ram.min), Max: float64(machineAst.ram.max)},
+			CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
+			SSHKeys:  parseKeys(machineAst.sshKeys),
+			atomImpl: machineAst.atomImpl,
+		})
 	}
 
 	return machines
