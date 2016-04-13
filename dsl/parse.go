@@ -8,7 +8,7 @@ import (
 	"text/scanner"
 )
 
-var errUnbalancedParens = "unbalanced Parenthesis"
+var errUnbalancedParens = errors.New("unbalanced Parenthesis")
 
 func parse(s scanner.Scanner) ([]ast, error) {
 	scanErrors := []string{}
@@ -50,7 +50,7 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 				s.Next()
 				ident += "."
 				if s.Scan() != scanner.Ident {
-					return nil, dslError{pos: s.Pos(), err: fmt.Sprintf("bad ident name: %s", ident)}
+					return nil, dslError{pos: s.Pos(), err: fmt.Errorf("bad ident name: %s", ident)}
 				}
 				ident += s.TokenText()
 			}
@@ -87,7 +87,7 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 			return slice, nil
 
 		default:
-			return nil, dslError{s.Pos(), fmt.Sprintf("bad element: %s", s.TokenText())}
+			return nil, dslError{s.Pos(), fmt.Errorf("bad element: %s", s.TokenText())}
 		}
 	}
 }

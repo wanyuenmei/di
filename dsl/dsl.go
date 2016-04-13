@@ -255,14 +255,51 @@ func (dsl Dsl) String() string {
 	return dsl.code
 }
 
+// When an error occurs within a generated S-expression, the position field
+// doesn't get set. To circumvent this, we store a traceback of positions, and
+// use the innermost defined position to generate our error message.
+
+// For example, our error trace may look like this:
+// Line 5		 : Function call failed
+// Line 6		 : Apply failed
+// Undefined line: `a` undefined.
+
+// By using the innermost defined position, and the innermost error message,
+// our error message is "Line 6: `a` undefined", instead of
+// "Undefined line: `a` undefined.
 type dslError struct {
 	pos scanner.Position
-	err string
+	err error
 }
 
-func (err dslError) Error() string {
-	if err.pos.Filename == "" {
-		return fmt.Sprintf("%d: %s", err.pos.Line, err.err)
+func (dslErr dslError) Error() string {
+	pos := dslErr.innermostPos()
+	err := dslErr.innermostError()
+	if pos.Filename == "" {
+		return fmt.Sprintf("%d: %s", pos.Line, err)
 	}
-	return fmt.Sprintf("%s:%d: %s", err.pos.Filename, err.pos.Line, err.err)
+	return fmt.Sprintf("%s:%d: %s", pos.Filename, pos.Line, err)
+}
+
+// innermostPos returns the most nested position that is non-zero.
+func (err dslError) innermostPos() scanner.Position {
+	childErr, ok := err.err.(dslError)
+	if !ok {
+		return err.pos
+	}
+
+	innerPos := childErr.innermostPos()
+	if innerPos.Line == 0 {
+		return err.pos
+	}
+	return innerPos
+}
+
+func (err dslError) innermostError() error {
+	switch childErr := err.err.(type) {
+	case dslError:
+		return childErr.innermostError()
+	default:
+		return childErr
+	}
 }

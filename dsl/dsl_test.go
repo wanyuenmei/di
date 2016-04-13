@@ -1012,6 +1012,11 @@ func TestErrorMetadata(t *testing.T) {
 (define a "1")
 (+ 1 a)`), 0644)
 	checkEvalErr("bad_type.spec", `bad_type.spec:3: bad arithmetic argument: "1"`)
+
+	// Test that functions which evaluate generated S-expressions still have proper
+	// error messages.
+	util.WriteFile("generated_sexp.spec", []byte(`(apply + (list 1 "1"))`), 0644)
+	checkEvalErr("generated_sexp.spec", `generated_sexp.spec:1: bad arithmetic argument: "1"`)
 }
 
 func TestQuery(t *testing.T) {
