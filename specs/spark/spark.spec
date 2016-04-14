@@ -3,14 +3,12 @@
 
 (define sparkWorkerCount 3)
 
-(label "masters" (machine (role "Master")))
-(label "workers" (makeList (+ 1 sparkWorkerCount) (machine (role "Worker"))))
-(label "all-machines" "masters" "workers")
-
-(machineAttribute "all-machines"
+(let ((masters (machine (role "Master")))
+      (workers (makeList (+ 1 sparkWorkerCount) (machine (role "Worker")))))
+  (machineAttribute (list masters workers)
         (provider "AmazonSpot")
         (size "m4.large")
-        (githubKey "ejj"))
+        (githubKey "ejj")))
 
 (label "spark-master"
     (docker "quay.io/netsys/spark" "di-start-master.sh"))

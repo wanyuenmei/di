@@ -408,7 +408,7 @@ func TestDocker(t *testing.T) {
 func TestMachines(t *testing.T) {
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Dsl{"", ctx}.QueryMachineSlice("machines")
+		machineResult := Dsl{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
@@ -416,70 +416,60 @@ func TestMachines(t *testing.T) {
 	}
 
 	// Test no attributes
-	code := `(label "machines" (machine))`
+	code := `(machine)`
 	expMachine := Machine{}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test specifying the provider
-	code = `(label "machines" (machine (provider "AmazonSpot")))`
+	code = `(machine (provider "AmazonSpot"))`
 	expMachine = Machine{Provider: "AmazonSpot"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test making a list of machines
-	code = `(label "machines" (makeList 2 (machine (provider "AmazonSpot"))))`
-	expCode := `(label "machines" (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot")))`
+	code = `(makeList 2 (machine (provider "AmazonSpot")))`
+	expCode := `(list (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot")))`
 	checkMachines(code, expCode, expMachine, expMachine)
 
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
-	expMachine.SetLabels([]string{"machines"})
-	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))`
+	code = `(machine (provider "AmazonSpot") (size "m4.large"))`
 	checkMachines(code, code, expMachine)
 
 	// Test heterogenous sizes
-	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge")))`
+	code = `(machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge"))`
 	expMachine2 := Machine{Provider: "AmazonSpot", Size: "m4.xlarge"}
-	expMachine2.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test heterogenous providers
-	code = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant")))`
+	code = `(machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant"))`
 	expMachine2 = Machine{Provider: "Vagrant"}
-	expMachine2.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test cpu range (two args)
-	code = `(label "machines" (machine (provider "AmazonSpot") (cpu 4 8)))`
+	code = `(machine (provider "AmazonSpot") (cpu 4 8))`
 	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4, Max: 8}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test cpu range (one arg)
-	code = `(label "machines" (machine (provider "AmazonSpot") (cpu 4)))`
+	code = `(machine (provider "AmazonSpot") (cpu 4))`
 	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test ram range
-	code = `(label "machines" (machine (provider "AmazonSpot") (ram 8 12)))`
+	code = `(machine (provider "AmazonSpot") (ram 8 12))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 8, Max: 12}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test float range
-	code = `(label "machines" (machine (provider "AmazonSpot") (ram 0.5 2)))`
+	code = `(machine (provider "AmazonSpot") (ram 0.5 2))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 0.5, Max: 2}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-	(label "machines" (machine (provider "AmazonSpot") large))`
+	(machine (provider "AmazonSpot") large)`
 	expCode = `(list)
-	(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
+	(machine (provider "AmazonSpot") (ram 16) (cpu 8))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test invalid attribute type
@@ -489,7 +479,7 @@ func TestMachines(t *testing.T) {
 func TestMachineAttribute(t *testing.T) {
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Dsl{"", ctx}.QueryMachineSlice("machines")
+		machineResult := Dsl{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
@@ -497,88 +487,76 @@ func TestMachineAttribute(t *testing.T) {
 	}
 
 	// Test adding an attribute to an empty machine definition
-	code := `(label "machines" (list (machine)))
-	(machineAttribute "machines" (provider "AmazonSpot"))`
-	expCode := `(label "machines" (machine (provider "AmazonSpot")))
+	code := `(define machines (list (machine)))
+	(machineAttribute machines (provider "AmazonSpot"))`
+	expCode := `(list)
 	(list (machine (provider "AmazonSpot")))`
 	expMachine := Machine{Provider: "AmazonSpot"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test adding an attribute to a machine that already has another attribute
-	code = `(label "machines" (list (machine (size "m4.large"))))
-	(machineAttribute "machines" (provider "AmazonSpot"))`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
+	code = `(define machines (list (machine (size "m4.large"))))
+	(machineAttribute machines (provider "AmazonSpot"))`
+	expCode = `(list)
 	(list (machine (provider "AmazonSpot") (size "m4.large")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test adding two attributes
-	code = `(label "machines" (list (machine)))
-	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
+	code = `(define machines (list (machine)))
+	(machineAttribute machines (provider "AmazonSpot") (size "m4.large"))`
+	expCode = `(list)
 	(list (machine (provider "AmazonSpot") (size "m4.large")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test replacing an attribute
-	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))
-	(machineAttribute "machines" (size "m4.medium"))`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
+	code = `(define machines (list (machine (provider "AmazonSpot") (size "m4.large"))))
+	(machineAttribute machines (size "m4.medium"))`
+	expCode = `(list)
 	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes on a single machine (non-list)
-	code = `(label "machines" (machine (provider "AmazonSpot")))
-	(machineAttribute "machines" (size "m4.medium"))`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
+	code = `(define machines (machine (provider "AmazonSpot")))
+	(machineAttribute machines (size "m4.medium"))`
+	expCode = `(list)
 	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
-	// Test setting attributes on a non-existent label
-	code = `(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
-	runtimeErr(t, code, `1: machineAttribute key not defined: "badlabel"`)
-
 	// Test setting attribute on a non-machine
-	code = `(label "badlabel" (docker "foo"))
-	(machineAttribute "badlabel" (machine (provider "AmazonSpot")))`
+	code = `(define badMachine (docker "foo"))
+	(machineAttribute badMachine (machine (provider "AmazonSpot")))`
 	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
 
 	// Test setting range attributes
-	code = `(label "machines" (machine (provider "AmazonSpot")))
-	(machineAttribute "machines" (ram 1))`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 1)))
+	code = `(define machines (machine (provider "AmazonSpot")))
+	(machineAttribute machines (ram 1))`
+	expCode = `(list)
 	(list (machine (provider "AmazonSpot") (ram 1)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting using a named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-	(label "machines" (machine (provider "AmazonSpot")))
-	(machineAttribute "machines" large)`
+	(define machines (machine (provider "AmazonSpot")))
+	(machineAttribute machines large)`
 	expCode = `(list)
-	(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
-	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
-	expMachine.SetLabels([]string{"machines"})
-	checkMachines(code, expCode, expMachine)
-
-	// Test setting attributes from within a lambda
-	code = `(label "machines" (machine (provider "AmazonSpot")))
-	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
-	(makeLarge "machines")`
-	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
 	(list)
 	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
-	expMachine.SetLabels([]string{"machines"})
+	checkMachines(code, expCode, expMachine)
+
+	// Test setting attributes from within a lambda
+	code = `(define machines (machine (provider "AmazonSpot")))
+	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
+	(makeLarge machines)`
+	expCode = `(list)
+	(list)
+	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
+	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	checkMachines(code, expCode, expMachine)
 }
 
@@ -651,7 +629,7 @@ func TestLabel(t *testing.T) {
 	}
 
 	// Test referring to a label directly
-	code = `(define myMachines (label "machines" (machine)))
+	code = `(define myMachines (machine))
 	(machineAttribute myMachines (provider "AmazonSpot"))`
 	exp = `(list)
 	(list (machine (provider "AmazonSpot")))`
@@ -659,10 +637,9 @@ func TestLabel(t *testing.T) {
 	expMachines := []Machine{
 		{
 			Provider: "AmazonSpot",
-			atomImpl: atomImpl{[]string{"machines"}},
 		},
 	}
-	machineResult := Dsl{"", ctx}.QueryMachineSlice("machines")
+	machineResult := Dsl{"", ctx}.QueryMachines()
 	if !reflect.DeepEqual(machineResult, expMachines) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %v\nexpected: %v",
 			code, machineResult, expMachines))

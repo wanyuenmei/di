@@ -254,16 +254,13 @@ func machineImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
-	target, ok := ctx.resolveLabel(args[0])
-	if !ok {
-		return nil, fmt.Errorf("machineAttribute key not defined: %s", args[0])
-	}
+	list := flatten([]ast{args[0]})
 
 	var processedMachines []ast
-	for _, val := range target.elems {
-		machine, ok := val.(*astMachine)
+	for _, m := range list {
+		machine, ok := m.(*astMachine)
 		if !ok {
-			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", val)
+			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", m)
 		}
 		err := setMachineAttributes(machine, args[1:])
 		if err != nil {

@@ -1,10 +1,9 @@
 (define Namespace "CHANGE_ME")
 (define AdminACL (list "local"))
 
-(label "masters" (machine (role "Master")))
-(label "workers" (makeList 3 (machine (role "Worker"))))
-(label "all-machines" "masters" "workers")
-(machineAttribute "all-machines" (provider "AmazonSpot") (size "m4.large") (githubKey "ejj"))
+(let ((masters (machine (role "Master")))
+      (workers (makeList 3 (machine (role "Worker")))))
+  (machineAttribute (list masters workers) (provider "AmazonSpot") (size "m4.large") (githubKey "ejj")))
 
 // XXX: Once we have lambda this could be simplified with a map and a range
 (let ((image "quay.io/netsys/zookeeper")
