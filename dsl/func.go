@@ -253,6 +253,7 @@ func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("machineAttribute key not defined: %s", args[0])
 	}
 
+	var processedMachines []ast
 	for _, val := range target.elems {
 		machine, ok := val.(*astMachine)
 		if !ok {
@@ -262,9 +263,10 @@ func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
 		if err != nil {
 			return nil, err
 		}
+		processedMachines = append(processedMachines, machine)
 	}
 
-	return astFunc(astIdent("machineAttribute"), args), nil
+	return astList(processedMachines), nil
 }
 
 func providerImpl(ctx *evalCtx, args []ast) (ast, error) {

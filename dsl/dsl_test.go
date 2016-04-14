@@ -500,7 +500,7 @@ func TestMachineAttribute(t *testing.T) {
 	code := `(label "machines" (list (machine)))
 	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expCode := `(label "machines" (machine (provider "AmazonSpot")))
-	(machineAttribute "machines" (provider "AmazonSpot"))`
+	(list (machine (provider "AmazonSpot")))`
 	expMachine := Machine{Provider: "AmazonSpot"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -509,7 +509,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (list (machine (size "m4.large"))))
 	(machineAttribute "machines" (provider "AmazonSpot"))`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
-	(machineAttribute "machines" (provider "AmazonSpot"))`
+	(list (machine (provider "AmazonSpot") (size "m4.large")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -518,7 +518,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (list (machine)))
 	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.large")))
-	(machineAttribute "machines" (provider "AmazonSpot") (size "m4.large"))`
+	(list (machine (provider "AmazonSpot") (size "m4.large")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -527,7 +527,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (list (machine (provider "AmazonSpot") (size "m4.large"))))
 	(machineAttribute "machines" (size "m4.medium"))`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
-	(machineAttribute "machines" (size "m4.medium"))`
+	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -536,7 +536,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (machine (provider "AmazonSpot")))
 	(machineAttribute "machines" (size "m4.medium"))`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (size "m4.medium")))
-	(machineAttribute "machines" (size "m4.medium"))`
+	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
 	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -554,7 +554,7 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(label "machines" (machine (provider "AmazonSpot")))
 	(machineAttribute "machines" (ram 1))`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 1)))
-	(machineAttribute "machines" (ram 1))`
+	(list (machine (provider "AmazonSpot") (ram 1)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -565,7 +565,7 @@ func TestMachineAttribute(t *testing.T) {
 	(machineAttribute "machines" large)`
 	expCode = `(list)
 	(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
-	(machineAttribute "machines" (list (ram 16) (cpu 8)))`
+	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -576,7 +576,7 @@ func TestMachineAttribute(t *testing.T) {
 	(makeLarge "machines")`
 	expCode = `(label "machines" (machine (provider "AmazonSpot") (ram 16) (cpu 8)))
 	(list)
-	(machineAttribute "machines" (ram 16) (cpu 8))`
+	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
 	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, expCode, expMachine)
@@ -654,7 +654,7 @@ func TestLabel(t *testing.T) {
 	code = `(define myMachines (label "machines" (machine)))
 	(machineAttribute myMachines (provider "AmazonSpot"))`
 	exp = `(list)
-	(machineAttribute (label "machines" (machine (provider "AmazonSpot"))) (provider "AmazonSpot"))`
+	(list (machine (provider "AmazonSpot")))`
 	ctx = parseTest(t, code, exp)
 	expMachines := []Machine{
 		{
