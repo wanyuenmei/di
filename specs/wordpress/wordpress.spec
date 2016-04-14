@@ -1,11 +1,16 @@
+(import "machines")
+
 (define Namespace "nlsun-wp")
 (define AdminACL (list "local"))
 
 (define MasterCount 1)
 (define WorkerCount 1)
-(let ((masters (makeList MasterCount (machine (role "Master"))))
-      (workers (makeList WorkerCount (machine (role "Worker")))))
-  (machineAttribute (list masters workers) (provider "AmazonSpot") (size "m4.large") (githubKey "nlsun")))
+(machines.Boot
+  MasterCount
+  WorkerCount
+  (list (provider "AmazonSpot")
+        (size "m4.large")
+        (githubKey "nlsun")))
 
 // Redis is turned on here, but if you didn't want it you can just run it
 // without any arguments

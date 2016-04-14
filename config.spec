@@ -1,13 +1,18 @@
+(import "machines")
+
 (define Namespace "CHANGE_ME")
 (define Provider "Vagrant")
 
 (define MasterCount 1)
 (define WorkerCount (+ 1 MasterCount))
-(let ((masters (makeList MasterCount (machine (role "Master"))))
-      (workers (makeList WorkerCount (machine (role "Worker")))))
-  (machineAttribute (list masters workers) (provider Provider) (ram 1) (cpu 1)
-    (plaintextKey "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDIpvF01Z6WgtqbF0Hl95o0rSL2jptjxLq82Y5N+pJYUmJWucrXN4L3B/ruWSZhh0LDrepC52xCuqaBLBH0dDLjtcZifUqIzn1DBNfYpxUIt5H+DKQ7HkVKEYlLzlinWTnTFPpeXsworVUxX3Ih3/zYpzcV0mI5UMoazs8/2W2Ts/IeQ0Fr2LgWhYLlO8ELuMP4ImQLVdL0rS8o5vaDdQMTdNQ+myfDmLvI9pT7v4kflbabUrLRzAgoKbK2GeQipWjGOU6QcXShBGBO6MG+sbco+qPHIUvhvExxjCL6InZvwnUfqAq3U6w/iYgSty3UeGxi3hKlAZ2R0wiv7pQbNWrN")
-    (githubKey "ejj")))
+(machines.Boot
+  MasterCount
+  WorkerCount
+  (list (provider Provider)
+        (ram 1)
+        (cpu 1)
+        (plaintextKey "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDIpvF01Z6WgtqbF0Hl95o0rSL2jptjxLq82Y5N+pJYUmJWucrXN4L3B/ruWSZhh0LDrepC52xCuqaBLBH0dDLjtcZifUqIzn1DBNfYpxUIt5H+DKQ7HkVKEYlLzlinWTnTFPpeXsworVUxX3Ih3/zYpzcV0mI5UMoazs8/2W2Ts/IeQ0Fr2LgWhYLlO8ELuMP4ImQLVdL0rS8o5vaDdQMTdNQ+myfDmLvI9pT7v4kflbabUrLRzAgoKbK2GeQipWjGOU6QcXShBGBO6MG+sbco+qPHIUvhvExxjCL6InZvwnUfqAq3U6w/iYgSty3UeGxi3hKlAZ2R0wiv7pQbNWrN")
+        (githubKey "ejj")))
 
 (define AdminACL (list "local"))
 

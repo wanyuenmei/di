@@ -1,12 +1,16 @@
+(import "machines")
+
 (define Namespace "CHANGE_ME")
 (define AdminACL (list "local"))
 
 (define sparkWorkerCount 3)
 
-(let ((masters (machine (role "Master")))
-      (workers (makeList (+ 1 sparkWorkerCount) (machine (role "Worker")))))
-  (machineAttribute (list masters workers)
-        (provider "AmazonSpot")
+(define MasterCount 1)
+(define WorkerCount (+ 1 sparkWorkerCount))
+(machines.Boot
+  MasterCount
+  WorkerCount
+  (list (provider "AmazonSpot")
         (size "m4.large")
         (githubKey "ejj")))
 

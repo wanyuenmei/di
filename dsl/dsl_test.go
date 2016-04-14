@@ -405,6 +405,54 @@ func TestDocker(t *testing.T) {
 	runtimeErr(t, `(docker 1)`, `1: expected string, found: 1`)
 }
 
+func TestStdlib(t *testing.T) {
+	// We need to specify that we read from disk because other tests may have switched
+	// the filesystem to MemMap.
+	util.AppFs = afero.NewOsFs()
+
+	checkMachines := func(code, expectedCode string, expected ...Machine) {
+		ctx := parseTestImport(t, code, expectedCode, []string{"../specs"})
+		machineResult := Dsl{"", ctx}.QueryMachines()
+		if !reflect.DeepEqual(machineResult, expected) {
+			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
+				code, machineResult, expected))
+		}
+	}
+
+	code := `(import "machines")
+	         (machines.Boot
+	           1
+	           2
+			   (list (provider "AmazonSpot")
+					 (size "m4.large")
+					 (plaintextKey "key")))`
+	expCode := `(module "machines" (list)
+                (list)
+                (list)
+                (list))
+                (list (machine (provider "AmazonSpot") (size "m4.large") (role "Master") (plaintextKey "key"))
+                      (machine (provider "AmazonSpot") (size "m4.large") (role "Worker") (plaintextKey "key"))
+                      (machine (provider "AmazonSpot") (size "m4.large") (role "Worker") (plaintextKey "key")))`
+	expMachines := []Machine{
+		{Provider: "AmazonSpot",
+			Size:    "m4.large",
+			Role:    "Master",
+			SSHKeys: []string{"key"},
+		},
+		{Provider: "AmazonSpot",
+			Size:    "m4.large",
+			Role:    "Worker",
+			SSHKeys: []string{"key"},
+		},
+		{Provider: "AmazonSpot",
+			Size:    "m4.large",
+			Role:    "Worker",
+			SSHKeys: []string{"key"},
+		},
+	}
+	checkMachines(code, expCode, expMachines...)
+}
+
 func TestMachines(t *testing.T) {
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTest(t, code, expectedCode)
