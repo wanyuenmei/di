@@ -85,7 +85,7 @@ type ipRule struct {
 //    - Attach the other interface to the OVS bridge di-int
 //    - Attach this container to the logical network by creating a pair of OVS
 //      patch ports between br-int and di-int, then install flows to send traffic
-//      between the patch port on di-int and the container's outter interface
+//      between the patch port on di-int and the container's outer interface
 //      (These flows live in Table 2)
 //    - Update the container's /etc/hosts file with the set of labels it may access.
 //    - Populate di-int with the OpenFlow rules necessary to facilitate forwarding.
@@ -834,20 +834,20 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 
 		ovsdb, err := ovsdb.Open()
 		if err != nil {
-			log.WithError(err).Error("failed to connect to OVSDB.")
+			log.WithError(err).Error("failed to connect to OVSDB")
 			return
 		}
 		defer ovsdb.Close()
 
 		ofDI, err := ovsdb.GetOFPortNo(peerDI)
 		if err != nil {
-			log.WithError(err).Error("failed to get OpenFLow Port.")
+			log.WithError(err).Error("failed to get OpenFLow port")
 			return
 		}
 
 		ofVeth, err := ovsdb.GetOFPortNo(vethOut)
 		if err != nil {
-			log.WithError(err).Error("failed to get OpenFLow Port")
+			log.WithError(err).Error("failed to get OpenFLow port")
 			return
 		}
 
@@ -857,7 +857,7 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		}
 
 		// XXX: While OVS will automatically detect duplicate flows and refrain
-		// from adding them.  We still need to go through and delete flows for
+		// from adding them, we still need to go through and delete flows for
 		// old containers that are no longer userful.  Really this whole
 		// algorithm needs to be revamped.  Instead we should check what flows
 		// are there, compute a diff and fix things up.
