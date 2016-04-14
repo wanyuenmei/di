@@ -391,6 +391,16 @@ func TestDocker(t *testing.T) {
 	exp = `(docker "foo")`
 	checkContainers(code, exp, &Container{Image: "foo", Placement: Placement{make(map[[2]string]struct{})}})
 
+	// Test creating containers from within a module
+	code = `(module "foo" 
+			  (define (Bar)
+			    (docker "baz")))
+			(foo.Bar)`
+	exp = `(module "foo" 
+			 (list))
+		   (docker "baz")`
+	checkContainers(code, exp, &Container{Image: "baz", Placement: Placement{make(map[[2]string]struct{})}})
+
 	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `1: expected string, found: 1`)
 }

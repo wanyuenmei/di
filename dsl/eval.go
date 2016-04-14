@@ -201,7 +201,12 @@ func (l astLambda) eval(ctx *evalCtx) (ast, error) {
 
 func (m astModule) eval(ctx *evalCtx) (ast, error) {
 	moduleName := string(m.moduleName)
-	importCtx := newEvalCtx(nil)
+
+	// Make the parent context include pointers to global structures.
+	// Otherwise, commands such as `docker` won't work within the module.
+	globalCtx := ctx.globalCtx().deepCopy()
+	globalCtx.binds = make(map[astIdent]ast)
+	importCtx := newEvalCtx(globalCtx)
 
 	res, err := astList(m.body).eval(&importCtx)
 	if err != nil {
