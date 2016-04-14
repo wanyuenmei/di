@@ -148,6 +148,20 @@ body is the contents of the body.
 (math.Square 5) // => 25
 ```
 
+### DI_PATH
+`di` looks for imports according to the `DI_PATH` environment variable.
+So if you have a spec that imports `stdlib`, and `stdlib.spec` is located at
+`specs/stdlib.spec`, then your `DI_PATH` should be `DI_PATH="specs"`.
+
+Multiple paths are separated by colons, so you may do `DI_PATH="specs:specs/spark"`.
+
+You can invoke `di` with the path in one line:
+```
+DI_PATH="specs" ./di -c config.spec
+```
+
+or `export` it into your environment.
+
 ## Labels
 ```
 (label <name> <member list>)
