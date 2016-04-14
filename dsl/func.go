@@ -515,21 +515,48 @@ func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
-	ident, ok := args[0].(astIdent)
-	if !ok {
-		return nil, fmt.Errorf("define name must be an ident: %s", args[0])
+	var ident astIdent
+	var value ast
+	switch t := args[0].(type) {
+	case astSexp:
+		if len(t.sexp) < 1 {
+			return nil, errors.New("define function must begin with a name")
+		}
+
+		var ok bool
+		ident, ok = t.sexp[0].(astIdent)
+		if !ok {
+			return nil, fmt.Errorf("define name must be an ident: %v",
+				t.sexp[0])
+		}
+
+		var err error
+		binds := astSexp{sexp: t.sexp[1:]}
+		value, err = lambdaImpl(ctx, append([]ast{binds}, args[1:]...))
+		if err != nil {
+			return nil, err
+		}
+	case astIdent:
+		if len(args) > 2 {
+			return nil, fmt.Errorf("not enough arguments: %s", t)
+		}
+
+		ident = t
+
+		var err error
+		value, err = args[1].eval(ctx)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("define name must be an ident: %v", args[0])
 	}
 
 	if _, ok := ctx.binds[ident]; ok {
 		return nil, fmt.Errorf("attempt to redefine: \"%s\"", args[0].(astIdent))
 	}
 
-	result, err := args[1].eval(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.binds[ident] = result
+	ctx.binds[ident] = value
 
 	return astList{}, nil
 }

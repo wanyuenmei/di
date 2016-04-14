@@ -130,6 +130,11 @@ func TestLambda(t *testing.T) {
 	adder = "((let ((x 5)) (lambda (x) (+ x 1))) 1)"
 	parseTest(t, adder, "2")
 
+	// Test define function syntax
+	parseTest(t, "(progn (define (Square x) (* x x)) (Square 4))", "16")
+	parseTest(t, "(progn (define (Five) 5) (Five))", "5")
+	parseTest(t, "(progn (define (PlusPlus x y z) (+ x y z)) (PlusPlus 1 2 3))", "6")
+
 	// Test that recursion DOESN'T work
 	fib := "(define fib (lambda (n) (if (= n 0) 1 (* n (fib (- n 1)))))) (fib 5)"
 	runtimeErr(t, fib, "1: unknown function: fib")
