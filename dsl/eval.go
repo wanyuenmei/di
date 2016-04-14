@@ -208,21 +208,13 @@ func (m astModule) eval(ctx *evalCtx) (ast, error) {
 		return nil, err
 	}
 
-	// Export the binds and labels.
+	// Export the binds.
 	for k, v := range importCtx.binds {
 		if shouldExport(string(k)) {
 			ctx.binds[astIdent(moduleName+"."+string(k))] = v
 		}
 	}
 
-	for k, v := range importCtx.labels {
-		if shouldExport(k) {
-			ctx.labels[moduleName+"."+k] = v
-		}
-	}
-
-	// Return the eval'd version of the body instead of the original version. This
-	// way, nested import statements are all converted to module statements.
 	return astModule{moduleName: m.moduleName, body: res.(astList)}, nil
 }
 

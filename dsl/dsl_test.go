@@ -919,18 +919,6 @@ func TestImport(t *testing.T) {
 	// Test that non-capitalized binds are not exported
 	runtimeErr(t, `(module "A" (define addOne (lambda (x) (+ x 1))))
 (A.addOne 1)`, `2: unknown function: A.addOne`)
-
-	// Test that non-capitalized labels are not exported
-	runtimeErr(t, `(module "A" (label "a-container" (docker "A")))
-	(connect 80 "A.a-container" "A.a-container")`, `2: expected label, found: "A.a-container"`)
-
-	// Test that capitalized labels are properly exported
-	code = `(module "machines" (label "AmazonMachine" (machine (provider "AmazonSpot"))))`
-	ctx := parseTest(t, code, code)
-	machineResult := Dsl{"", ctx}.QueryMachineSlice("machines.AmazonMachine")
-	if len(machineResult) != 1 {
-		t.Error(spew.Sprintf("test: %s, result: %v", code, machineResult))
-	}
 }
 
 func TestScanError(t *testing.T) {
