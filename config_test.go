@@ -11,7 +11,7 @@ import (
 	"github.com/NetSys/di/util"
 )
 
-func configRunOnce(configPath string) error {
+func configRunOnce(configPath string, diPath []string) error {
 	f, err := util.Open(configPath)
 	if err != nil {
 		return err
@@ -19,7 +19,7 @@ func configRunOnce(configPath string) error {
 	defer f.Close()
 
 	var sc scanner.Scanner
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), []string{})
+	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), diPath)
 	if err != nil {
 		return err
 	}
@@ -33,14 +33,14 @@ func configRunOnce(configPath string) error {
 }
 
 func TestConfigs(t *testing.T) {
-	testConfig := func(configPath string) {
-		if err := configRunOnce(configPath); err != nil {
+	testConfig := func(configPath string, diPath []string) {
+		if err := configRunOnce(configPath, diPath); err != nil {
 			t.Errorf("%s failed validation: %s", configPath, err.Error())
 		}
 	}
-	testConfig("./config.spec")
-	testConfig("di-tester/config/config.spec")
-	testConfig("specs/spark/spark.spec")
-	testConfig("specs/zookeeper/zookeeper.spec")
-	testConfig("specs/wordpress/wordpress.spec")
+	testConfig("./config.spec", []string{})
+	testConfig("di-tester/config/config.spec", []string{})
+	testConfig("specs/spark/spark.spec", []string{})
+	testConfig("specs/zookeeper/zookeeper.spec", []string{})
+	testConfig("specs/wordpress/wordpress.spec", []string{})
 }
