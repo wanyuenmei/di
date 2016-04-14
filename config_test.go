@@ -42,4 +42,5 @@ func TestConfigs(t *testing.T) {
 	testConfig("di-tester/config/config.spec")
 	testConfig("specs/spark/spark.spec")
 	testConfig("specs/zookeeper/zookeeper.spec")
+	testConfig("specs/wordpress/wordpress.spec")
 }
