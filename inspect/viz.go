@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/NetSys/di/dsl"
 	"os"
 	"os/exec"
+
+	"github.com/NetSys/di/dsl"
 )
 
 // Write parsed DI graph to a graphviz dotfile.
@@ -60,6 +61,6 @@ func Graphviz(slug string, graph Graph, containerLabels map[string][]*dsl.Contai
 	f.Write([]byte(dotfile))
 
 	// run "dot" (part of graphviz) on the dotfile to output the image
-	writepng := exec.Command("dot", "-Tpng", "-o", slug+".png", slug+".dot")
+	writepng := exec.Command("dot", "-Tpdf", "-o", slug+".pdf", slug+".dot")
 	writepng.Run()
 }
