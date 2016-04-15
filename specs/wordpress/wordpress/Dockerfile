@@ -1,13 +1,19 @@
 From wordpress:4.4.2
 
 RUN apt-get update && \
-DEBIAN_FRONTEND="noninteractive" apt-get install -y sudo php5-redis unzip && \
+DEBIAN_FRONTEND="noninteractive" apt-get install -y \
+    sudo \
+    php5-redis \
+    unzip \
+    && \
 rm -rf /var/lib/apt/lists/* && \
 curl -o /usr/local/bin/wp-cli https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
 chmod +x /usr/local/bin/wp-cli && \
-curl -o /usr/src/redis-cache.zip https://downloads.wordpress.org/plugin/redis-cache.zip
+curl -o /usr/src/redis-cache.zip https://downloads.wordpress.org/plugin/redis-cache.zip && \
+curl -o /usr/src/memcached.zip https://downloads.wordpress.org/plugin/memcached.zip && \
+pecl install memcache
 
-ENV WORDPRESS_DB_HOST=database.di:3306 \
+ENV WORDPRESS_DB_HOST=db-master.di:3306 \
 WORDPRESS_DB_NAME=wordpress \
 WORDPRESS_DB_USER=wordpress \
 WORDPRESS_DB_PASSWORD=wordpress

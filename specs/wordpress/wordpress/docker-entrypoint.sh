@@ -2,10 +2,29 @@
 set -e
 
 DI_REDIS_ACTIVE=false
-if [ "$1" = "--redis" ]; then
-    DI_REDIS_ACTIVE=true
-    shift
-fi
+DI_MEMCACHED_ACTIVE=false
+CHANGED=true
+while [ "$CHANGED" = true ]; do
+    CHANGED=false
+    if [ "$1" = "--redis" ]; then
+        DI_REDIS_ACTIVE=true
+        CHANGED=true
+        shift
+    fi
+    if [ "$1" = "--memcached" ]; then
+        DI_MEMCACHED_ACTIVE=true
+        MEMCACHED_LIST=$2
+        CHANGED=true
+        shift 2
+    fi
+done
+
+DI_MASTER_DB="db-master.di"
+echo "trying to reach $DI_MASTER_DB"
+until ping -q -c1 "$DI_MASTER_DB" > /dev/null 2>&1; do
+    sleep 1
+done
+echo "successfully reached $DI_MASTER_DB"
 
 if [[ "$1" == apache2* ]] || [ "$1" == php-fpm ]; then
 	if [ -n "$MYSQL_PORT_3306_TCP" ]; then
@@ -191,6 +210,22 @@ if [ "$DI_REDIS_ACTIVE" = true ]; then
     unzip -o -d /var/www/html/wp-content/plugins/ /usr/src/redis-cache.zip
     ln -s /var/www/html/wp-content/plugins/redis-cache/includes/object-cache.php /var/www/html/wp-content/object-cache.php
     sudo -u www-data wp-cli --path=/var/www/html plugin activate redis-cache
+fi
+if [ "$DI_MEMCACHED_ACTIVE" = true ]; then
+    unzip -o -d /var/www/html/wp-content/plugins/ /usr/src/memcached.zip
+    ln -s /var/www/html/wp-content/plugins/memcached/object-cache.php /var/www/html/wp-content/object-cache.php
+    echo "extension=memcache.so" >> /usr/local/etc/php/php.ini
+
+    memcache_servers=''
+    savedIFS=$IFS
+    IFS=','
+    for server in $MEMCACHED_LIST; do
+        memcache_servers+="\t\t'${server}:11211',\n"
+    done
+    IFS=$savedIFS
+
+    memcache_lines="\$memcached_servers = array(\n\t'default' => array(\n${memcache_servers}\t)\n);\n"
+    sed -i -e "s|\(^.*That's all, stop editing! Happy blogging.*$\)|${memcache_lines}\n\n\1|" '/var/www/html/wp-config.php'
 fi
 
 exec "$@"
