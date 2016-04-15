@@ -5,10 +5,12 @@ NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
 all:
 	cd -P . && \
 	go build . && \
-	go build -o ./minion/minion ./minion
+	go build -o ./minion/minion ./minion && \
+	go build -o ./inspect/inspect ./inspect
 
 install:
-	cd -P . && go install .
+	cd -P . && go install . && \
+	go install ./inspect
 
 generate:
 	go generate $(PACKAGES)
