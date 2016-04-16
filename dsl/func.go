@@ -605,7 +605,7 @@ func lambdaImpl(ctx *evalCtx, args []ast) (ast, error) {
 		}
 		argNames = append(argNames, ident)
 	}
-	return astLambda{argNames: argNames, do: args[1], ctx: ctx.deepCopy()}, nil
+	return astLambda{argNames: argNames, do: args[1:], ctx: ctx.deepCopy()}, nil
 }
 
 func letImpl(ctx *evalCtx, args []ast) (ast, error) {
@@ -640,8 +640,8 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		names = append(names, key)
 		vals = append(vals, val)
 	}
-	progn := astSexp{sexp: append([]ast{astIdent("progn")}, args[1:]...)}
-	let := astSexp{sexp: append([]ast{astLambda{argNames: names, do: progn, ctx: ctx}}, vals...)}
+	lambda := astLambda{argNames: names, do: args[1:], ctx: ctx}
+	let := astSexp{sexp: append([]ast{lambda}, vals...)}
 	return let.eval(ctx)
 }
 

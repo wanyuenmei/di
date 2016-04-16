@@ -89,7 +89,12 @@ func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 		fnCtx.binds[ident] = fnArg
 	}
 
-	return fn.do.eval(&fnCtx)
+	result, err := evalList(&fnCtx, fn.do)
+	if err != nil {
+		return nil, err
+	}
+
+	return result[len(result)-1], nil
 }
 
 func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {

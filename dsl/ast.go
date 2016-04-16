@@ -35,7 +35,7 @@ type ast interface {
 
 type astLambda struct {
 	argNames []astIdent
-	do       ast
+	do       []ast
 	ctx      *evalCtx // The evalCtx when the lambda was defined.
 }
 
