@@ -410,6 +410,19 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	for _, from := range fromLabels {
 		for _, to := range toLabels {
+
+			if (from.ident == PublicInternetLabel ||
+				to.ident == PublicInternetLabel) &&
+				(min != max) {
+				return nil, fmt.Errorf(
+					"Public Internet cannot connect on port ranges")
+			}
+
+			if from.ident == PublicInternetLabel &&
+				to.ident == PublicInternetLabel {
+				return nil, fmt.Errorf("cannot connect Public Internet to itself")
+			}
+
 			cn := Connection{
 				From:    string(from.ident),
 				To:      string(to.ident),
@@ -431,6 +444,9 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	label := string(str)
 	if label != strings.ToLower(label) {
 		log.Error("Labels must be lowercase, sorry! https://github.com/docker/swarm/issues/1795")
+	}
+	if label == PublicInternetLabel {
+		return nil, fmt.Errorf("the \"public\" label is reserved for the public internet")
 	}
 
 	if _, ok := ctx.resolveLabel(str); ok {
@@ -1064,6 +1080,9 @@ func astFunc(ident astIdent, args []ast) astSexp {
 func (ctx evalCtx) resolveLabel(labelRef ast) (astLabel, bool) {
 	switch val := labelRef.(type) {
 	case astString:
+		if string(val) == PublicInternetLabel {
+			return astLabel{ident: val}, true
+		}
 		if label, ok := ctx.labels[string(val)]; ok {
 			return label, true
 		}

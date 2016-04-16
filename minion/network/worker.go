@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/minion/supervisor"
@@ -138,13 +139,13 @@ func runWorker(conn db.Conn, dk docker.Client) {
 
 	updateNamespaces(containers)
 	updateVeths(containers)
-	updateNAT()
+	updateNAT(containers, connections)
 	if ovsdbIsRunning(dk) {
 		updatePorts(containers)
 	}
 	if exists, err := linkExists("", diBridge); exists {
 		updateDefaultGw()
-		updateOpenFlow(dk, containers, labels)
+		updateOpenFlow(dk, containers, labels, connections)
 	} else if err != nil {
 		log.WithError(err).Error("failed to check if link exists")
 	}
@@ -368,8 +369,8 @@ func generateCurrentVeths(containers []db.Container) ([]netdev, error) {
 	return configs, nil
 }
 
-func updateNAT() {
-	targetRules := generateTargetNatRules()
+func updateNAT(containers []db.Container, connections []db.Connection) {
+	targetRules := generateTargetNatRules(containers, connections)
 	currRules, err := generateCurrentNatRules()
 	if err != nil {
 		log.WithError(err).Error("failed to get NAT rules")
@@ -426,7 +427,7 @@ func generateCurrentNatRules() ([]ipRule, error) {
 	return rules, nil
 }
 
-func generateTargetNatRules() []ipRule {
+func generateTargetNatRules(containers []db.Container, connections []db.Connection) []ipRule {
 	strRules := []string{
 		"-P PREROUTING ACCEPT",
 		"-P INPUT ACCEPT",
@@ -434,6 +435,47 @@ func generateTargetNatRules() []ipRule {
 		"-P POSTROUTING ACCEPT",
 		"-A POSTROUTING -s 10.0.0.0/8 -o eth0 -j MASQUERADE",
 	}
+
+	protocols := []string{"tcp", "udp"}
+	// Map each container IP to all ports on which it can receive packets
+	// from the public internet.
+	portsFromWeb := make(map[string]map[int]struct{})
+
+	for _, dbc := range containers {
+		for _, conn := range connections {
+
+			if conn.From != dsl.PublicInternetLabel {
+				continue
+			}
+
+			for _, l := range dbc.Labels {
+
+				if conn.To != l {
+					continue
+				}
+
+				if _, ok := portsFromWeb[dbc.IP]; !ok {
+					portsFromWeb[dbc.IP] = make(map[int]struct{})
+				}
+
+				portsFromWeb[dbc.IP][conn.MinPort] = struct{}{}
+			}
+		}
+	}
+
+	log.Infof("portsFromWeb: %v", portsFromWeb)
+
+	// Map the container's port to the same port of the host.
+	for ip, ports := range portsFromWeb {
+		for port := range ports {
+			for _, protocol := range protocols {
+				strRules = append(strRules, fmt.Sprintf("-A PREROUTING -i eth0 "+
+					"-p %s -m %s --dport %d -j DNAT --to-destination %s:%d",
+					protocol, protocol, port, ip, port))
+			}
+		}
+	}
+
 	var rules []ipRule
 	for _, r := range strRules {
 		rule, err := makeIPRule(r)
@@ -844,8 +886,9 @@ func generateCurrentRoutes(namespace string) ([]route, error) {
 //
 // XXX: The multipath action doesn't perform well.  We should migrate away from it
 // choosing datapath recirculation instead.
-func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Label) {
-	targetOF, err := generateTargetOpenFlow(dk, containers, labels)
+func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Label,
+	connections []db.Connection) {
+	targetOF, err := generateTargetOpenFlow(dk, containers, labels, connections)
 	if err != nil {
 		log.WithError(err).Error("failed to get target OpenFlow flows")
 		return
@@ -855,6 +898,7 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		log.WithError(err).Error("failed to get current OpenFlow flows")
 		return
 	}
+
 	_, flowsToDel, flowsToAdd := join.Join(currentOF, targetOF, func(
 		left, right interface{}) int {
 		if left.(OFRule).table == right.(OFRule).table &&
@@ -916,14 +960,14 @@ func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
 // dump-flows. To achieve this, we have some rather ugly hacks that handle
 // a few special cases.
 func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
-	labels []db.Label) ([]OFRule, error) {
-	var targetRules []OFRule
+	labels []db.Label, connections []db.Connection) ([]OFRule, error) {
 
 	dflGatewayMAC, err := getMac("", diBridge)
 	if err != nil {
 		log.WithError(err).Error("failed to get MAC of default gateway.")
 	}
 
+	var rules []string
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
 		_, peerDI := patchPorts(dbc.SchedID)
@@ -949,31 +993,80 @@ func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
 			return nil, fmt.Errorf("missing OpenFlow port number")
 		}
 
-		rules := []string{
+		rules = append(rules, []string{
 			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
 				"actions=output:%d", 5000, ofDI, ofVeth),
 			fmt.Sprintf("table=2 priority=%d,in_port=%d "+
 				"actions=output:%d", 5000, ofVeth, ofDI),
-			// Flows destined for the public web.
-			// LOCAL is the default di-int port created with the bridge.
-			fmt.Sprintf("table=0 priority=%d,dl_dst=%s,in_port=%d "+
-				"actions=LOCAL", 5000, dflGatewayMAC, ofVeth),
-			// Flows from public web destined for this container.
-			fmt.Sprintf("table=0 priority=%d,in_port=LOCAL,dl_dst=%s "+
-				"actions=output:%d", 5000, dbcMac, ofVeth),
-			fmt.Sprintf("table=0 priority=%d,arp,in_port=%d "+
-				"actions=output:%d,LOCAL", 4500, ofVeth, ofDI),
 			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
 				"actions=output:%d", 0, ofVeth, ofDI),
+		}...)
+
+		protocols := []string{"tcp", "udp"}
+
+		portsToWeb := make(map[int]struct{})
+		portsFromWeb := make(map[int]struct{})
+		for _, l := range dbc.Labels {
+			for _, conn := range connections {
+				if conn.From == l && conn.To == dsl.PublicInternetLabel {
+					portsToWeb[conn.MinPort] = struct{}{}
+				} else if conn.From == dsl.PublicInternetLabel && conn.To == l {
+					portsFromWeb[conn.MinPort] = struct{}{}
+				}
+			}
 		}
 
-		for _, r := range rules {
-			rule, err := makeOFRule(r)
-			if err != nil {
-				return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+		// LOCAL is the default di-int port created with the bridge.
+		egressRule := fmt.Sprintf("table=0 priority=%d,in_port=%d,", 5000, ofVeth) +
+			"%s,%s," + fmt.Sprintf("dl_dst=%s actions=LOCAL", dflGatewayMAC)
+		ingressRule := fmt.Sprintf("table=0 priority=%d,in_port=LOCAL,", 5000) +
+			"%s,%s," + fmt.Sprintf("dl_dst=%s actions=%d", dbcMac, ofVeth)
+
+		for port := range portsFromWeb {
+			for _, protocol := range protocols {
+				egressPort := fmt.Sprintf("tp_src=%d", port)
+				rules = append(rules, fmt.Sprintf(egressRule, protocol, egressPort))
+
+				ingressPort := fmt.Sprintf("tp_dst=%d", port)
+				rules = append(rules, fmt.Sprintf(ingressRule, protocol, ingressPort))
 			}
-			targetRules = append(targetRules, rule)
 		}
+
+		for port := range portsToWeb {
+			for _, protocol := range protocols {
+				egressPort := fmt.Sprintf("tp_dst=%d", port)
+				rules = append(rules, fmt.Sprintf(egressRule, protocol, egressPort))
+
+				ingressPort := fmt.Sprintf("tp_src=%d", port)
+				rules = append(rules, fmt.Sprintf(ingressRule, protocol, ingressPort))
+			}
+		}
+
+		var arpDst string
+		if len(portsToWeb) > 0 || len(portsFromWeb) > 0 {
+			// Allow ICMP
+			rules = append(rules,
+				fmt.Sprintf("table=0 priority=%d,icmp,in_port=%d,dl_dst=%s"+
+					" actions=LOCAL", 5000, ofVeth, dflGatewayMAC))
+			rules = append(rules,
+				fmt.Sprintf("table=0 priority=%d,icmp,in_port=LOCAL,dl_dst=%s"+
+					" actions=output:%d", 5000, dbcMac, ofVeth))
+
+			arpDst = fmt.Sprintf("%d,LOCAL", ofDI)
+		} else {
+			arpDst = fmt.Sprintf("%d", ofDI)
+		}
+
+		if len(portsFromWeb) > 0 {
+			// Allow default gateway to ARP for containers
+			rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=LOCAL,"+
+				"dl_dst=ff:ff:ff:ff:ff:ff actions=output:%d", 4500, ofVeth))
+		}
+
+		rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=%d "+
+			"actions=output:%s", 4500, ofVeth, arpDst))
+		rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=LOCAL,"+
+			"dl_dst=%s actions=output:%d", 4500, dbcMac, ofVeth))
 	}
 
 	LabelMacs := make(map[string]map[string]struct{})
@@ -986,7 +1079,6 @@ func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
 		}
 	}
 
-	var rule OFRule
 	for _, label := range labels {
 		if !label.MultiHost {
 			continue
@@ -1009,15 +1101,8 @@ func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
 		mpa := fmt.Sprintf("multipath(symmetric_l3l4,0,modulo_n,%d,0,"+
 			"NXM_NX_REG0[%s])", n, nxmRange)
 
-		rule, err = makeOFRule(fmt.Sprintf(
-			"table=0 priority=%d,dl_dst=%s,ip,nw_dst=%s actions=%s,resubmit(,1)",
-			4000, labelMac, ip, mpa))
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
-		}
-
-		targetRules = append(targetRules, rule)
+		rules = append(rules, fmt.Sprintf("table=0 priority=%d,dl_dst=%s,ip,nw_dst=%s "+
+			"actions=%s,resubmit(,1)", 4000, labelMac, ip, mpa))
 
 		// We need the order to make diffing consistent.
 		macList := make([]string, 0, n)
@@ -1035,17 +1120,19 @@ func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
 			}
 			reg0 := fmt.Sprintf("%s%x", regPrefix, i)
 
-			rule, err = makeOFRule(fmt.Sprintf(
-				"table=1 priority=5000,ip,nw_dst=%s,reg0=%s "+
-					"actions=mod_dl_dst:%s,resubmit(,2)", ip, reg0, mac))
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
-			}
-
-			targetRules = append(targetRules, rule)
+			rules = append(rules, fmt.Sprintf("table=1 priority=5000,ip,nw_dst=%s,"+
+				"reg0=%s actions=mod_dl_dst:%s,resubmit(,2)", ip, reg0, mac))
 			i++
 		}
+	}
+
+	var targetRules []OFRule
+	for _, r := range rules {
+		rule, err := makeOFRule(r)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+		}
+		targetRules = append(targetRules, rule)
 	}
 
 	return targetRules, nil
@@ -1091,6 +1178,9 @@ func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 
 	for _, conn := range connections {
+		if conn.To == dsl.PublicInternetLabel || conn.From == dsl.PublicInternetLabel {
+			continue
+		}
 		conns[conn.From] = append(conns[conn.From], conn.To)
 	}
 
@@ -1142,6 +1232,9 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 
 	for _, l := range dbc.Labels {
 		for _, toLabel := range conns[l] {
+			if toLabel == dsl.PublicInternetLabel {
+				continue
+			}
 			if ip := labelIP[toLabel]; ip != "" {
 				newHosts[entry{ip, toLabel + ".di"}] = struct{}{}
 			}
@@ -1268,39 +1361,32 @@ func namespaceName(namespace string) string {
 }
 
 // makeIPRule takes an ip rule as formatted in the output of `iptables -S`,
-// and returns an ipRule with the options in sorted order. This simplifies
-// diffing ipRules in updateNAT.
+// and returns the corresponding ipRule. The output options will be in the same
+// order as output by `iptables -S`.
 func makeIPRule(inputRule string) (ipRule, error) {
-	cmdRE := regexp.MustCompile("(-[A-Z]+)((\\s+[A-Z]+)+)")
-	optRE := regexp.MustCompile("((?:!\\s+)*-+[a-z]+)\\s+(\\S+)")
-
+	cmdRE := regexp.MustCompile("(-[A-Z]+)\\s+([A-Z]+)")
 	cmdMatch := cmdRE.FindSubmatch([]byte(inputRule))
 	if len(cmdMatch) < 3 {
 		return ipRule{}, fmt.Errorf("missing iptables command")
 	}
 
+	var opts string
+	optsRE := regexp.MustCompile("-(?:[A-Z]+\\s+)+[A-Z]+\\s+(.*)")
+	optsMatch := optsRE.FindSubmatch([]byte(inputRule))
+
+	if len(optsMatch) > 2 {
+		return ipRule{}, fmt.Errorf("malformed iptables options")
+	}
+
+	if len(optsMatch) == 2 {
+		opts = strings.TrimSpace(string(optsMatch[1]))
+	}
+
 	rule := ipRule{
 		cmd:   strings.TrimSpace(string(cmdMatch[1])),
 		chain: strings.TrimSpace(string(cmdMatch[2])),
+		opts:  opts,
 	}
-
-	var opts []string
-	optMatches := optRE.FindAllSubmatch([]byte(inputRule), -1)
-	for _, m := range optMatches {
-
-		if len(m) < 3 {
-			return ipRule{}, fmt.Errorf("malformed iptables options")
-		}
-
-		flag := string(m[1])
-		splitOpts := strings.Split(string(m[2]), ",")
-		sort.Strings(splitOpts)
-		sorted := strings.Join(splitOpts, ",")
-		opts = append(opts, flag+" "+sorted)
-	}
-
-	sort.Strings(opts)
-	rule.opts = strings.Join(opts, " ")
 	return rule, nil
 }
 
@@ -1324,9 +1410,10 @@ func deleteNatRule(rule ipRule) error {
 func addNatRule(rule ipRule) error {
 	args := fmt.Sprintf("%s %s", rule.chain, rule.opts)
 	cmd := fmt.Sprintf("iptables -t nat -A %s", args)
-	stdout, _, err := shVerbose(cmd)
+	log.Info("Adding NAT rule: %s", cmd)
+	err := sh(cmd)
 	if err != nil {
-		return fmt.Errorf("Failed to add NAT rule %s: %s", cmd, string(stdout))
+		return fmt.Errorf("Failed to add NAT rule %s: %s", cmd, err)
 	}
 	return nil
 }
@@ -1441,6 +1528,5 @@ func makeOFRule(flowEntry string) (OFRule, error) {
 		match:   strings.Join(splitMatch, ","),
 		actions: strings.Join(allMatches, ","),
 	}
-
 	return newRule, nil
 }

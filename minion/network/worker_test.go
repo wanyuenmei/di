@@ -97,7 +97,7 @@ func TestMakeIPRule(t *testing.T) {
 	rule, _ := makeIPRule(inp)
 	expCmd := "-A"
 	expChain := "INPUT"
-	expOpts := "--dports 110,465,995 -i eth0 -j ACCEPT -m multiport -p tcp"
+	expOpts := "-p tcp -i eth0 -m multiport --dports 465,110,995 -j ACCEPT"
 
 	if rule.cmd != expCmd {
 		t.Error(fmt.Sprintf(
@@ -121,7 +121,31 @@ func TestMakeIPRule(t *testing.T) {
 	rule, _ = makeIPRule(inp)
 	expCmd = "-A"
 	expChain = "POSTROUTING"
-	expOpts = "! -d 10.0.3.0/24 -j MASQUERADE -s 10.0.3.0/24"
+	expOpts = "-s 10.0.3.0/24 ! -d 10.0.3.0/24 -j MASQUERADE"
+
+	if rule.cmd != expCmd {
+		t.Error(fmt.Sprintf(
+			"Bad ipRule command."+
+				"\nExpected:\n%s\n\nGot:\n%s\n", expCmd, rule.cmd))
+	}
+
+	if rule.chain != expChain {
+		t.Error(fmt.Sprintf(
+			"Bad ipRule chain."+
+				"\nExpected:\n%s\n\nGot:\n%s\n", expChain, rule.chain))
+	}
+
+	if rule.opts != expOpts {
+		t.Error(fmt.Sprintf(
+			"Bad ipRule options."+
+				"\nExpected:\n%s\n\nGot:\n%s\n", expOpts, rule.opts))
+	}
+
+	inp = "-A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination 10.31.0.23:80"
+	rule, _ = makeIPRule(inp)
+	expCmd = "-A"
+	expChain = "PREROUTING"
+	expOpts = "-i eth0 -p tcp --dport 80 -j DNAT --to-destination 10.31.0.23:80"
 
 	if rule.cmd != expCmd {
 		t.Error(fmt.Sprintf(
@@ -187,7 +211,8 @@ func TestGenerateCurrentNatRules(t *testing.T) {
 	exp := []ipRule{
 		{
 			cmd:   "-P",
-			chain: "POSTROUTING ACCEPT",
+			chain: "POSTROUTING",
+			opts:  "ACCEPT",
 		},
 		{
 			cmd:   "-N",
@@ -196,12 +221,12 @@ func TestGenerateCurrentNatRules(t *testing.T) {
 		{
 			cmd:   "-A",
 			chain: "POSTROUTING",
-			opts:  "-j MASQUERADE -o eth0 -s 10.0.0.0/8,11.0.0.0/8",
+			opts:  "-s 11.0.0.0/8,10.0.0.0/8 -o eth0 -j MASQUERADE",
 		},
 		{
 			cmd:   "-A",
 			chain: "POSTROUTING",
-			opts:  "! -d 10.0.3.0/24 -j MASQUERADE -s 10.0.3.0/24",
+			opts:  "-s 10.0.3.0/24 ! -d 10.0.3.0/24 -j MASQUERADE",
 		},
 	}
 

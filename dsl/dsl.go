@@ -55,6 +55,8 @@ type Range struct {
 	Max float64
 }
 
+const PublicInternetLabel = "public"
+
 // Accepts returns true if `x` is within the range specified by `dslr` (include),
 // or if no max is specified and `x` is larger than `dslr.min`.
 func (dslr Range) Accepts(x float64) bool {
