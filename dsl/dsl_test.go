@@ -72,6 +72,10 @@ func TestStrings(t *testing.T) {
 	code = `(sprintf "%s %s" "foo" (list 1 2 3))`
 	parseTest(t, code, `"foo (list 1 2 3)"`)
 
+	parseTest(t, `(+ "foo" "bar")`, `"foobar"`)
+	parseTest(t, `(+ "foo" "")`, `"foo"`)
+	parseTest(t, `(+ "foo" "" "bar" "baz")`, `"foobarbaz"`)
+
 	runtimeErr(t, "(sprintf a)", "1: unassigned variable: a")
 	runtimeErr(t, "(sprintf 1)", "1: sprintf format must be a string: 1")
 }
@@ -989,11 +993,11 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestRuntimeErrors(t *testing.T) {
-	err := `1: bad arithmetic argument: "a"`
-	runtimeErr(t, `(+ "a" "a")`, err)
-	runtimeErr(t, `(list (+ "a" "a"))`, err)
-	runtimeErr(t, `(let ((y (+ "a" "a"))) y)`, err)
-	runtimeErr(t, `(let ((y 3)) (+ "a" "a"))`, err)
+	err := `1: bad arithmetic argument: (list)`
+	runtimeErr(t, `(+ (list) (list))`, err)
+	runtimeErr(t, `(list (+ (list) (list)))`, err)
+	runtimeErr(t, `(let ((y (+ (list) (list)))) y)`, err)
+	runtimeErr(t, `(let ((y 3)) (+ (list) (list)))`, err)
 
 	runtimeErr(t, "(define a 3) (define a 3)", `1: attempt to redefine: "a"`)
 	runtimeErr(t, "(define a (+ 3 b ))", "1: unassigned variable: b")

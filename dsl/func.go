@@ -25,7 +25,6 @@ var funcImplMap map[astIdent]funcImpl
 func init() {
 	mod := arithFun(func(a, b int) int { return a % b })
 	mul := arithFun(func(a, b int) int { return a * b })
-	add := arithFun(func(a, b int) int { return a + b })
 	sub := arithFun(func(a, b int) int { return a - b })
 	div := arithFun(func(a, b int) int { return a / b })
 
@@ -36,7 +35,7 @@ func init() {
 		"!":                {notImpl, 1, false},
 		"%":                {mod, 2, false},
 		"*":                {mul, 2, false},
-		"+":                {add, 2, false},
+		"+":                {plusImpl, 2, false},
 		"-":                {sub, 2, false},
 		"/":                {div, 2, false},
 		"<":                {less, 2, false},
@@ -104,6 +103,24 @@ func arithFun(do func(a, b int) int) func(*evalCtx, []ast) (ast, error) {
 
 		return astInt(total), nil
 	}
+}
+
+func plusImpl(ctx *evalCtx, args []ast) (ast, error) {
+	if _, ok := args[0].(astString); !ok {
+		return arithFun(func(a, b int) int { return a + b })(ctx, args)
+	}
+
+	var strSlice []string
+	for _, arg := range args {
+		str, ok := arg.(astString)
+		if !ok {
+			err := fmt.Errorf("bad string concatenation argument: %s", arg)
+			return nil, err
+		}
+		strSlice = append(strSlice, string(str))
+	}
+
+	return astString(strings.Join(strSlice, "")), nil
 }
 
 func eqImpl(ctx *evalCtx, args []ast) (ast, error) {
