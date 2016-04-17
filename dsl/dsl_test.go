@@ -355,6 +355,12 @@ func TestHmap(t *testing.T) {
 	(hmapGet b "key3")`
 	exp = `(list) "value1" (list) "value1" "value2" "value3"`
 	parseTest(t, code, exp)
+
+	code = `(define a (hmap ("key1" "value1")))
+	(hmapContains a "key1")
+	(hmapContains a "key2")`
+	exp = `(list) true false`
+	parseTest(t, code, exp)
 }
 
 func TestDocker(t *testing.T) {

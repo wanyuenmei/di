@@ -54,6 +54,7 @@ func init() {
 		"githubKey":        {githubKeyImpl, 1, false},
 		"hmap":             {hmapImpl, 0, true},
 		"hmapGet":          {hmapGetImpl, 2, false},
+		"hmapContains":     {hmapContainsImpl, 2, false},
 		"hmapSet":          {hmapSetImpl, 3, false},
 		"if":               {ifImpl, 2, true},
 		"import":           {importImpl, 1, true},
@@ -501,6 +502,15 @@ func hmapGetImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("undefined key: %s", args[1])
 	}
 	return value, nil
+}
+
+func hmapContainsImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m, ok := args[0].(astHmap)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a hmap", args[0])
+	}
+	_, ok = m[args[1]]
+	return astBool(ok), nil
 }
 
 func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {
