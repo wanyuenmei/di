@@ -247,6 +247,18 @@ func TestIf(t *testing.T) {
 
 	notTest = "(! true)"
 	parseTest(t, notTest, "false")
+
+	// Test that an empty list is false
+	parseTest(t, "(bool (list))", "false")
+
+	// Test that an empty string is false
+	parseTest(t, `(bool "")`, "false")
+
+	// Test that 0 is false
+	parseTest(t, "(bool 0)", "false")
+
+	// Test that a non-bool gets properly converted
+	parseTest(t, `(bool (docker "foo"))`, "true")
 }
 
 func TestDefine(t *testing.T) {

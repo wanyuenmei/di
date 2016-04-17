@@ -43,6 +43,7 @@ func init() {
 		">":                {more, 2, false},
 		"and":              {andImpl, 1, true},
 		"apply":            {applyImpl, 2, false},
+		"bool":             {boolImpl, 1, false},
 		"car":              {carImpl, 1, false},
 		"cdr":              {cdrImpl, 1, false},
 		"connect":          {connectImpl, 3, false},
@@ -713,18 +714,34 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return let.eval(ctx)
 }
 
+func boolImpl(ctx *evalCtx, args []ast) (ast, error) {
+	return toBool(args[0]), nil
+}
+
+// An ast element is false if it's the empty list, empty string, 0, or false,
+// and true otherwise.
+func toBool(arg ast) astBool {
+	switch val := arg.(type) {
+	case astList:
+		return astBool(len(val) != 0)
+	case astString:
+		return astBool(len(val) != 0)
+	case astInt:
+		return astBool(val != 0)
+	case astBool:
+		return val
+	default:
+		return astBool(true)
+	}
+}
+
 func ifImpl(ctx *evalCtx, args []ast) (ast, error) {
 	predAst, err := args[0].eval(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pred, ok := predAst.(astBool)
-	if !ok {
-		return nil, fmt.Errorf("if predicate must be a boolean: %s", predAst)
-	}
-
-	if bool(pred) {
+	if toBool(predAst) {
 		return args[1].eval(ctx)
 	}
 
@@ -742,12 +759,7 @@ func andImpl(ctx *evalCtx, args []ast) (ast, error) {
 			return nil, err
 		}
 
-		pred, ok := predAst.(astBool)
-		if !ok {
-			return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
-		}
-
-		if !pred {
+		if !toBool(predAst) {
 			return astBool(false), nil
 		}
 	}
@@ -761,12 +773,7 @@ func orImpl(ctx *evalCtx, args []ast) (ast, error) {
 			return nil, err
 		}
 
-		pred, ok := predAst.(astBool)
-		if !ok {
-			return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
-		}
-
-		if pred {
+		if toBool(predAst) {
 			return astBool(true), nil
 		}
 	}
@@ -779,11 +786,7 @@ func notImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, err
 	}
 
-	pred, ok := predAst.(astBool)
-	if !ok {
-		return nil, fmt.Errorf("and predicate must be a boolean: %s", predAst)
-	}
-	return astBool(!pred), nil
+	return !toBool(predAst), nil
 }
 
 func applyImpl(ctx *evalCtx, args []ast) (ast, error) {
