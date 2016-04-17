@@ -730,7 +730,7 @@ func ifImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	// If the predicate is false, but there's no else case.
 	if len(args) == 2 {
-		return pred, nil
+		return astList{}, nil
 	}
 	return args[2].eval(ctx)
 }

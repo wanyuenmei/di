@@ -169,7 +169,7 @@ func TestIf(t *testing.T) {
 
 	// Test no else case
 	falseTest = "(if false 1)"
-	parseTest(t, falseTest, "false")
+	parseTest(t, falseTest, "(list)")
 
 	// Test one-argument and
 	trueTest = "(if (and true) 1 0)"
