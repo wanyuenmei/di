@@ -441,4 +441,23 @@ func TestPlacementTxn(t *testing.T) {
 			},
 		},
 	)
+
+	// Port placement
+	spec = `(label "foo" (docker "foo"))
+	(connect 80 "public" "foo")
+	(connect 81 "public" "foo")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "foo",
+			Rule: db.PortRule{
+				Port: 80,
+			},
+		},
+		db.Placement{
+			TargetLabel: "foo",
+			Rule: db.PortRule{
+				Port: 81,
+			},
+		},
+	)
 }

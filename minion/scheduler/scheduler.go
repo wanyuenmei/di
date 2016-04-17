@@ -15,7 +15,7 @@ import (
 type scheduler interface {
 	list() ([]docker.Container, error)
 
-	boot(toBoot []db.Container, placement []db.Placement)
+	boot(toBoot []db.Container, placement []db.Placement, connections []db.Connection)
 
 	terminate(ids []string)
 }
@@ -39,6 +39,7 @@ func Run(conn db.Conn) {
 		}
 
 		placements := conn.SelectFromPlacement(nil)
+		connections := conn.SelectFromConnection(nil)
 		// Each time we run through this loop, we may boot or terminate
 		// containers.  These modification should, in turn, be reflected in the
 		// database themselves.  For this reason, we attempt to sync until no
@@ -62,7 +63,7 @@ func Run(conn db.Conn) {
 				break
 			}
 			sched.terminate(term)
-			sched.boot(boot, placements)
+			sched.boot(boot, placements, connections)
 		}
 	}
 }

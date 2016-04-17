@@ -42,6 +42,16 @@ func (c Connection) getID() int {
 	return c.ID
 }
 
+// SelectFromConnection gets all connections in the database connection that satisfy the 'check'.
+func (conn Conn) SelectFromConnection(check func(Connection) bool) []Connection {
+	var connections []Connection
+	conn.Transact(func(view Database) error {
+		connections = view.SelectFromConnection(check)
+		return nil
+	})
+	return connections
+}
+
 func (c Connection) String() string {
 	port := fmt.Sprintf("%d", c.MinPort)
 	if c.MaxPort != c.MinPort {

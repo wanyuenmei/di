@@ -22,6 +22,10 @@ func TestAffinity(t *testing.T) {
 		Attribute: "size",
 		Value:     "m4.large",
 	}, "affinity:di.system.label.size==m4.large")
+
+	testAffinity(t, db.PortRule{
+		Port: 80,
+	}, "affinity:di.system.label.port.80!=1")
 }
 
 func testAffinity(t *testing.T, rule db.PlacementRule, exp string) {

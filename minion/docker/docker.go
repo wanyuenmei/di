@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,9 @@ const (
 
 	// This is the namespace for system defined labels
 	systemLabelPrefix = labelBase + "system.label."
+
+	// This is the namespace for labels used for placement based on ports.
+	portLabelPrefix = systemLabelPrefix + "port."
 
 	// LabelTrueValue is needed because a label has to be a key/value pair, hence
 	// this is the value that will be used if we're only interested in the key
@@ -408,4 +412,9 @@ func ParseUserLabel(label string) string {
 // SystemLabel returns the supplied label tagged with the system prefix.
 func SystemLabel(label string) string {
 	return systemLabelPrefix + label
+}
+
+// PortLabel returns the supplied label tagged with the port prefix.
+func PortLabel(port int) string {
+	return portLabelPrefix + strconv.Itoa(port)
 }

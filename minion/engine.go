@@ -22,15 +22,19 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 		return
 	}
 
+	updateConnections(view, compiled)
 	if role == db.Master {
+		// This must happen after `updateConnections` because we generate
+		// placement rules based on whether there are incoming connections from
+		// public internet.
 		updatePlacements(view, compiled)
+
 		// The container table is aspirational -- it's the set of containers that
 		// should exist.  In the workers, however, the container table is just
 		// what's running locally.  That's why we only sync the database
 		// containers on the master.
 		updateContainers(view, compiled)
 	}
-	updateConnections(view, compiled)
 }
 
 func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
@@ -70,8 +74,27 @@ func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
 	return placements
 }
 
+func makeConnectionPlacements(conns []db.Connection) []db.Placement {
+	var dbPlacements []db.Placement
+	for _, conn := range conns {
+		if conn.From == dsl.PublicInternetLabel {
+			for p := conn.MinPort; p <= conn.MaxPort; p += 1 {
+				dbPlacements = append(dbPlacements, db.Placement{
+					TargetLabel: conn.To,
+					Rule: db.PortRule{
+						Port: p,
+					},
+				})
+			}
+		}
+	}
+
+	return dbPlacements
+}
+
 func updatePlacements(view db.Database, spec dsl.Dsl) {
 	dslPlacements := toDBPlacements(spec.QueryPlacements())
+	connPlacements := makeConnectionPlacements(view.SelectFromConnection(nil))
 
 	scoreFunc := func(left, right interface{}) int {
 		wantedPlacement := left.(db.Placement)
@@ -84,7 +107,8 @@ func updatePlacements(view db.Database, spec dsl.Dsl) {
 		return -1
 	}
 
-	_, addSet, removeSet := join.Join(dslPlacements, view.SelectFromPlacement(nil), scoreFunc)
+	_, addSet, removeSet := join.Join(append(dslPlacements, connPlacements...),
+		view.SelectFromPlacement(nil), scoreFunc)
 
 	for _, toAddIntf := range addSet {
 		toAdd := toAddIntf.(db.Placement)

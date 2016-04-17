@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/NetSys/di/db"
+	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/minion/docker"
 
 	log "github.com/Sirupsen/logrus"
@@ -23,7 +24,7 @@ func (s swarm) list() ([]docker.Container, error) {
 	return s.dk.List(map[string][]string{"label": {docker.SchedulerLabelPair}})
 }
 
-func (s swarm) boot(dbcs []db.Container, placements []db.Placement) {
+func (s swarm) boot(dbcs []db.Container, placements []db.Placement, connections []db.Connection) {
 	var wg sync.WaitGroup
 	wg.Add(len(dbcs))
 
@@ -31,7 +32,7 @@ func (s swarm) boot(dbcs []db.Container, placements []db.Placement) {
 	for _, dbc := range dbcs {
 		dbc := dbc
 		go func() {
-			labels := makeLabels(dbc)
+			labels := makeLabels(dbc, connections)
 			env := makeEnv(dbc, placements)
 			err := s.dk.Run(docker.RunOptions{
 				Image:  dbc.Image,
@@ -63,13 +64,25 @@ func (s swarm) boot(dbcs []db.Container, placements []db.Placement) {
 	}
 }
 
-func makeLabels(dbc db.Container) map[string]string {
+func makeLabels(dbc db.Container, connections []db.Connection) map[string]string {
 	labels := map[string]string{
 		docker.SchedulerLabelKey: docker.SchedulerLabelValue,
 	}
+
 	for _, lb := range dbc.Labels {
+		// Add DSL labels
 		labels[docker.UserLabel(lb)] = docker.LabelTrueValue
+
+		// Add labels for doing placement based on ports
+		for _, conn := range connections {
+			if conn.From == dsl.PublicInternetLabel && conn.To == lb {
+				for p := conn.MinPort; p <= conn.MaxPort; p += 1 {
+					labels[docker.PortLabel(p)] = docker.LabelTrueValue
+				}
+			}
+		}
 	}
+
 	return labels
 }
 

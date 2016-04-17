@@ -58,6 +58,18 @@ func (mr MachineRule) String() string {
 	return mr.AffinityStr()
 }
 
+type PortRule struct {
+	Port int
+}
+
+func (pr PortRule) AffinityStr() string {
+	return toAffinity(docker.PortLabel(pr.Port), false, docker.LabelTrueValue)
+}
+
+func (pr PortRule) String() string {
+	return pr.AffinityStr()
+}
+
 func toAffinity(left string, eq bool, right string) string {
 	eqStr := "!="
 	if eq {
