@@ -62,6 +62,7 @@ func init() {
 		"lambda":           {lambdaImpl, 2, true},
 		"let":              {letImpl, 2, true},
 		"len":              {lenImpl, 1, false},
+		"log":              {logImpl, 2, false},
 		"list":             {listImpl, 0, false},
 		"machine":          {machineImpl, 0, false},
 		"machineAttribute": {machineAttributeImpl, 2, false},
@@ -552,6 +553,36 @@ func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return astString(fmt.Sprintf(string(format), ifaceArgs...)), nil
+}
+
+func logImpl(ctx *evalCtx, args []ast) (ast, error) {
+	level, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("log level must be a string: %s\n", level)
+	}
+
+	msgAst, ok := args[1].(astString)
+	if !ok {
+		return nil, fmt.Errorf("log message must be a string: %s\n", args[1])
+	}
+
+	msg := string(msgAst)
+	switch level {
+	case "print":
+		log.Println(msg)
+	case "debug":
+		log.Debugln(msg)
+	case "info":
+		log.Infoln(msg)
+	case "warn":
+		log.Warnln(msg)
+	case "error":
+		log.Errorln(msg)
+	default:
+		return nil, fmt.Errorf("log level must be one of [print, info, debug, warn, error]: %s", level)
+	}
+
+	return astList{}, nil
 }
 
 func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
