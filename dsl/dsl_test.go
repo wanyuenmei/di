@@ -1028,6 +1028,8 @@ func TestRuntimeErrors(t *testing.T) {
 	runtimeErr(t, "(define a (+))", args)
 
 	runtimeErr(t, "(badFun)", "1: unknown function: badFun")
+
+	runtimeErr(t, `(panic "foo")`, "1: panic: runtime error: foo")
 }
 
 func TestErrorMetadata(t *testing.T) {

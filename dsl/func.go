@@ -73,6 +73,7 @@ func init() {
 		"or":               {orImpl, 1, true},
 		"placement":        {placementImpl, 2, false},
 		"plaintextKey":     {plaintextKeyImpl, 1, false},
+		"panic":            {panicImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
 		"reduce":           {reduceImpl, 2, false},
@@ -583,6 +584,15 @@ func logImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return astList{}, nil
+}
+
+func panicImpl(ctx *evalCtx, args []ast) (ast, error) {
+	msg, ok := args[0].(astString)
+	if !ok {
+		return nil, fmt.Errorf("panic message must be a string: %s\n", args[1])
+	}
+
+	return nil, fmt.Errorf("panic: runtime error: %s", string(msg))
 }
 
 func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
