@@ -92,6 +92,9 @@ func TestLet(t *testing.T) {
 
 	// Test let*-ness
 	parseTest(t, "(let ((a 1) (b (+ a a)) (c (+ a b)) (d (* b c))) (+ d d))", "12")
+
+	// Test let with an omitted body
+	parseTest(t, "(let ((a 1)))", "(list)")
 }
 
 func TestApply(t *testing.T) {

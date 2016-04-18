@@ -61,7 +61,7 @@ func init() {
 		"label":            {labelImpl, 2, false},
 		"labelName":        {labelNameImpl, 1, false},
 		"lambda":           {lambdaImpl, 2, true},
-		"let":              {letImpl, 2, true},
+		"let":              {letImpl, 1, true},
 		"len":              {lenImpl, 1, false},
 		"log":              {logImpl, 2, false},
 		"list":             {listImpl, 0, false},
@@ -709,7 +709,13 @@ func letImpl(ctx *evalCtx, args []ast) (ast, error) {
 		names = append(names, key)
 		vals = append(vals, val)
 	}
-	lambda := astLambda{argNames: names, do: args[1:], ctx: ctx}
+
+	// A let without a body has nil as an implicit body.
+	body := []ast{astList{}}
+	if len(args) > 1 {
+		body = args[1:]
+	}
+	lambda := astLambda{argNames: names, do: body, ctx: ctx}
 	let := astSexp{sexp: append([]ast{lambda}, vals...)}
 	return let.eval(ctx)
 }
