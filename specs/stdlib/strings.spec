@@ -17,13 +17,11 @@
           (sprintf "%s%s%s" x delimiter y))
         (map func itemList)))))
 
-(define (Join itemList delimiter)
-  (if (= (len itemList) 0)
-    // XXX This should be an error
+(define (Concat x y) (sprintf "%v%v" x y))
+
+(define (Join lst delim)
+  (if (= (len lst) 0)
     ""
-    (if (= (len itemList) 1)
-      (nth 0 itemList)
-      (reduce
-        (lambda (x y)
-          (sprintf "%s%s%s" x delimiter y))
-        itemList))))
+    (if (= (len lst) 1)
+      (car lst)
+      (reduce (lambda (x y) (+ x delim y)) lst))))

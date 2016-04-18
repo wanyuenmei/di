@@ -1,8 +1,13 @@
 (import "labels")
+(import "strings")
 
 (define haproxySource "quay.io/netsys/di-wp-haproxy")
 (define haproxyDefaultArgs
   (list "haproxy" "-f" "/usr/local/etc/haproxy/haproxy.cfg"))
+
+(define (getHosts database nodeKey)
+  (let ((hosts (map labels.Hostname (hmapGet database nodeKey))))
+    (strings.Join hosts ",")))
 
 (define (createHAProxyNodes prefix nodeCount hosts)
   (map
@@ -10,7 +15,7 @@
       (labels.Docker
         (list prefix i)
         (list haproxySource
-              (labels.ListToString (hmapGet hosts "nodes"))
+              (getHosts hosts "nodes")
               haproxyDefaultArgs)))
     (range nodeCount)))
 
@@ -26,5 +31,6 @@
 //   "nodes": List of labels
 //   "ports": List of ports (currently must be 80)
 (define (New prefix nodeCount hosts)
-  (hmap ("nodes" (create prefix nodeCount hosts))
-        ("ports" 80)))
+  (if (> nodeCount 0)
+         (hmap ("nodes" (create prefix nodeCount hosts))
+               ("ports" 80))))

@@ -9,5 +9,6 @@
     (range count)))
 
 (define (New prefix count)
-  (hmap ("nodes" (create prefix count))
-        ("ports" 11211)))
+  (if (> count 0)
+      (hmap ("nodes" (create prefix count))
+            ("ports" 11211))))

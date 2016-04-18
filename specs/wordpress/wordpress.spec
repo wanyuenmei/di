@@ -1,71 +1,52 @@
 (import "labels")
-(import "util")
+(import "strings")
 
-(define wordpressSource "quay.io/netsys/di-wordpress")
-(define wordpressDefaultArgs "apache2-foreground")
+(define image "quay.io/netsys/di-wordpress")
 
-(define (parseFlags database memcached redis)
-  (hmap
-    ("dbSlaves"
-     (util.HmapMultiContains database (list "slavenodes" "ports")))
-    ("memcached"
-     (util.HmapMultiContains memcached (list "nodes" "ports")))
-    ("redis"
-     (util.HmapMultiContains redis (list "nodes" "ports")))))
+(define (getHosts service nodeKey)
+  (let ((nodes (hmapGet service nodeKey))
+        (hosts (map labels.Hostname nodes)))
+    (strings.Join hosts ",")))
 
-(define (makeDockerFlags database memcached redis parsedFlags)
+(define (makeArgs db memcached redis)
   (list
-    (list "--dbm" (labels.ListToString (hmapGet database "masternodes")))
-    (if (hmapGet parsedFlags "dbSlaves")
+    (list "--dbm"
+          (getHosts db "masternodes"))
+    (if (hmapContains db "slavenodes")
       (list "--repl-mysql"
-            (labels.ListToString (hmapGet database "slavenodes")))
-      (list))
-    (if (hmapGet parsedFlags "memcached")
-      (list "--memcached" (labels.ListToString (hmapGet memcached "nodes")))
-      (list))
-    (if (hmapGet parsedFlags "redis")
-      (list "--redis" (labels.ListToString (hmapGet redis "nodes")))
-      (list))))
+            (getHosts db "slavenodes")))
+    (if memcached
+      (list "--memcached"
+            (getHosts memcached "nodes")))
+    (if redis
+      (list "--redis"
+            (getHosts redis "nodes")))
+    "apache2-foreground"))
 
-(define (wpConnect wordpressNodes externalApp portsKey nodesKey)
-  (connect (hmapGet externalApp portsKey)
-           wordpressNodes
-           (hmapGet externalApp nodesKey)))
+(define (wpConnect wordpress hm nodes)
+  (if (and hm (hmapContains hm nodes))
+    (connect (hmapGet hm "ports")
+             wordpress
+             (hmapGet hm nodes))))
 
-(define (link database memcached redis parsedFlags wordpressNodes)
-  (wpConnect wordpressNodes database "ports" "masternodes")
-  (if (hmapGet parsedFlags "dbSlaves")
-    (wpConnect wordpressNodes database "ports" "slavenodes"))
-  (if (hmapGet parsedFlags "memcached")
-    (wpConnect wordpressNodes memcached "ports" "nodes"))
-  (if (hmapGet parsedFlags "redis")
-    (wpConnect wordpressNodes redis "ports" "nodes")))
-
-(define (createWordpressNodes prefix count flagStrs)
-  (map (lambda (i)
-         (labels.Docker
-           (list prefix i)
-           (list wordpressSource flagStrs wordpressDefaultArgs)))
-       (range count)))
-
-// Returns the labels of the new wordpress nodes
-(define (create prefix count database memcached redis)
-  (let ((parsedFlags (parseFlags database memcached redis))
-        (flagStrs (makeDockerFlags database memcached redis parsedFlags))
-        (wordpressNodes (createWordpressNodes prefix count flagStrs)))
-    (link database memcached redis parsedFlags wordpressNodes)
-    wordpressNodes))
-
-// database: hmap
+// db: hmap
 //   "masternodes": list of db master nodes
 //   "slavenodes": list of db slave nodes
-//   "ports": list of ports to access database
+//   "ports": list of ports to access db
 // memcached: hmap
 //   "nodes": list of memcached nodes
 //   "ports": list of memcached ports
 // redis: hmap
 //   "nodes": list of redis nodes
 //   "ports": list of redis ports
-(define (New prefix count database memcached redis)
-  (hmap ("nodes" (create prefix count database memcached redis))
-        ("ports" 80)))
+(define (New prefix cnt db memcached redis)
+  (let ((args (makeArgs db memcached redis))
+        (wp (makeList cnt (docker image args)))
+        (labelNames (labels.Range prefix cnt))
+        (wordpress (map label labelNames wp)))
+    (if (> cnt 0) (progn
+      (wpConnect wordpress db "masternodes")
+      (wpConnect wordpress db "slavenodes")
+      (wpConnect wordpress memcached "nodes")
+      (wpConnect wordpress redis "nodes")
+      (hmap ("ports" 80) ("nodes" wordpress))))))
