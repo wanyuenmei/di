@@ -6,7 +6,6 @@
 (define (New zone nMemcache nSql nWordpress nHaproxy)
   (let ((memcd (memcached.New (+ zone "-memcd") nMemcache))
         (db (mysql.New (+ zone "-mysql") nSql))
-        (wp (wordpress.New (+ zone "-wp") nWordpress db
-                           (hmap ("memcached" memcd))))
+        (wp (wordpress.New (+ zone "-wp") nWordpress db memcd (hmap)))
         (hap (haproxy.New (+ zone "-hap") nHaproxy wp)))
     hap))
