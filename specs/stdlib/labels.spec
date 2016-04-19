@@ -2,6 +2,9 @@
 
 (define (Hostname l) (sprintf "%s.di" (labelName l)))
 
+// XXX This break abstraction.
+(define (StrToHostname s) (sprintf "%s.di" s))
+
 (define (ListToString itemList)
   (strings.ListToStr itemList Hostname ","))
 
@@ -11,3 +14,6 @@
   (label
     (strings.ListToStr nameFragments strings.Str "-")
     (docker dockerArgs)))
+
+(define (Range prefix n)
+  (map (lambda (i) (sprintf "%s-%d" prefix i)) (range n)))

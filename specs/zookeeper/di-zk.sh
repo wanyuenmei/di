@@ -1,16 +1,5 @@
 #! /bin/sh
 
-# Wait for eth0 to show up.
-until ip link show eth0
-do
-    sleep 1
-done
-
-until grep zoo /etc/hosts
-do
-    sleep 1
-done
-
 MYID=$1
 
 FILE=/opt/zookeeper/conf/zoo.cfg
@@ -34,4 +23,11 @@ do
 done
 
 cat $FILE
+
+echo "trying to resolve $(hostname)"
+until hostname -f > /dev/null 2>&1; do
+    sleep 1
+done
+echo "successfully resolved $(hostname)"
+
 /opt/zookeeper/bin/zkServer.sh start-foreground

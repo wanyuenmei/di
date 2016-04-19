@@ -1,32 +1,57 @@
-(import "machines")
+(import "labels")
+(import "strings")
 
-(define Namespace "CHANGE_ME")
-(define AdminACL (list "local"))
+(define image "quay.io/netsys/spark")
 
-(define sparkWorkerCount 3)
+(define (parseMasters sparkMasters)
+  (strings.Join (map labels.Hostname sparkMasters) ","))
 
-(define MasterCount 1)
-(define WorkerCount (+ 1 sparkWorkerCount))
-(machines.Boot
-  MasterCount
-  WorkerCount
-  (list (provider "AmazonSpot")
-        (size "m4.large")
-        (githubKey "ejj")))
+(define (parseZookeeper zookeeper)
+  (if zookeeper
+    (list
+      "--zoo"
+      (strings.Join (map labels.Hostname (hmapGet zookeeper "nodes")) ","))))
 
-(label "spark-master"
-    (docker "quay.io/netsys/spark" "di-start-master.sh"))
+(define (createMasters prefix n zookeeper)
+  (let ((labelNames (labels.Range (sprintf "%s-ms" prefix) n))
+        (zooArgs (parseZookeeper zookeeper))
+        (sparkDockers
+          (makeList n (docker image "di-start-master.sh" zooArgs))))
+    (map label labelNames sparkDockers)))
 
-(label "spark-worker" (makeList sparkWorkerCount
-    (docker "quay.io/netsys/spark"
-        "di-start-worker.sh" "spark://spark-master.di:7077")))
+(define (createWorkers prefix n masters)
+  (let ((labelNames (labels.Range (sprintf "%s-wk" prefix) n))
+        (masterArgs (parseMasters masters))
+        (sparkDockers
+          (makeList n (docker image "di-start-worker.sh" masterArgs))))
+    (map label labelNames sparkDockers)))
 
-(label "spark-nodes" "spark-master" "spark-worker")
+(define (link masters workers zookeeper)
+  (connect (list 1000 65535) masters workers)
+  (connect (list 1000 65535) workers workers)
+  (connect 7077 workers masters)
+  (if zookeeper
+    (connect (hmapGet zookeeper "ports")
+             masters
+             (hmapGet zookeeper "nodes"))))
 
-(placement "exclusive" "spark-nodes" "spark-nodes")
+(define (place masters workers disperse)
+  (if disperse
+    (placement "exclusive" masters masters)
+    (placement "exclusive" workers workers)))
 
-// Spark workers listen on random ports. Must open up everything.
-(connect (list 1000 65535) "spark-master" "spark-worker")
-(connect (list 1000 65535) "spark-worker" "spark-worker")
-
-(connect 7077 "spark-worker" "spark-master")
+// disperse: If true, Spark masters won't be placed on the same vm as
+//   another master. The same applies to Spark workers.
+// zookeeper: optional hmap (empty list if unwanted)
+//   "nodes": List of zookeeper nodes
+//   "ports": List of zookeeper ports
+(define (New prefix nMaster nWorker disperse zookeeper)
+  (let ((masters (createMasters prefix nMaster zookeeper))
+        (workers (createWorkers prefix nWorker masters)))
+    (if (and masters workers)
+      (progn
+        (link masters workers zookeeper)
+        (place masters workers disperse)
+        (hmap ("masternodes" masters)
+              ("workernodes" workers)
+              ("ports" 7077))))))

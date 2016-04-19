@@ -4,6 +4,7 @@
 // specific conversion is always preferred.
 (define (Str value) (sprintf "%v" value))
 
+// XXX This will be deprecated
 // func: Run on every item the itemList, one at a time
 (define (ListToStr itemList func delimiter)
   (if (= (len itemList) 0)
@@ -15,3 +16,14 @@
         (lambda (x y)
           (sprintf "%s%s%s" x delimiter y))
         (map func itemList)))))
+
+(define (Join itemList delimiter)
+  (if (= (len itemList) 0)
+    // XXX This should be an error
+    ""
+    (if (= (len itemList) 1)
+      (nth 0 itemList)
+      (reduce
+        (lambda (x y)
+          (sprintf "%s%s%s" x delimiter y))
+        itemList))))

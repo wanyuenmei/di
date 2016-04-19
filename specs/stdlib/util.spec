@@ -17,13 +17,10 @@
     (if (= (len results) 1)
       (nth 0 results)
       (reduce
-        (lambda (x y)
-          (if (and x y) true false))
+        (lambda (x y) (and x y))
         results))))
 
 // innerKeys: List of keys
 (define (NestedHmapMultiContains hash innerHashName innerKeys)
-  // XXX Error if innerKeys is not list of len > 0
-  (if (hmapContains hash innerHashName)
-    (HmapMultiContains (hmapGet hash innerHashName) innerKeys)
-    false))
+  (and (hmapContains hash innerHashName)
+       (HmapMultiContains (hmapGet hash innerHashName) innerKeys)))

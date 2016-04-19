@@ -1,24 +1,30 @@
-(import "machines")
+(import "labels")
+(import "strings")
+(import "log")
 
-(define Namespace "CHANGE_ME")
-(define AdminACL (list "local"))
+(define image "quay.io/netsys/zookeeper")
 
-(define MasterCount 1)
-(define WorkerCount 3)
-(machines.Boot
-  MasterCount
-  WorkerCount
-  (list (provider "AmazonSpot")
-        (size "m4.large")
-        (githubKey "ejj")))
+(define (create prefix n)
+  (let ((labelNames (labels.Range prefix n))
+        // XXX labels.StrToHostname breaks abstraction
+        (zooHosts (strings.Join (map labels.StrToHostname labelNames) ","))
+        (zooDockers (makeList n (docker image zooHosts))))
+    (map label labelNames zooDockers)))
 
-// XXX: Once we have lambda this could be simplified with a map and a range
-(let ((image "quay.io/netsys/zookeeper")
-      (zooHosts "zoo1.di,zoo2.di,zoo3.di"))
-     (list (label "zoo1" (docker image "1" zooHosts))
-           (label "zoo2" (docker image "2" zooHosts))
-           (label "zoo3" (docker image "3" zooHosts))))
+(define (link zoos)
+  (connect (list 1000 65535) zoos zoos))
 
-(let ((zooList (list "zoo1" "zoo2" "zoo3")) (portRange (list 1000 65535)))
-    (connect portRange zooList zooList)
-    (placement "exclusive" zooList))
+(define (place zoos disperse)
+  (if disperse
+    (placement "exclusive" zoos zoos)))
+
+// disperse: If true, Zookeepers won't be placed on the same vm as another
+//   Zookeeper.
+(define (New prefix n disperse)
+  (let ((zoos (create prefix n)))
+    (if zoos
+      (progn
+        (link zoos)
+        (place zoos disperse)
+        (hmap ("nodes" zoos)
+              ("ports" 2181))))))
