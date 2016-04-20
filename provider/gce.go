@@ -43,12 +43,13 @@ const (
 	global
 )
 
+var supportedZones = []string{"us-central1-a", "us-east1-b"}
+
 var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
 
 type gceCluster struct {
 	projID    string // gce project ID
-	zone      string // gce zone
 	imgURL    string // gce url to the VM image
 	baseURL   string // gce project specific url prefix
 	ipv4Range string // ipv4 range of the internal network
@@ -73,7 +74,6 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) err
 	}
 
 	clst.projID = "declarative-infrastructure"
-	clst.zone = "us-central1-a"
 	clst.id = clusterID
 	clst.ns = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
@@ -105,23 +105,26 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) err
 // XXX: This doesn't use the instance group listing functionality because
 // listing that way doesn't get you information about the instances
 func (clst *gceCluster) Get() ([]Machine, error) {
-	list, err := gceService.Instances.List(clst.projID, clst.zone).
-		Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
-	if err != nil {
-		return nil, err
-	}
 	var mList []Machine
-	for _, item := range list.Items {
-		// XXX: This make some iffy assumptions about NetworkInterfaces
-		machineSplitURL := strings.Split(item.MachineType, "/")
-		mtype := machineSplitURL[len(machineSplitURL)-1]
-		mList = append(mList, Machine{
-			ID:        item.Name,
-			PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
-			PrivateIP: item.NetworkInterfaces[0].NetworkIP,
-			Size:      mtype,
-			Provider:  db.Google,
-		})
+	for _, zone := range supportedZones {
+		list, err := gceService.Instances.List(clst.projID, zone).
+			Filter(fmt.Sprintf("description eq %s", clst.ns)).Do()
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range list.Items {
+			// XXX: This make some iffy assumptions about NetworkInterfaces
+			machineSplitURL := strings.Split(item.MachineType, "/")
+			mtype := machineSplitURL[len(machineSplitURL)-1]
+			mList = append(mList, Machine{
+				ID:        item.Name,
+				PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
+				PrivateIP: item.NetworkInterfaces[0].NetworkIP,
+				Size:      mtype,
+				Region:    zone,
+				Provider:  db.Google,
+			})
+		}
 	}
 	return mList, nil
 }
@@ -134,7 +137,7 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 	var names []string
 	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		_, err := clst.instanceNew(name, m.Size, cloudConfigUbuntu(m.SSHKeys, "wily"))
+		_, err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily"))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
@@ -159,7 +162,7 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 func (clst *gceCluster) Stop(machines []Machine) error {
 	var names []string
 	for _, m := range machines {
-		if _, err := clst.instanceDel(m.ID); err != nil {
+		if _, err := clst.instanceDel(m.ID, m.Region); err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 				"id":    m.ID,
@@ -254,7 +257,7 @@ func (clst *gceCluster) operationWait(ops []*compute.Operation, domain int) erro
 				switch {
 				case domain == local:
 					op, err = gceService.ZoneOperations.
-						Get(clst.projID, clst.zone, ops[0].Name).Do()
+						Get(clst.projID, ops[0].Zone, ops[0].Name).Do()
 				case domain == global:
 					op, err = gceService.GlobalOperations.
 						Get(clst.projID, ops[0].Name).Do()
@@ -275,9 +278,9 @@ func (clst *gceCluster) operationWait(ops []*compute.Operation, domain int) erro
 }
 
 // Get a GCE instance.
-func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
+func (clst *gceCluster) instanceGet(name, zone string) (*compute.Instance, error) {
 	ist, err := gceService.Instances.
-		Get(clst.projID, clst.zone, name).Do()
+		Get(clst.projID, zone, name).Do()
 	return ist, err
 }
 
@@ -287,13 +290,14 @@ func (clst *gceCluster) instanceGet(name string) (*compute.Instance, error) {
 //
 // XXX: all kinds of hardcoded junk in here
 // XXX: currently only defines the bare minimum
-func (clst *gceCluster) instanceNew(name string, size string, cloudConfig string) (*compute.Operation, error) {
+func (clst *gceCluster) instanceNew(name string, size string, zone string,
+	cloudConfig string) (*compute.Operation, error) {
 	instance := &compute.Instance{
 		Name:        name,
 		Description: clst.ns,
 		MachineType: fmt.Sprintf("%s/zones/%s/machineTypes/%s",
 			clst.baseURL,
-			clst.zone,
+			zone,
 			size),
 		Disks: []*compute.AttachedDisk{
 			{
@@ -328,7 +332,7 @@ func (clst *gceCluster) instanceNew(name string, size string, cloudConfig string
 	}
 
 	op, err := gceService.Instances.
-		Insert(clst.projID, clst.zone, instance).Do()
+		Insert(clst.projID, zone, instance).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -338,8 +342,8 @@ func (clst *gceCluster) instanceNew(name string, size string, cloudConfig string
 // Delete a GCE instance.
 //
 // Does not check if the operation succeeds
-func (clst *gceCluster) instanceDel(name string) (*compute.Operation, error) {
-	op, err := gceService.Instances.Delete(clst.projID, clst.zone, name).Do()
+func (clst *gceCluster) instanceDel(name, zone string) (*compute.Operation, error) {
+	op, err := gceService.Instances.Delete(clst.projID, zone, name).Do()
 	return op, err
 }
 
