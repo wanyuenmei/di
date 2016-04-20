@@ -34,7 +34,7 @@ func (db Database) SelectFromConnection(check func(Connection) bool) []Connectio
 
 func (c Connection) String() string {
 	port := fmt.Sprintf("%d", c.MinPort)
-	if c.MaxPort == c.MinPort {
+	if c.MaxPort != c.MinPort {
 		port += fmt.Sprintf("-%d", c.MaxPort)
 	}
 
