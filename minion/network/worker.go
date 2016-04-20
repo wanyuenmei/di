@@ -26,6 +26,7 @@ import (
 const (
 	nsPath    string = "/var/run/netns"
 	innerVeth string = "eth0"
+	loopback  string = "lo"
 	innerMTU  int    = 1450
 )
 
@@ -145,6 +146,7 @@ func runWorker(conn db.Conn, dk docker.Client) {
 	updateContainerIPs(containers, labels)
 	updateRoutes(containers)
 	updateEtcHosts(dk, containers, labels, connections)
+	updateLoopback(containers)
 }
 
 // If a namespace in the path is detected as invalid and conflicts with
@@ -233,6 +235,15 @@ func addNS(info nsInfo) error {
 			netnsDst, netnsSrc, err)
 	}
 	return nil
+}
+
+func updateLoopback(containers []db.Container) {
+	for _, dbc := range containers {
+		namespace := networkNS(dbc.SchedID)
+		if err := upLink(namespace, loopback); err != nil {
+			log.WithError(err).Error("failed to up loopback device")
+		}
+	}
 }
 
 func updateVeths(containers []db.Container) {
