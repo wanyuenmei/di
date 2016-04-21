@@ -89,7 +89,9 @@ To do that, follow these steps:
 [docker hub](https://hub.docker.com/) or [quay.io](https://quay.io/) for
 example.
 2. Modify `minionImage` in [cloud_config.go](provider/cloud_config.go) to point to your repo.
-3. Modify the repo [Makefile](Makefile) so it builds your image.
+3. Create a `.mk` file (for example: `local.mk`) to override variables
+defined in [Makefile](Makefile). Set `REPO` to your own quay repository
+(for example: `REPO = quay.io/sample_repo`) inside the `.mk` file you created.
 4. Create the docker image: `make docker-build-minion`
    * Since Docker requires certain Linux features, you can't run Docker
    natively on OS X or other non-Linux boxes. A simple workaround is Docker's
