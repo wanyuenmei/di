@@ -176,7 +176,14 @@ func (clst *azureCluster) instanceNew(name string, vmSize string, cloudConfig st
 		mediaLink,
 		"")
 	vmutils.ConfigureForLinux(&role, name, clst.username, clst.userPassword)
-	vmutils.ConfigureWithPublicSSH(&role)
+	vmutils.ConfigureWithExternalPort(&role, "ssh", 22, 22, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "grpc", 9999, 9999, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "swarm-1", 2375, 2375, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "swarm-2", 2377, 2377, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "etcd-1", 2379, 2379, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "etcd-2", 2380, 2380, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "ovsdb", 6640, 6640, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "geneve", 6081, 6081, virtualmachine.InputEndpointProtocolUDP)
 
 	role.ConfigurationSets[0].CustomData =
 		base64.StdEncoding.EncodeToString([]byte(cloudConfig))
