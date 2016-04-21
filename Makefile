@@ -1,6 +1,8 @@
 export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
+REPO = quay.io/netsys
+DOCKER = docker
 
 all:
 	cd -P . && \
@@ -23,12 +25,12 @@ format:
 
 docker: docker-minion
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	docker build -t quay.io/netsys/di .
-	cd -P di-tester && docker build -t quay.io/netsys/di-tester .
+	${DOCKER} build -t ${REPO}/di .
+	cd -P di-tester && ${DOCKER} build -t ${REPO}/di-tester .
 
 docker-minion:
 	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
-	    && docker build -t quay.io/netsys/di-minion .
+	    && ${DOCKER} build -t ${REPO}/di-minion .
 
 check:
 	go test $(PACKAGES)
