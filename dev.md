@@ -90,14 +90,14 @@ To do that, follow these steps:
 example.
 2. Modify `minionImage` in [cloud_config.go](provider/cloud_config.go) to point to your repo.
 3. Modify the repo [Makefile](Makefile) so it builds your image.
-4. Create the docker image: `make docker`
+4. Create the docker image: `make docker-build-minion`
    * Since Docker requires certain Linux features, you can't run Docker
    natively on OS X or other non-Linux boxes. A simple workaround is Docker's
    [Docker Quickstart Terminal](https://docs.docker.com/mac/step_one/) which
    provides you with a simple way to set up an appropriate environment.
 5. Sign in to your image registry using `docker login`.
-6. Push your image: `docker push $YOUR_REPO`. You can consider adding this to
-your Makefile as well.
+6. Push your image: `make docker-push-minion`. There is also a combined
+make target called `make docker-minion` which builds and pushes.
 
 After the above setup, you're good to go - just remember to build and push your
 image first, whenever you want to run the `minion` with your latest changes.

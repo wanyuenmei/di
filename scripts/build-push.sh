@@ -17,7 +17,7 @@ fi
 
 status_line "Building minion..."
 
-make docker
+make docker-build-di docker-build-tester docker-build-minion
 status_line "Successfully built minion."
 
 if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then

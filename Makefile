@@ -23,15 +23,6 @@ providers:
 format:
 	gofmt -w -s $(NOVENDOR)
 
-docker: docker-minion
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	${DOCKER} build -t ${REPO}/di .
-	cd -P di-tester && ${DOCKER} build -t ${REPO}/di-tester .
-
-docker-minion:
-	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
-	    && ${DOCKER} build -t ${REPO}/di-minion .
-
 check:
 	go test $(PACKAGES)
 
@@ -47,6 +38,31 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 	go test -coverprofile=$@.out ./$*
 	go tool cover -html=$@.out -o $@.html
 	rm $@.out
+
+# BUILD
+
+docker-build-di:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
+	${DOCKER} build -t ${REPO}/di .
+
+docker-build-tester:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
+	cd -P di-tester && ${DOCKER} build -t ${REPO}/di-tester .
+
+docker-build-minion:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
+	cd -P minion && ${DOCKER} build -t ${REPO}/di-minion .
+
+# PUSH
+
+docker-push-di:
+	${DOCKER} push ${REPO}/di
+
+docker-push-tester:
+	${DOCKER} push ${REPO}/di-tester
+
+docker-push-minion:
+	${DOCKER} push ${REPO}/di-minion
 
 # Include all .mk files so you can have your own local configurations
 include $(wildcard *.mk)
