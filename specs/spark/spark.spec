@@ -37,8 +37,9 @@
 
 (define (place masters workers disperse)
   (if disperse
-    (placement "exclusive" masters masters)
-    (placement "exclusive" workers workers)))
+    (progn
+      (placement "exclusive" masters masters)
+      (placement "exclusive" workers workers))))
 
 // disperse: If true, Spark masters won't be placed on the same vm as
 //   another master. The same applies to Spark workers.
