@@ -43,5 +43,10 @@ func TestConfigs(t *testing.T) {
 	testConfig("specs/spark/main.spec",
 		[]string{"specs/stdlib", "specs/spark", "specs/zookeeper"})
 	testConfig("specs/wordpress/main.spec",
-		[]string{"specs/stdlib", "specs/wordpress"})
+		[]string{
+			"specs/stdlib",
+			"specs/wordpress",
+			"specs/spark",
+			"specs/zookeeper",
+		})
 }

@@ -29,8 +29,13 @@
           (githubKey "nlsun"))))
 
 (let ((prefix "di")
-      (memcachedCount 2)
-      (mysqlSlaveCount 2)
-      (wordpressCount 2)
-      (haproxyCount 2))
-  (exwp.New prefix memcachedCount mysqlSlaveCount wordpressCount haproxyCount))
+      (nMemcached 2)
+      (nMysqlSlave 2)
+      (nWordpress 2)
+      (nHaproxy 2)
+      (nSparkMaster 2)
+      (nSparkWorker 2)
+      (nZookeeper 3)
+      (disperse true))
+  (exwp.New prefix nMemcached nMysqlSlave nWordpress nHaproxy
+            nSparkMaster nSparkWorker nZookeeper disperse))
