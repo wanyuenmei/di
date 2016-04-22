@@ -635,7 +635,7 @@ func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	if _, ok := ctx.binds[ident]; ok {
-		return nil, fmt.Errorf("attempt to redefine: \"%s\"", args[0].(astIdent))
+		return nil, fmt.Errorf("attempt to redefine: \"%s\"", ident)
 	}
 
 	ctx.binds[ident] = value
