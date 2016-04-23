@@ -77,6 +77,12 @@ type ipRule struct {
 	opts  string // Must be sorted - see makeIPRule
 }
 
+type OFRule struct {
+	table   string
+	match   string
+	actions string
+}
+
 // Query the database for any running containers and for each container running on this
 // host, do the following:
 //    - Create a pair of virtual interfaces for the container if it's new and
@@ -832,10 +838,83 @@ func generateCurrentRoutes(namespace string) ([]route, error) {
 // XXX: The multipath action doesn't perform well.  We should migrate away from it
 // choosing datapath recirculation instead.
 func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Label) {
-	defaultGwMac, err := getMac("", diBridge)
+	targetOF, err := generateTargetOpenFlow(dk, containers, labels)
 	if err != nil {
-		log.WithError(err).Error("failed to get MAC")
+		log.WithError(err).Error("failed to get target OpenFlow flows")
 		return
+	}
+	currentOF, err := generateCurrentOpenFlow(dk)
+	if err != nil {
+		log.WithError(err).Error("failed to get current OpenFlow flows")
+		return
+	}
+	_, flowsToDel, flowsToAdd := join.Join(currentOF, targetOF, func(
+		left, right interface{}) int {
+		if left.(OFRule).table == right.(OFRule).table &&
+			left.(OFRule).match == right.(OFRule).match &&
+			left.(OFRule).actions == right.(OFRule).actions {
+			return 0
+		}
+		return -1
+	})
+
+	for _, f := range flowsToDel {
+		if err := deleteOFRule(dk, f.(OFRule)); err != nil {
+			log.WithError(err).Error("error deleting OpenFlow flow")
+		}
+	}
+
+	for _, f := range flowsToAdd {
+		if err := addOFRule(dk, f.(OFRule)); err != nil {
+			log.WithError(err).Error("error adding OpenFlow flow")
+		}
+	}
+}
+
+func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
+	args := "ovs-ofctl dump-flows " + diBridge
+	stdout, _, err := dk.ExecVerbose(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to list OpenFlow flows: %s", string(stdout))
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(stdout))
+	var flows []OFRule
+
+	// The first line isn't a flow, so skip it.
+	scanner.Scan()
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		flow, err := makeOFRule(line)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+		}
+
+		flows = append(flows, flow)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanner error while getting OpenFlow flows: %s",
+			err)
+	}
+
+	return flows, nil
+}
+
+// The target flows must be in the same format as the output from ovs-ofctl
+// dump-flows. To achieve this, we have some rather ugly hacks that handle
+// a few special cases.
+func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
+	labels []db.Label) ([]OFRule, error) {
+	var targetRules []OFRule
+
+	dflGatewayMAC, err := getMac("", diBridge)
+	if err != nil {
+		log.WithError(err).Error("failed to get MAC of default gateway.")
 	}
 
 	for _, dbc := range containers {
@@ -845,66 +924,49 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 
 		ovsdb, err := ovsdb.Open()
 		if err != nil {
-			log.WithError(err).Error("failed to connect to OVSDB")
-			return
+			return nil, fmt.Errorf("failed to open OVSDB")
 		}
 		defer ovsdb.Close()
 
 		ofDI, err := ovsdb.GetOFPortNo(peerDI)
 		if err != nil {
-			log.WithError(err).Error("failed to get OpenFLow port")
-			return
+			return nil, fmt.Errorf("failed to get OpenFlow port")
 		}
 
 		ofVeth, err := ovsdb.GetOFPortNo(vethOut)
 		if err != nil {
-			log.WithError(err).Error("failed to get OpenFLow port")
-			return
+			return nil, fmt.Errorf("failed to get OpenFlow port")
 		}
 
 		if ofDI < 0 || ofVeth < 0 {
-			log.Warning("missing OpenFlow port number")
-			return
+			return nil, fmt.Errorf("missing OpenFlow port number")
 		}
 
-		// XXX: While OVS will automatically detect duplicate flows and refrain
-		// from adding them, we still need to go through and delete flows for
-		// old containers that are no longer userful.  Really this whole
-		// algorithm needs to be revamped.  Instead we should check what flows
-		// are there, compute a diff and fix things up.
-		args := "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
-			"actions=output:%d"
-		args = fmt.Sprintf(args, diBridge, 5000, ofDI, ofVeth)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+		rules := []string{
+			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
+				"actions=output:%d", 5000, ofDI, ofVeth),
+			fmt.Sprintf("table=2 priority=%d,in_port=%d "+
+				"actions=output:%d", 5000, ofVeth, ofDI),
+			// Flows destined for the public web.
+			// LOCAL is the default di-int port created with the bridge.
+			fmt.Sprintf("table=0 priority=%d,dl_dst=%s,in_port=%d "+
+				"actions=LOCAL", 5000, dflGatewayMAC, ofVeth),
+			// Flows from public web destined for this container.
+			fmt.Sprintf("table=0 priority=%d,in_port=LOCAL,dl_dst=%s "+
+				"actions=output:%d", 5000, dbcMac, ofVeth),
+			fmt.Sprintf("table=0 priority=%d,arp,in_port=%d "+
+				"actions=output:%d,LOCAL", 4500, ofVeth, ofDI),
+			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
+				"actions=output:%d", 0, ofVeth, ofDI),
+		}
 
-		args = "ovs-ofctl add-flow %s priority=%d,table=2,in_port=%d," +
-			"actions=output:%d"
-		args = fmt.Sprintf(args, diBridge, 5000, ofVeth, ofDI)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
-
-		// Flows destined for the public web.
-		// LOCAL is the default di-int port created with the bridge
-		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
-			",dl_dst=%s,actions=output:LOCAL"
-		args = fmt.Sprintf(args, diBridge, 5000, ofVeth, defaultGwMac)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
-
-		// Flows from public web destined for this container.
-		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=LOCAL," +
-			",dl_dst=%s,actions=output:%d"
-		args = fmt.Sprintf(args, diBridge, 5000, dbcMac, ofVeth)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
-
-		args = "ovs-ofctl add-flow"
-		args += " %s priority=%d,table=0,arp,in_port=%d,actions=output:LOCAL,%d"
-		args = fmt.Sprintf(args, diBridge, 4500, ofVeth, ofDI)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
-
-		/* Catch-all toward OVN */
-		args = "ovs-ofctl add-flow %s priority=%d,table=0,in_port=%d," +
-			"actions=output:%d"
-		args = fmt.Sprintf(args, diBridge, 0, ofVeth, ofDI)
-		dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+		for _, r := range rules {
+			rule, err := makeOFRule(r)
+			if err != nil {
+				return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+			}
+			targetRules = append(targetRules, rule)
+		}
 	}
 
 	LabelMacs := make(map[string]map[string]struct{})
@@ -917,6 +979,7 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 		}
 	}
 
+	var rule OFRule
 	for _, label := range labels {
 		if !label.MultiHost {
 			continue
@@ -927,31 +990,58 @@ func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Lab
 			continue
 		}
 
+		ip := label.IP
 		n := len(macs)
 		lg2n := int(math.Ceil(math.Log2(float64(n))))
 
-		ip := label.IP
-		pri := "priority=4000"
-		mpa := fmt.Sprintf("multipath(symmetric_l3l4, 0, modulo_n, %d, 0,"+
-			" NXM_NX_REG0[0..%d])", n, lg2n)
-		match := fmt.Sprintf("table=0,dl_dst=%s,nw_dst=%s", labelMac, ip)
-		flow0 := fmt.Sprintf("%s,%s,actions=%s,resubmit(,1)", pri, match, mpa)
+		nxmRange := fmt.Sprintf("0..%d", lg2n)
+		if lg2n == 0 {
+			// dump-flows collapses 0..0 to just 0.
+			nxmRange = "0"
+		}
+		mpa := fmt.Sprintf("multipath(symmetric_l3l4,0,modulo_n,%d,0,"+
+			"NXM_NX_REG0[%s])", n, nxmRange)
 
-		// XXX: Our whole algorithm here is based on blowing away all of the
-		// existing flows, and replacing them with new ones.  This is *really*
-		// not good, instead we should query what flows exist and only make
-		// necessary modifications.
-		dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "del-flows", match)
-		dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "add-flow", flow0)
+		rule, err = makeOFRule(fmt.Sprintf(
+			"table=0 priority=%d,dl_dst=%s,ip,nw_dst=%s actions=%s,resubmit(,1)",
+			4000, labelMac, ip, mpa))
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+		}
+
+		targetRules = append(targetRules, rule)
+
+		// We need the order to make diffing consistent.
+		macList := make([]string, 0, n)
+		for mac := range macs {
+			macList = append(macList, mac)
+		}
+		sort.Strings(macList)
 
 		i := 0
-		for mac := range macs {
-			flow1 := fmt.Sprintf("priority=5000,table=1,nw_dst=%s,reg0=%d,"+
-				"actions=mod_dl_dst:%s,resubmit(,2)", ip, i, mac)
-			dk.Exec(supervisor.Ovsvswitchd, "ovs-ofctl", "add-flow", flow1)
+		regPrefix := ""
+		for _, mac := range macList {
+			if i > 0 {
+				// dump-flows puts a 0x prefix for all register values except for 0.
+				regPrefix = "0x"
+			}
+			reg0 := fmt.Sprintf("%s%x", regPrefix, i)
+
+			rule, err = makeOFRule(fmt.Sprintf(
+				"table=1 priority=5000,ip,nw_dst=%s,reg0=%s "+
+					"actions=mod_dl_dst:%s,resubmit(,2)", ip, reg0, mac))
+
+			if err != nil {
+				return nil, fmt.Errorf("failed to make OpenFlow rule: %s", err)
+			}
+
+			targetRules = append(targetRules, rule)
 			i++
 		}
 	}
+
+	return targetRules, nil
 }
 
 // updateNameservers assigns each container the same nameservers as the host.
@@ -1266,4 +1356,84 @@ func deleteRoute(namespace string, r route) error {
 			r.ip, namespaceName(namespace), err)
 	}
 	return nil
+}
+
+func addOFRule(dk docker.Client, flow OFRule) error {
+	args := fmt.Sprintf("ovs-ofctl add-flow %s %s,%s,actions=%s",
+		diBridge, flow.table, flow.match, flow.actions)
+	err := dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteOFRule(dk docker.Client, flow OFRule) error {
+	args := fmt.Sprintf("ovs-ofctl del-flows --strict %s %s,%s",
+		diBridge, flow.table, flow.match)
+	err := dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// makeOFRule constructs an OFRule with the given flow, actions and table.
+// table must be of the format table=X, and both flow and action must be
+// formatted as in the output from `ovs-ofctl dump-flows` - this includes
+// case sensitivity. There must be no spaces in flow and actions.
+// This function works for the flows we need at the moment, but it will likely
+// have to be extended in the future.
+func makeOFRule(flowEntry string) (OFRule, error) {
+	tableRE := regexp.MustCompile("table=\\d+")
+	if ok := tableRE.MatchString(flowEntry); !ok {
+		return OFRule{}, fmt.Errorf("malformed OpenFlow table: %s", flowEntry)
+	}
+	table := tableRE.FindString(flowEntry)
+
+	fields := strings.Split(flowEntry, " ")
+	match := fields[len(fields)-2]
+	actions := fields[len(fields)-1]
+
+	actRE := regexp.MustCompile("actions=(\\S+)")
+	actMatches := actRE.FindStringSubmatch(actions)
+	if len(actMatches) != 2 {
+		return OFRule{}, fmt.Errorf("bad OF action format: %s", actions)
+	}
+	actions = actMatches[1]
+
+	// An action of the format function(args...)
+	funcRE := regexp.MustCompile("\\w+\\([^\\)]+\\)")
+	funcMatches := funcRE.FindAllString(actions, -1)
+
+	// Remove all functions, so we can split actions on commas
+	noFuncs := funcRE.Split(actions, -1)
+
+	var argMatches []string
+	for _, a := range noFuncs {
+		// XXX: If there are commas between two functions in actions,
+		// there might be lone commas in noFuncs. We should ideally
+		// get rid of these commas with the regex above.
+		act := strings.Trim(string(a), ",")
+		if act == "" {
+			continue
+		}
+
+		splitAct := strings.Split(act, ",")
+		argMatches = append(argMatches, splitAct...)
+	}
+
+	allMatches := append(argMatches, funcMatches...)
+	sort.Strings(allMatches)
+
+	splitMatch := strings.Split(match, ",")
+	sort.Strings(splitMatch)
+
+	newRule := OFRule{
+		table:   table,
+		match:   strings.Join(splitMatch, ","),
+		actions: strings.Join(allMatches, ","),
+	}
+
+	return newRule, nil
 }

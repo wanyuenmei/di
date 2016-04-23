@@ -14,7 +14,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const labelMac = "0A:00:00:00:00:00"
+const labelMac = "0a:00:00:00:00:00"
 const lSwitch = "di"
 const diBridge = "di-int"
 const ovnBridge = "br-int"

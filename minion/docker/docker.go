@@ -2,6 +2,7 @@ package docker
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -54,6 +55,7 @@ type Container struct {
 type Client interface {
 	Run(opts RunOptions) error
 	Exec(name string, cmd ...string) error
+	ExecVerbose(name string, cmd ...string) ([]byte, []byte, error)
 	Remove(name string) error
 	RemoveID(id string) error
 	Pull(image string) error
@@ -165,22 +167,43 @@ func (dk docker) Run(opts RunOptions) error {
 }
 
 func (dk docker) Exec(name string, cmd ...string) error {
+	_, _, err := dk.ExecVerbose(name, cmd...)
+	return err
+}
+
+func (dk docker) ExecVerbose(name string, cmd ...string) ([]byte, []byte, error) {
 	id, err := dk.getID(name)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	exec, err := dk.CreateExec(dkc.CreateExecOptions{Container: id, Cmd: cmd})
+	var inBuff, outBuff bytes.Buffer
+	exec, err := dk.CreateExec(dkc.CreateExecOptions{
+		Container:    id,
+		Cmd:          cmd,
+		AttachStdout: true})
+
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	err = dk.StartExec(exec.ID, dkc.StartExecOptions{})
+	err = dk.StartExec(exec.ID, dkc.StartExecOptions{
+		OutputStream: &inBuff,
+	})
+
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	return nil
+	scanner := bufio.NewScanner(bytes.NewReader(inBuff.Bytes()))
+	for scanner.Scan() {
+		outBuff.WriteString(scanner.Text() + "\n")
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return outBuff.Bytes(), outBuff.Bytes(), nil
 }
 
 // WriteToContainer writes the contents of SRC into the file at path DST on the

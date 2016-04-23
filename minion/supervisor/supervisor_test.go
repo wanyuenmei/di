@@ -517,6 +517,10 @@ func (f fakeDocker) Pull(image string) error {
 	return nil
 }
 
+func (f fakeDocker) ExecVerbose(name string, cmd ...string) ([]byte, []byte, error) {
+	panic("Supervisor does not ExecVerbose()")
+}
+
 func (f fakeDocker) RemoveID(id string) error {
 	panic("Supervisor does not RemoveID()")
 }
