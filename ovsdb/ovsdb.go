@@ -776,6 +776,24 @@ func (ovsdb Ovsdb) SetOFInterfacePeer(name, peer string) error {
 	return nil
 }
 
+// SetBridgeMac sets the MAC address of the bridge
+func (ovsdb Ovsdb) SetBridgeMac(lswitch, mac string) error {
+	mut := newMutation("other_config", "insert", map[string]string{"hwaddr": mac})
+	mutateOp := ovs.Operation{
+		Op:        "mutate",
+		Table:     "Bridge",
+		Mutations: []interface{}{mut},
+		Where:     []interface{}{newCondition("name", "==", lswitch)},
+	}
+
+	results, err := ovsdb.Transact("Open_vSwitch", mutateOp)
+	if err != nil {
+		return fmt.Errorf("transaction error changing MAC of bridge %s: %s",
+			lswitch, err)
+	}
+	return errorCheck(results, 1, 1)
+}
+
 // SetOFInterfaceAttachedMAC sets the attached-mac of the interface
 func (ovsdb Ovsdb) SetOFInterfaceAttachedMAC(name, mac string) error {
 	mut := newMutation("external_ids", "insert",

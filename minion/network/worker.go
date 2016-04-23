@@ -645,6 +645,13 @@ func modPort(odb ovsdb.Ovsdb, current ovsPort, target ovsPort) error {
 }
 
 func updateDefaultGw() {
+	odb, err := ovsdb.Open()
+	if err != nil {
+		log.WithError(err).Error("failed to connect to OVSDB")
+		return
+	}
+	defer odb.Close()
+
 	currMac, err := getMac("", diBridge)
 	if err != nil {
 		log.WithError(err).Errorf("failed to get MAC for %s", diBridge)
@@ -652,8 +659,8 @@ func updateDefaultGw() {
 	}
 
 	if currMac != gatewayMAC {
-		if err := setMac("", diBridge, gatewayMAC); err != nil {
-			log.WithError(err).Error("failed to set MAC")
+		if err := odb.SetBridgeMac(diBridge, gatewayMAC); err != nil {
+			log.WithError(err).Error("failed to set MAC for default gateway")
 		}
 	}
 
