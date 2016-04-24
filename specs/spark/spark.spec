@@ -10,7 +10,7 @@
   (if zookeeper
     (list
       "--zoo"
-      (strings.Join (map labels.Hostname (hmapGet zookeeper "nodes")) ","))))
+      (strings.Join (map labels.Hostname zookeeper) ","))))
 
 (define (createMasters prefix n zookeeper)
   (let ((labelNames (labels.Range (sprintf "%s-ms" prefix) n))
@@ -31,9 +31,7 @@
   (connect (list 1000 65535) workers workers)
   (connect 7077 workers masters)
   (if zookeeper
-    (connect (hmapGet zookeeper "ports")
-             masters
-             (hmapGet zookeeper "nodes"))))
+    (connect 2181 masters zookeeper)))
 
 (define (place masters workers disperse)
   (if disperse
@@ -43,9 +41,7 @@
 
 // disperse: If true, Spark masters won't be placed on the same vm as
 //   another master. The same applies to Spark workers.
-// zookeeper: optional hmap (empty list if unwanted)
-//   "nodes": List of zookeeper nodes
-//   "ports": List of zookeeper ports
+// zookeeper: optional list of zookeeper nodes (empty list if unwanted)
 (define (New prefix nMaster nWorker disperse zookeeper)
   (let ((masters (createMasters prefix nMaster zookeeper))
         (workers (createWorkers prefix nWorker masters)))
@@ -53,6 +49,5 @@
       (progn
         (link masters workers zookeeper)
         (place masters workers disperse)
-        (hmap ("masternodes" masters)
-              ("workernodes" workers)
-              ("ports" 7077))))))
+        (hmap ("master" masters)
+              ("worker" workers))))))

@@ -21,10 +21,10 @@
 // disperse: If true, Zookeepers won't be placed on the same vm as another
 //   Zookeeper.
 (define (New prefix n disperse)
+  // Zookeeper is port 2181
   (let ((zoos (create prefix n)))
     (if zoos
       (progn
         (link zoos)
         (place zoos disperse)
-        (hmap ("nodes" zoos)
-              ("ports" 2181))))))
+        zoos))))

@@ -3,43 +3,40 @@
 
 (define image "quay.io/netsys/di-wordpress")
 
-(define (getHosts service nodeKey)
-  (let ((nodes (hmapGet service nodeKey))
-        (hosts (map labels.Hostname nodes)))
+(define (hostStr labels)
+  (let ((hosts (map labels.Hostname labels)))
     (strings.Join hosts ",")))
 
 (define (makeArgs db memcached)
   (list
     (list "--dbm"
-          (getHosts db "masternodes"))
-    (if (hmapContains db "slavenodes")
+          (hostStr (hmapGet db "master")))
+    (if (hmapContains db "slave")
       (list "--repl-mysql"
-            (getHosts db "slavenodes")))
+            (hostStr (hmapGet db "slave"))))
     (if memcached
       (list "--memcached"
-            (getHosts memcached "nodes")))
+            (hostStr memcached)))
     "apache2-foreground"))
 
-(define (wpConnect wordpress hm nodes)
-  (if (and hm (hmapContains hm nodes))
-    (connect (hmapGet hm "ports")
-             wordpress
-             (hmapGet hm nodes))))
+(define (link wordpress db memcached)
+  (if db
+    (let ((dbm (hmapGet db "master"))
+          (dbs (hmapGet db "slave")))
+      (connect 3306 wordpress dbm)
+      (connect 3306 wordpress dbs)))
+  (connect 11211 wordpress memcached))
 
 // db: hmap
-//   "masternodes": list of db master nodes
-//   "slavenodes": list of db slave nodes
-//   "ports": list of ports to access db
-// memcached: hmap
-//   "nodes": list of memcached nodes
-//   "ports": list of memcached ports
-(define (New prefix cnt db memcached)
+//   "master": list of db master nodes
+//   "slave": list of db slave nodes
+// memcached: list of memcached nodes
+(define (New prefix n db memcached)
   (let ((args (makeArgs db memcached))
-        (wp (makeList cnt (docker image args)))
-        (labelNames (labels.Range prefix cnt))
+        (wp (makeList n (docker image args)))
+        (labelNames (labels.Range prefix n))
         (wordpress (map label labelNames wp)))
-    (if (> cnt 0) (progn
-      (wpConnect wordpress db "masternodes")
-      (wpConnect wordpress db "slavenodes")
-      (wpConnect wordpress memcached "nodes")
-      (hmap ("ports" 80) ("nodes" wordpress))))))
+    (if (> n 0)
+      (progn
+        (link wordpress db memcached)
+        wordpress))))
