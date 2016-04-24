@@ -8,7 +8,7 @@
         (hosts (map labels.Hostname nodes)))
     (strings.Join hosts ",")))
 
-(define (makeArgs db memcached redis)
+(define (makeArgs db memcached)
   (list
     (list "--dbm"
           (getHosts db "masternodes"))
@@ -18,9 +18,6 @@
     (if memcached
       (list "--memcached"
             (getHosts memcached "nodes")))
-    (if redis
-      (list "--redis"
-            (getHosts redis "nodes")))
     "apache2-foreground"))
 
 (define (wpConnect wordpress hm nodes)
@@ -36,11 +33,8 @@
 // memcached: hmap
 //   "nodes": list of memcached nodes
 //   "ports": list of memcached ports
-// redis: hmap
-//   "nodes": list of redis nodes
-//   "ports": list of redis ports
-(define (New prefix cnt db memcached redis)
-  (let ((args (makeArgs db memcached redis))
+(define (New prefix cnt db memcached)
+  (let ((args (makeArgs db memcached))
         (wp (makeList cnt (docker image args)))
         (labelNames (labels.Range prefix cnt))
         (wordpress (map label labelNames wp)))
@@ -48,5 +42,4 @@
       (wpConnect wordpress db "masternodes")
       (wpConnect wordpress db "slavenodes")
       (wpConnect wordpress memcached "nodes")
-      (wpConnect wordpress redis "nodes")
       (hmap ("ports" 80) ("nodes" wordpress))))))
