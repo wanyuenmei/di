@@ -46,12 +46,11 @@ docker-build-di:
 	${DOCKER} build -t ${REPO}/di .
 
 docker-build-tester:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
 	cd -P di-tester && ${DOCKER} build -t ${REPO}/di-tester .
 
 docker-build-minion:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	cd -P minion && ${DOCKER} build -t ${REPO}/di-minion .
+	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
+	 && ${DOCKER} build -t ${REPO}/di-minion .
 
 # PUSH
 
