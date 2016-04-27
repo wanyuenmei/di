@@ -463,8 +463,6 @@ func generateTargetNatRules(containers []db.Container, connections []db.Connecti
 		}
 	}
 
-	log.Infof("portsFromWeb: %v", portsFromWeb)
-
 	// Map the container's port to the same port of the host.
 	for ip, ports := range portsFromWeb {
 		for port := range ports {
@@ -1410,7 +1408,6 @@ func deleteNatRule(rule ipRule) error {
 func addNatRule(rule ipRule) error {
 	args := fmt.Sprintf("%s %s", rule.chain, rule.opts)
 	cmd := fmt.Sprintf("iptables -t nat -A %s", args)
-	log.Info("Adding NAT rule: %s", cmd)
 	err := sh(cmd)
 	if err != nil {
 		return fmt.Errorf("Failed to add NAT rule %s: %s", cmd, err)
