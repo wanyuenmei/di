@@ -211,7 +211,7 @@ labels.  Atoms implementing the *from* label may initiate network connections
 to atoms implementing the *to* label over the specified network *port*.
 ```
 # Allow the public internet to connect to the webTier over port 80
-(connect 80 publicWeb webTier)
+(connect 80 public webTier)
 
 # Allow the webTier to connect to the database on port 1433
 (connect 1433 webTier database)

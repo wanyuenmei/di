@@ -24,8 +24,7 @@ func TestReadme(t *testing.T) {
 
 	start := "<!-- BEGIN CODE -->\n"
 	end := "<!-- END CODE -->\n"
-	// XXX: Get rid of dummy label when publicWeb is implemented.
-	code := `(label "publicWeb" (docker "google/pause"))` + "\n"
+	var code string
 	recording := false
 
 	for {

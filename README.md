@@ -52,7 +52,7 @@ We can easily expand our network to a basic deployment structure with the above 
     (label "deployment" (list "database" "webTier" "batch"))
 
     // Allow the public internet to connect to the webTier over port 80
-    (connect 80 "publicWeb" "webTier")
+    (connect 80 "public" "webTier")
 
     // Allow the webTier to connect to the database on port 1433
     (connect 1433 "webTier" "database")
