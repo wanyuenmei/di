@@ -26,7 +26,7 @@ func Run(conn db.Conn, store consensus.Store, dk docker.Client) {
 	go readStoreRun(conn, store)
 	go writeStoreRun(conn, store)
 
-	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable,
+	for range conn.TriggerTick(5, db.MinionTable, db.ContainerTable,
 		db.ConnectionTable, db.LabelTable, db.EtcdTable).C {
 		runWorker(conn, dk)
 		runMaster(conn)
