@@ -1,11 +1,11 @@
 (import "labels")
 
-(define memcachedSource "memcached:1.4.25")
+(define image "quay.io/netsys/di-memcached")
 
 (define (create prefix n)
   (map
     (lambda (i)
-      (labels.Docker (list prefix i) memcachedSource))
+      (labels.Docker (list prefix i) image))
     (range n)))
 
 (define (New prefix n)
