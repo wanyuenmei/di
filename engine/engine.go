@@ -2,6 +2,8 @@ package engine
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -37,6 +39,15 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 		return err
 	}
 
+	// We can't process the ACLs with the rest of the cluster fields
+	// because this must occur after the cloud machines are synced with
+	// the database. If we didn't, inter-machine ACLs would get removed
+	// when the DI controller restarts, even if there are running cloud
+	// machines that still need to communicate.
+	if err = aclTxn(view, dsl, cluster); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -58,11 +69,40 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 	}
 
 	cluster.Namespace = Namespace
-	cluster.AdminACL = resolveACLs(dsl.QueryStrSlice("AdminACL"))
 	cluster.Spec = dsl.String()
 	view.Commit(cluster)
 
 	return cluster.ID, nil
+}
+
+func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+	clusters := view.SelectFromCluster(func(c db.Cluster) bool {
+		return c.ID == clusterID
+	})
+
+	if len(clusters) == 0 {
+		return fmt.Errorf("could not find cluster with ID %d", clusterID)
+	}
+
+	cluster := clusters[0]
+	machines := view.SelectFromMachine(func(m db.Machine) bool {
+		return m.ClusterID == cluster.ID && m.PublicIP != ""
+	})
+	acls := resolveACLs(dsl.QueryStrSlice("AdminACL"))
+
+	for _, m := range machines {
+		acls = append(acls, m.PublicIP+"/32")
+	}
+
+	// Only commit the ACLs if they change. Otherwise, the db will repeatedly
+	// log the ACLs.
+	sort.Strings(acls)
+	if !reflect.DeepEqual(cluster.ACLs, acls) {
+		cluster.ACLs = acls
+		view.Commit(cluster)
+	}
+
+	return nil
 }
 
 // toDBMachine converts machines specified in the DSL into db.Machines that can

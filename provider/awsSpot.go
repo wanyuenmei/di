@@ -421,7 +421,7 @@ func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
 				panic("Duplicate Clusters")
 			}
 
-			acls = clusters[0].AdminACL
+			acls = clusters[0].ACLs
 			return nil
 		})
 

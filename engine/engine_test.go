@@ -38,7 +38,7 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Worker
 		})
 
-		if len(clusters) != 1 || len(clusters[0].AdminACL) != 1 {
+		if len(clusters) != 1 || len(clusters[0].ACLs) != 1 {
 			return fmt.Errorf("bad clusters: %s", spew.Sdump(clusters))
 		}
 
@@ -452,7 +452,7 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func TestLocal(t *testing.T) {
+func TestACLs(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
 
@@ -478,10 +478,10 @@ func TestLocal(t *testing.T) {
 		}
 		cluster := clusters[0]
 
-		if !reflect.DeepEqual(cluster.AdminACL,
+		if !reflect.DeepEqual(cluster.ACLs,
 			[]string{"1.2.3.4/32", "5.6.7.8/32"}) {
-			return fmt.Errorf("bad AdminACL: %s",
-				spew.Sdump(cluster.AdminACL))
+			return fmt.Errorf("bad ACLs: %s",
+				spew.Sdump(cluster.ACLs))
 		}
 
 		return nil
@@ -502,9 +502,40 @@ func TestLocal(t *testing.T) {
 		}
 		cluster := clusters[0]
 
-		if !reflect.DeepEqual(cluster.AdminACL, []string{"1.2.3.4/32"}) {
-			return fmt.Errorf("bad AdminACL: %s",
-				spew.Sdump(cluster.AdminACL))
+		if !reflect.DeepEqual(cluster.ACLs, []string{"1.2.3.4/32"}) {
+			return fmt.Errorf("bad ACLs: %s",
+				spew.Sdump(cluster.ACLs))
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	// Test allow traffic between machines
+	conn.Transact(func(view db.Database) error {
+		machines := view.SelectFromMachine(nil)
+		if len(machines) == 0 {
+			return errors.New("expected machines in database")
+		}
+		machines[0].PublicIP = "8.8.8.8"
+		view.Commit(machines[0])
+		return nil
+	})
+	UpdatePolicy(conn, prog(t, code))
+	err = conn.Transact(func(view db.Database) error {
+		clusters := view.SelectFromCluster(nil)
+
+		if len(clusters) != 1 {
+			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
+		}
+		cluster := clusters[0]
+
+		if !reflect.DeepEqual(cluster.ACLs,
+			[]string{"1.2.3.4/32", "8.8.8.8/32"}) {
+			return fmt.Errorf("bad ACLs: %s",
+				spew.Sdump(cluster.ACLs))
 		}
 
 		return nil
