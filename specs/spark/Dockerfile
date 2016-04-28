@@ -16,3 +16,6 @@ RUN apt-get update && apt-get install -y \
 ENV PATH /spark/sbin:/spark/bin:$PATH
 
 Copy *.sh /bin/
+
+COPY docker-entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
