@@ -57,6 +57,8 @@ func init() {
 		"hmapGet":          {hmapGetImpl, 2, false},
 		"hmapContains":     {hmapContainsImpl, 2, false},
 		"hmapSet":          {hmapSetImpl, 3, false},
+		"hmapKeys":         {hmapKeysImpl, 1, false},
+		"hmapValues":       {hmapValuesImpl, 1, false},
 		"if":               {ifImpl, 2, true},
 		"import":           {importImpl, 1, true},
 		"label":            {labelImpl, 2, false},
@@ -587,6 +589,34 @@ func hmapContainsImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	_, ok = m[args[1]]
 	return astBool(ok), nil
+}
+
+func hmapKeysImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m, ok := args[0].(astHmap)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a hmap", args[0])
+	}
+
+	var ret []ast
+	for k := range m {
+		ret = append(ret, k)
+	}
+
+	return astList(ret), nil
+}
+
+func hmapValuesImpl(ctx *evalCtx, args []ast) (ast, error) {
+	m, ok := args[0].(astHmap)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a hmap", args[0])
+	}
+
+	var ret []ast
+	for _, v := range m {
+		ret = append(ret, v)
+	}
+
+	return astList(ret), nil
 }
 
 func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {
