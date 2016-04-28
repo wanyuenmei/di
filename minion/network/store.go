@@ -30,8 +30,8 @@ type directory map[string]map[string]string
 // wakeChan collapses the various channels these functions wait on into a single channel.
 // Multiple redundant pings will be coalesced into a single message.
 func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
-	labelWatch := store.Watch(labelDir, 10*time.Second)
-	containerWatch := store.Watch(labelDir, 10*time.Second)
+	labelWatch := store.Watch(labelDir, 1*time.Second)
+	containerWatch := store.Watch(labelDir, 1*time.Second)
 	trigg := conn.TriggerTick(30, db.MinionTable, db.ContainerTable, db.LabelTable,
 		db.EtcdTable).C
 
