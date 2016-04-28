@@ -11,6 +11,3 @@
   (label
     (strings.Join (map strings.Str nameFragments) "-")
     (docker dockerArgs)))
-
-(define (Range prefix n)
-  (map (lambda (i) (sprintf "%s-%d" prefix i)) (range n)))

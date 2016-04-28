@@ -25,3 +25,6 @@
     (if (= (len lst) 1)
       (car lst)
       (reduce (lambda (x y) (+ x delim y)) lst))))
+
+(define (Range prefix n)
+  (map (lambda (i) (sprintf "%s-%d" prefix i)) (range n)))

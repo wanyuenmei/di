@@ -13,14 +13,14 @@
       (strings.Join (map labels.Hostname zookeeper) ","))))
 
 (define (createMasters prefix n zookeeper)
-  (let ((labelNames (labels.Range (sprintf "%s-ms" prefix) n))
+  (let ((labelNames (strings.Range (sprintf "%s-ms" prefix) n))
         (zooArgs (parseZookeeper zookeeper))
         (sparkDockers
           (makeList n (docker image "di-start-master.sh" zooArgs))))
     (map label labelNames sparkDockers)))
 
 (define (createWorkers prefix n masters)
-  (let ((labelNames (labels.Range (sprintf "%s-wk" prefix) n))
+  (let ((labelNames (strings.Range (sprintf "%s-wk" prefix) n))
         (masterArgs (parseMasters masters))
         (sparkDockers
           (makeList n (docker image "di-start-worker.sh" masterArgs))))

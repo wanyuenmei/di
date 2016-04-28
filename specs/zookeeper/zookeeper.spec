@@ -5,7 +5,7 @@
 (define image "quay.io/netsys/zookeeper")
 
 (define (create prefix n)
-  (let ((labelNames (labels.Range prefix n))
+  (let ((labelNames (strings.Range prefix n))
         // XXX labels.StrToHostname breaks abstraction
         (zooHosts (strings.Join (map labels.StrToHostname labelNames) ","))
         (zooDockers (makeList n (docker image zooHosts))))
