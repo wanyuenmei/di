@@ -755,6 +755,11 @@ func TestLabel(t *testing.T) {
 	exp = `(list) "bar"`
 	parseTest(t, code, exp)
 
+	// Test getting label Hostname
+	code = `(define foo (label "bar" (docker "baz"))) (labelHost foo)`
+	exp = `(list) "bar.di"`
+	parseTest(t, code, exp)
+
 	runtimeErr(t, `(label 1 2)`, "1: label must be a string, found: 1")
 	runtimeErr(t, `(label "foo" "bar")`, `1: undefined label: "bar"`)
 	runtimeErr(t, `(label "foo" 1)`,
