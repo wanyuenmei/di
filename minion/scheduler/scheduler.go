@@ -15,7 +15,7 @@ import (
 type scheduler interface {
 	list() ([]docker.Container, error)
 
-	boot(toBoot []db.Container)
+	boot(toBoot []db.Container, placement []db.Placement)
 
 	terminate(ids []string)
 }
@@ -23,7 +23,7 @@ type scheduler interface {
 // Run blocks implementing the scheduler module.
 func Run(conn db.Conn) {
 	var sched scheduler
-	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable).C {
+	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable, db.PlacementTable).C {
 		minions := conn.SelectFromMinion(nil)
 		etcdRows := conn.SelectFromEtcd(nil)
 		if len(minions) != 1 || len(etcdRows) != 1 || minions[0].Role != db.Master ||
@@ -38,6 +38,7 @@ func Run(conn db.Conn) {
 			time.Sleep(60 * time.Second)
 		}
 
+		placements := conn.SelectFromPlacement(nil)
 		// Each time we run through this loop, we may boot or terminate
 		// containers.  These modification should, in turn, be reflected in the
 		// database themselves.  For this reason, we attempt to sync until no
@@ -61,7 +62,7 @@ func Run(conn db.Conn) {
 				break
 			}
 			sched.terminate(term)
-			sched.boot(boot)
+			sched.boot(boot, placements)
 		}
 	}
 }

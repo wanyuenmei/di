@@ -105,9 +105,26 @@ type astContainer struct {
 	command astList
 	env     astHmap
 
-	Placement
-
 	atomImpl
+}
+
+type astLabelRule struct {
+	otherLabels []astString
+	exclusive   astBool
+}
+
+func (r astLabelRule) String() string {
+	exclusiveStr := "on"
+	if r.exclusive {
+		exclusiveStr = "exclusive"
+	}
+
+	var otherLabels []string
+	for _, l := range r.otherLabels {
+		otherLabels = append(otherLabels, string(l))
+	}
+
+	return fmt.Sprintf("(labelRule %s %s)", exclusiveStr, strings.Join(otherLabels, " "))
 }
 
 func (r astRegion) String() string {

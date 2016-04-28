@@ -8,6 +8,7 @@ type evalCtx struct {
 	connections map[Connection]struct{}
 	machines    *[]*astMachine
 	containers  *[]*astContainer
+	placements  *[]Placement
 
 	parent *evalCtx
 }
@@ -36,6 +37,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 		connections: ctx.connections,
 		machines:    ctx.machines,
 		containers:  ctx.containers,
+		placements:  ctx.placements,
 		parent:      parentCopy,
 	}
 }
@@ -252,6 +254,10 @@ func (s astDiskSize) eval(ctx *evalCtx) (ast, error) {
 	return s, nil
 }
 
+func (r astLabelRule) eval(ctx *evalCtx) (ast, error) {
+	return r, nil
+}
+
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {
@@ -270,5 +276,8 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		make(map[astIdent]ast),
 		make(map[string]astLabel),
 		make(map[Connection]struct{}),
-		&[]*astMachine{}, &[]*astContainer{}, parent}
+		&[]*astMachine{},
+		&[]*astContainer{},
+		&[]Placement{},
+		parent}
 }

@@ -25,4 +25,4 @@
 (connect (list 1024 65535) "red" "blue")
 (connect (list 1024 65535) "blue" "red")
 
-(place "exclusive" "yellow" "purple")
+(place (labelRule "exclusive" "yellow") "purple")

@@ -21,13 +21,6 @@ type Container struct {
 	Command []string
 	Labels  []string
 	Env     map[string]string
-
-	Placement
-}
-
-// Placement represents scheduler placement constraints.
-type Placement struct {
-	Exclusive map[[2]string]struct{}
 }
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -59,18 +52,6 @@ func (conn Conn) SelectFromContainer(check func(Container) bool) []Container {
 	return containers
 }
 
-func placementEqual(x, y map[[2]string]struct{}) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for k := range x {
-		if _, ok := y[k]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
 func (c Container) equal(r row) bool {
 	other := r.(Container)
 	return c.ID == other.ID &&
@@ -81,8 +62,7 @@ func (c Container) equal(r row) bool {
 		c.Image == other.Image &&
 		util.StrSliceEqual(c.Command, other.Command) &&
 		util.StrSliceEqual(c.Labels, other.Labels) &&
-		util.StrStrMapEqual(c.Env, other.Env) &&
-		placementEqual(c.Placement.Exclusive, other.Placement.Exclusive)
+		util.StrStrMapEqual(c.Env, other.Env)
 }
 
 func (c Container) getID() int {
@@ -112,10 +92,6 @@ func (c Container) String() string {
 
 	if len(c.Labels) > 0 {
 		tags = append(tags, fmt.Sprintf("Labels: %s", c.Labels))
-	}
-
-	if len(c.Placement.Exclusive) > 0 {
-		tags = append(tags, fmt.Sprintf("Placement: %s", c.Placement.Exclusive))
 	}
 
 	if len(c.Env) > 0 {

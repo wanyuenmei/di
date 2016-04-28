@@ -13,19 +13,23 @@ type Dsl struct {
 	ctx  evalCtx
 }
 
+type Rule struct {
+	Exclusive   bool
+	OtherLabels []string
+}
+
+type Placement struct {
+	TargetLabel string
+	Rule        Rule
+}
+
 // A Container may be instantiated in the dsl and queried by users.
 type Container struct {
 	Image   string
 	Command []string
 	Env     map[string]string
 
-	Placement
 	atomImpl
-}
-
-// A Placement constraint restricts where containers may be instantiated.
-type Placement struct {
-	Exclusive map[[2]string]struct{}
 }
 
 // A Connection allows containers implementing the From label to speak to containers
@@ -98,11 +102,10 @@ func (dsl Dsl) QueryContainers() []*Container {
 			env[string(key.(astString))] = string(val.(astString))
 		}
 		containers = append(containers, &Container{
-			Image:     string(c.image),
-			Command:   command,
-			Placement: c.Placement,
-			atomImpl:  c.atomImpl,
-			Env:       env,
+			Image:    string(c.image),
+			Command:  command,
+			atomImpl: c.atomImpl,
+			Env:      env,
 		})
 	}
 	return containers
@@ -184,6 +187,15 @@ func (dsl Dsl) QueryConnections() map[Connection]struct{} {
 		copy[c] = struct{}{}
 	}
 	return copy
+}
+
+// QueryPlacements returns the placements declared in the dsl.
+func (dsl Dsl) QueryPlacements() []Placement {
+	var placements []Placement
+	for _, p := range *dsl.ctx.placements {
+		placements = append(placements, p)
+	}
+	return placements
 }
 
 // QueryFloat returns a float value defined in the dsl.

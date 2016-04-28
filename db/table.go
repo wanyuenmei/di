@@ -28,8 +28,11 @@ var LabelTable = TableType(reflect.TypeOf(Label{}).String())
 // EtcdTable is the type of the etcd table.
 var EtcdTable = TableType(reflect.TypeOf(Etcd{}).String())
 
+// PlacementTable is the type of the placement table.
+var PlacementTable = TableType(reflect.TypeOf(Placement{}).String())
+
 var allTables = []TableType{ClusterTable, MachineTable, ContainerTable, MinionTable,
-	ConnectionTable, LabelTable, EtcdTable}
+	ConnectionTable, LabelTable, EtcdTable, PlacementTable}
 
 type table struct {
 	rows map[int]row

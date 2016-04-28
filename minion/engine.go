@@ -23,6 +23,7 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 	}
 
 	if role == db.Master {
+		updatePlacements(view, compiled)
 		// The container table is aspirational -- it's the set of containers that
 		// should exist.  In the workers, however, the container table is just
 		// what's running locally.  That's why we only sync the database
@@ -30,6 +31,59 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 		updateContainers(view, compiled)
 	}
 	updateConnections(view, compiled)
+}
+
+func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
+	placementSet := make(map[db.Placement]struct{})
+	for _, dslP := range dslPlacements {
+		rule := dslP.Rule
+		for _, label := range rule.OtherLabels {
+			placement := db.Placement{
+				TargetLabel: dslP.TargetLabel,
+				Rule: db.LabelRule{
+					OtherLabel: label,
+					Exclusive:  rule.Exclusive,
+				},
+			}
+			placementSet[placement] = struct{}{}
+		}
+	}
+
+	var placements []db.Placement
+	for p := range placementSet {
+		placements = append(placements, p)
+	}
+	return placements
+}
+
+func updatePlacements(view db.Database, spec dsl.Dsl) {
+	dslPlacements := toDBPlacements(spec.QueryPlacements())
+
+	scoreFunc := func(left, right interface{}) int {
+		wantedPlacement := left.(db.Placement)
+		havePlacement := right.(db.Placement)
+
+		if wantedPlacement.TargetLabel == havePlacement.TargetLabel &&
+			wantedPlacement.Rule == havePlacement.Rule {
+			return 0
+		}
+		return -1
+	}
+
+	_, addSet, removeSet := join.Join(dslPlacements, view.SelectFromPlacement(nil), scoreFunc)
+
+	for _, toAddIntf := range addSet {
+		toAdd := toAddIntf.(db.Placement)
+
+		newPlacement := view.InsertPlacement()
+		newPlacement.TargetLabel = toAdd.TargetLabel
+		newPlacement.Rule = toAdd.Rule
+		view.Commit(newPlacement)
+	}
+
+	for _, toRemove := range removeSet {
+		view.Remove(toRemove.(db.Placement))
+	}
 }
 
 func updateConnections(view db.Database, spec dsl.Dsl) {
@@ -71,17 +125,6 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		}
 
 		score := util.EditDistance(dbc.Labels, dslc.Labels())
-		for k := range dbc.Placement.Exclusive {
-			if _, ok := dslc.Placement.Exclusive[k]; !ok {
-				score += 100
-			}
-		}
-
-		for k := range dslc.Placement.Exclusive {
-			if _, ok := dbc.Placement.Exclusive[k]; !ok {
-				score += 100
-			}
-		}
 
 		for k, v := range dbc.Env {
 			v2 := dslc.Env[k]
@@ -115,7 +158,6 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 
 		dbc.Command = dslc.Command
 		dbc.Image = dslc.Image
-		dbc.Placement.Exclusive = dslc.Placement.Exclusive
 		dbc.Env = dslc.Env
 		view.Commit(dbc)
 	}

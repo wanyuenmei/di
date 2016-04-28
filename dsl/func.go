@@ -63,6 +63,7 @@ func init() {
 		"if":               {ifImpl, 2, true},
 		"import":           {importImpl, 1, true},
 		"label":            {labelImpl, 2, false},
+		"labelRule":        {labelRuleImpl, 1, false},
 		"labelName":        {labelNameImpl, 1, false},
 		"labelHost":        {labelHostImpl, 1, false},
 		"lambda":           {lambdaImpl, 2, true},
@@ -165,10 +166,9 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 	}
 
 	newContainer := &astContainer{
-		image:     astArgs[0].(astString),
-		command:   astList(astArgs[1:]),
-		Placement: Placement{make(map[[2]string]struct{})},
-		env:       astHmap(make(map[ast]ast)),
+		image:   astArgs[0].(astString),
+		command: astList(astArgs[1:]),
+		env:     astHmap(make(map[ast]ast)),
 	}
 
 	globalCtx := ctx.globalCtx()
@@ -237,53 +237,75 @@ func plaintextKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astPlaintextKey(key), nil
 }
 
-func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
-	str, ok := args[0].(astString)
+func parseExclusive(arg ast) (astBool, error) {
+	exclusiveAst, ok := arg.(astString)
 	if !ok {
-		return nil, fmt.Errorf("place type must be a string, found: %s", args[0])
+		return astBool(false), fmt.Errorf("exclusiveness must be a string: %s", arg)
 	}
-	ptype := string(str)
 
+	exclusiveStr := string(exclusiveAst)
+	if exclusiveStr != "exclusive" && exclusiveStr != "on" {
+		return astBool(false), fmt.Errorf("exclusiveness must be one of \"exclusive\" or \"on\": %s", exclusiveAst)
+	}
+
+	isExclusive := exclusiveStr == "exclusive"
+	return astBool(isExclusive), nil
+}
+
+func labelRuleImpl(ctx *evalCtx, args []ast) (ast, error) {
+	exclusive, err := parseExclusive(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	labelRule := astLabelRule{
+		exclusive: exclusive,
+	}
+	for _, label := range flatten(args[1:]) {
+		l, ok := ctx.resolveLabel(label)
+		if !ok {
+			return nil, fmt.Errorf("labelRule constrains on labels: %s", label)
+		}
+		labelRule.otherLabels = append(labelRule.otherLabels, l.ident)
+	}
+
+	return labelRule, nil
+}
+
+func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	labels, err := ctx.flattenLabel(args[1:])
 	if err != nil {
 		return nil, err
 	}
 
-	if len(labels) < 2 {
-		return nil, fmt.Errorf("placment requires at least 2 labels.")
+	var targetLabels []string
+	for _, l := range labels {
+		targetLabels = append(targetLabels, string(l.ident))
 	}
 
-	parsedLabels := make(map[[2]string]struct{})
-	for i := 0; i < len(labels)-1; i++ {
-		labelNameI := string(labels[i].ident)
-		for j := i + 1; j < len(labels); j++ {
-			labelNameJ := string(labels[j].ident)
-			if labelNameI < labelNameJ {
-				parsedLabels[[2]string{labelNameI, labelNameJ}] = struct{}{}
-			} else {
-				parsedLabels[[2]string{labelNameJ, labelNameI}] = struct{}{}
+	globalCtx := ctx.globalCtx()
+	for _, targetLabel := range targetLabels {
+		switch ruleAst := args[0].(type) {
+		case astLabelRule:
+			var rule Rule
+			rule.Exclusive = bool(ruleAst.exclusive)
+
+			var otherLabels []string
+			for _, l := range ruleAst.otherLabels {
+				otherLabels = append(otherLabels, string(l))
 			}
+			rule.OtherLabels = otherLabels
+
+			*globalCtx.placements = append(*globalCtx.placements, Placement{
+				TargetLabel: targetLabel,
+				Rule:        rule,
+			})
+		default:
+			return nil, fmt.Errorf("invalid place rule: %s", args[0])
 		}
 	}
 
-	switch ptype {
-	case "exclusive":
-		for _, label := range labels {
-			for _, c := range label.elems {
-				c, ok := c.(*astContainer)
-				if !ok {
-					return nil, fmt.Errorf("place labels must contain containers: %s", label)
-				}
-				for k, v := range parsedLabels {
-					c.Placement.Exclusive[k] = v
-				}
-			}
-		}
-	default:
-		return nil, fmt.Errorf("not a valid place type: %s", ptype)
-	}
-
-	return astFunc(astIdent("place"), args), nil
+	return astList{}, nil
 }
 
 func setMachineAttributes(machine *astMachine, args []ast) error {

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"text/scanner"
@@ -268,4 +269,162 @@ func fired(c chan struct{}) bool {
 	default:
 		return false
 	}
+}
+
+type placementList []db.Placement
+
+func (l placementList) Len() int {
+	return len(l)
+}
+
+func (l placementList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
+func (l placementList) Less(i, j int) bool {
+	left := l[i]
+	right := l[j]
+	switch {
+	case left.ID != right.ID:
+		return left.ID < right.ID
+	case left.TargetLabel != right.TargetLabel:
+		return left.TargetLabel < right.TargetLabel
+	default:
+		return left.Rule.AffinityStr() < right.Rule.AffinityStr()
+	}
+}
+
+func TestPlacementTxn(t *testing.T) {
+	conn := db.New()
+	checkPlacement := func(spec string, exp ...db.Placement) {
+		var placements []db.Placement
+		conn.Transact(func(view db.Database) error {
+			updatePolicy(view, db.Master, spec)
+			res := view.SelectFromPlacement(nil)
+
+			// Set the ID to 0 so that we can use reflect.DeepEqual.
+			for _, p := range res {
+				p.ID = 0
+				placements = append(placements, p)
+			}
+
+			return nil
+		})
+
+		sort.Sort(placementList(placements))
+		sort.Sort(placementList(exp))
+		if !reflect.DeepEqual(placements, exp) {
+			t.Errorf("Placement error in %s. Expected %v, got %v",
+				spec, exp, placements)
+		}
+	}
+
+	// Create an exclusive placement.
+	spec := `(label "foo" (docker "foo"))
+	(label "bar" (docker "bar"))
+	(place (labelRule "exclusive" "foo") "bar")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
+			},
+		},
+	)
+
+	// Change the placement from "exclusive" to "on".
+	spec = `(label "foo" (docker "foo"))
+	(label "bar" (docker "bar"))
+	(place (labelRule "on" "foo") "bar")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  false,
+				OtherLabel: "foo",
+			},
+		},
+	)
+
+	// Add another placement constraint.
+	spec = `(label "foo" (docker "foo"))
+	(label "bar" (docker "bar"))
+	(place (labelRule "on" "foo") "bar")
+	(place (labelRule "exclusive" "bar") "bar")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  false,
+				OtherLabel: "foo",
+			},
+		},
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "bar",
+			},
+		},
+	)
+
+	// Multiple placement targets.
+	spec = `(label "foo" (docker "foo"))
+	(label "bar" (docker "bar"))
+	(label "qux" (docker "qux"))
+	(place (labelRule "exclusive" "qux") "foo" "bar")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "qux",
+			},
+		},
+		db.Placement{
+			TargetLabel: "foo",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "qux",
+			},
+		},
+	)
+
+	// Multiple exclusive labels.
+	spec = `(label "foo" (docker "foo"))
+	(label "bar" (docker "bar"))
+	(label "baz" (docker "baz"))
+	(label "qux" (docker "qux"))
+	(place (labelRule "exclusive" "foo" "bar") "baz" "qux")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "baz",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
+			},
+		},
+		db.Placement{
+			TargetLabel: "baz",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "bar",
+			},
+		},
+		db.Placement{
+			TargetLabel: "qux",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
+			},
+		},
+		db.Placement{
+			TargetLabel: "qux",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "bar",
+			},
+		},
+	)
 }

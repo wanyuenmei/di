@@ -23,7 +23,7 @@ func (s swarm) list() ([]docker.Container, error) {
 	return s.dk.List(map[string][]string{"label": {docker.SchedulerLabelPair}})
 }
 
-func (s swarm) boot(dbcs []db.Container) {
+func (s swarm) boot(dbcs []db.Container, placements []db.Placement) {
 	var wg sync.WaitGroup
 	wg.Add(len(dbcs))
 
@@ -32,7 +32,7 @@ func (s swarm) boot(dbcs []db.Container) {
 		dbc := dbc
 		go func() {
 			labels := makeLabels(dbc)
-			env := makeEnv(dbc)
+			env := makeEnv(dbc, placements)
 			err := s.dk.Run(docker.RunOptions{
 				Image:  dbc.Image,
 				Args:   dbc.Command,
@@ -73,27 +73,22 @@ func makeLabels(dbc db.Container) map[string]string {
 	return labels
 }
 
-func makeEnv(dbc db.Container) map[string]struct{} {
+func makeEnv(dbc db.Container, placements []db.Placement) map[string]struct{} {
 	env := make(map[string]struct{})
-	for _, label := range dbc.Labels {
-		for excludeLabels := range dbc.Placement.Exclusive {
-			if excludeLabels[0] == label {
-				affinityStr := fmt.Sprintf("affinity:%s!=%s",
-					docker.UserLabel(excludeLabels[1]),
-					docker.LabelTrueValue)
-				env[affinityStr] = struct{}{}
-			} else if excludeLabels[1] == label {
-				affinityStr := fmt.Sprintf("affinity:%s!=%s",
-					docker.UserLabel(excludeLabels[0]),
-					docker.LabelTrueValue)
-				env[affinityStr] = struct{}{}
-			}
+
+	// Make affinity environment
+	for _, placement := range placements {
+		if placement.Applies(dbc) {
+			env[placement.Rule.AffinityStr()] = struct{}{}
 		}
 	}
+
+	// Add environment variables from the DSL
 	for key, value := range dbc.Env {
 		envStr := fmt.Sprintf("%s=%s", key, value)
 		env[envStr] = struct{}{}
 	}
+
 	return env
 }
 
