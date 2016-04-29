@@ -38,7 +38,7 @@ var images = map[string]string{
 	Ovnnorthd:     "quay.io/netsys/ovn-northd",
 	Ovsdb:         "quay.io/netsys/ovsdb-server",
 	Ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
-	Swarm:         "swarm:1.0.1",
+	Swarm:         "swarm:1.2.0",
 }
 
 const etcdHeartbeatInterval = "500"
