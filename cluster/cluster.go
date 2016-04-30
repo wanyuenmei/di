@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"time"
+
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/provider"
@@ -128,6 +130,9 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 
 	if noFailures {
 		log.Infof("Successfully %sed machines.", actionString)
+	} else {
+		log.Infof("Due to failures, sleeping for 1 minute")
+		time.Sleep(60 * time.Second)
 	}
 }
 
