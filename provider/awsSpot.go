@@ -52,19 +52,32 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 		return nil
 	}
 
-	one := int64(1)
-	var spotIds []string
+	type bootReq struct {
+		cfg  string
+		size string
+	}
+
+	bootReqMap := make(map[bootReq]int64) // From boot request to an instance count.
 	for _, m := range bootSet {
-		cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(cloudConfigUbuntu(m.SSHKeys, "wily")))
+		br := bootReq{
+			cfg:  cloudConfigUbuntu(m.SSHKeys, "wily"),
+			size: m.Size,
+		}
+		bootReqMap[br] = bootReqMap[br] + 1
+	}
+
+	var spotIds []string
+	for br, count := range bootReqMap {
+		cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(br.cfg))
 		resp, err := clst.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 			SpotPrice: aws.String(spotPrice),
 			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
 				ImageId:        aws.String(ami),
-				InstanceType:   aws.String(m.Size),
+				InstanceType:   aws.String(br.size),
 				UserData:       &cloudConfig64,
 				SecurityGroups: []*string{&clst.namespace},
 			},
-			InstanceCount: &one,
+			InstanceCount: &count,
 		})
 
 		if err != nil {
