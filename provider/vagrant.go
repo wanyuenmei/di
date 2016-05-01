@@ -14,7 +14,7 @@ type vagrantCluster struct {
 	vagrant   vagrantAPI
 }
 
-func (clst *vagrantCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
+func (clst *vagrantCluster) Connect(namespace string) error {
 	vagrant := newVagrantAPI()
 	err := vagrant.AddBox("boxcutter/ubuntu1504", "virtualbox")
 	if err != nil {
@@ -92,6 +92,10 @@ func (clst vagrantCluster) Stop(machines []Machine) error {
 
 func (clst vagrantCluster) Disconnect() {
 
+}
+
+func (clst vagrantCluster) SetACLs(acls []string) error {
+	return nil
 }
 
 func (clst vagrantCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {

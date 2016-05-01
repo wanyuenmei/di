@@ -56,9 +56,8 @@ type gceCluster struct {
 	intFW     string // gce internal firewall name
 	extFW     string // gce external firewall name
 
-	ns         string     // cluster namespace
-	id         int        // the id of the cluster, used externally
-	aclTrigger db.Trigger // for watching the acls
+	ns string // cluster namespace
+	id int    // the id of the cluster, used externally
 }
 
 // Create a GCE cluster.
@@ -67,16 +66,14 @@ type gceCluster struct {
 // filtering off of that.
 //
 // XXX: A lot of the fields are hardcoded.
-func (clst *gceCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
+func (clst *gceCluster) Connect(namespace string) error {
 	if err := gceInit(); err != nil {
 		log.WithError(err).Debug("failed to start up gce")
 		return err
 	}
 
 	clst.projID = "declarative-infrastructure"
-	clst.id = clusterID
 	clst.ns = namespace
-	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
 	clst.imgURL = fmt.Sprintf(
 		"%s/%s",
 		computeBaseURL,
@@ -96,7 +93,6 @@ func (clst *gceCluster) Connect(conn db.Conn, clusterID int, namespace string) e
 		return err
 	}
 
-	go clst.watchACLs(conn, clusterID)
 	return nil
 }
 
@@ -347,7 +343,7 @@ func (clst *gceCluster) instanceDel(name, zone string) (*compute.Operation, erro
 	return op, err
 }
 
-func (clst *gceCluster) updateSecurityGroups(acls []string) error {
+func (clst *gceCluster) SetACLs(acls []string) error {
 	list, err := gceService.Firewalls.List(clst.projID).Do()
 	if err != nil {
 		return err
@@ -458,29 +454,6 @@ func (clst *gceCluster) firewallPatch(name string, ips []string) (*compute.Opera
 
 	op, err := gceService.Firewalls.Patch(clst.projID, name, firewall).Do()
 	return op, err
-}
-
-func (clst *gceCluster) watchACLs(conn db.Conn, clusterID int) {
-	for range clst.aclTrigger.C {
-		var acls []string
-		conn.Transact(func(view db.Database) error {
-			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-				return c.ID == clusterID
-			})
-
-			if len(clusters) == 0 {
-				log.Warn("Undefined cluster")
-				return nil
-			} else if len(clusters) > 1 {
-				panic("Duplicate Clusters")
-			}
-
-			acls = clusters[0].ACLs
-			return nil
-		})
-
-		clst.updateSecurityGroups(acls)
-	}
 }
 
 // Initialize GCE.

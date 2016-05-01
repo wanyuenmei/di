@@ -27,8 +27,7 @@ var amis = map[string]string{
 type amazonCluster struct {
 	sessions map[string]*ec2.EC2
 
-	namespace  string
-	aclTrigger db.Trigger
+	namespace string
 }
 
 type awsID struct {
@@ -58,20 +57,16 @@ func groupByRegion(ids []awsID) map[string][]awsID {
 	return grouped
 }
 
-func (clst *amazonCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
+func (clst *amazonCluster) Connect(namespace string) error {
 	clst.sessions = make(map[string]*ec2.EC2)
 	clst.namespace = namespace
-	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
-
-	go clst.watchACLs(conn, clusterID)
 
 	return nil
 }
 
 func (clst *amazonCluster) Disconnect() {
-	/* Ideally we'd close clst.ec2 as well, but the API doesn't export that ability
+	/* Ideally we'd close clst.ec2, but the API doesn't export that ability
 	* apparently. */
-	clst.aclTrigger.Stop()
 }
 
 func (clst amazonCluster) getSession(region string) *ec2.EC2 {
@@ -395,7 +390,7 @@ OuterLoop:
 	return errors.New("timed out")
 }
 
-func (clst *amazonCluster) updateSecurityGroups(acls []string) error {
+func (clst *amazonCluster) SetACLs(acls []string) error {
 	for _, session := range clst.sessions {
 		resp, err := session.DescribeSecurityGroups(
 			&ec2.DescribeSecurityGroupsInput{
@@ -512,27 +507,4 @@ func (clst *amazonCluster) updateSecurityGroups(acls []string) error {
 	}
 
 	return nil
-}
-
-func (clst *amazonCluster) watchACLs(conn db.Conn, clusterID int) {
-	for range clst.aclTrigger.C {
-		var acls []string
-		conn.Transact(func(view db.Database) error {
-			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-				return c.ID == clusterID
-			})
-
-			if len(clusters) == 0 {
-				log.Warn("Undefined cluster.")
-				return nil
-			} else if len(clusters) > 1 {
-				panic("Duplicate Clusters")
-			}
-
-			acls = clusters[0].ACLs
-			return nil
-		})
-
-		clst.updateSecurityGroups(acls)
-	}
 }

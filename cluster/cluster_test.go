@@ -78,7 +78,9 @@ func (p *fakeProvider) Stop(machines []provider.Machine) error {
 
 func (p *fakeProvider) Disconnect() {}
 
-func (p *fakeProvider) Connect(conn db.Conn, id int, namespace string) error { return nil }
+func (p *fakeProvider) SetACLs(acls []string) error { return nil }
+
+func (p *fakeProvider) Connect(namespace string) error { return nil }
 
 func (p *fakeProvider) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return ""

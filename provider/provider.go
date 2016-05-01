@@ -19,13 +19,15 @@ type Machine struct {
 
 // Provider defines an interface for interacting with cloud providers.
 type Provider interface {
-	Connect(conn db.Conn, id int, namespace string) error
+	Connect(namespace string) error
 
 	List() ([]Machine, error)
 
 	Boot([]Machine) error
 
 	Stop([]Machine) error
+
+	SetACLs(acls []string) error
 
 	Disconnect()
 
