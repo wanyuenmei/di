@@ -51,7 +51,6 @@ func init() {
 		"cpu":              {rangeTypeImpl("cpu"), 1, false},
 		"define":           {defineImpl, 2, true},
 		"docker":           {dockerImpl, 1, false},
-		"setEnv":           {setEnvImpl, 3, false},
 		"githubKey":        {githubKeyImpl, 1, false},
 		"hmap":             {hmapImpl, 0, true},
 		"hmapGet":          {hmapGetImpl, 2, false},
@@ -86,6 +85,7 @@ func init() {
 		"ram":              {rangeTypeImpl("ram"), 1, false},
 		"range":            {rangeImpl, 1, false},
 		"role":             {roleImpl, 1, false},
+		"setEnv":           {setEnvImpl, 3, false},
 		"size":             {sizeImpl, 1, false},
 		"sprintf":          {sprintfImpl, 1, false},
 	}
@@ -201,7 +201,7 @@ func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
 			c.env[args[1]] = args[2]
 		}
 	}
-	return astList(make([]ast, 0)), nil
+	return astList{}, nil
 }
 
 func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
