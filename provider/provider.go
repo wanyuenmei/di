@@ -22,7 +22,7 @@ type Provider interface {
 
 	Get() ([]Machine, error)
 
-	Boot(bootSet []Machine) error
+	Boot([]Machine) error
 
 	Stop([]Machine) error
 
