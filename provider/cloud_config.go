@@ -44,7 +44,6 @@ initialize_docker() {
 	Description=docker
 
 	[Service]
-	ExecStart=
 	ExecStart=/usr/bin/docker daemon --bridge=none \
 	-H "${PRIVATE_IPv4}:2375" -H unix:///var/run/docker.sock \
 
