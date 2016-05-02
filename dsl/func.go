@@ -175,30 +175,34 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 	return newContainer, nil
 }
 
+func setEnvHelper(container ast, key, value ast) error {
+	c, ok := container.(*astContainer)
+	if !ok {
+		return fmt.Errorf("cannot setEnv on non-container: %s", c)
+	}
+	c.env[key] = value
+	return nil
+}
+
 func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
 	for _, arg := range flatten([]ast{args[0]}) {
 		switch val := arg.(type) {
-		case astString:
-			labels, err := ctx.flattenLabel([]ast{val})
-			if err != nil {
-				return nil, err
+		case astString, astLabel:
+			label, ok := ctx.resolveLabel(val)
+			if !ok {
+				return nil, fmt.Errorf("cannot setEnv on invalid label: %s", val)
 			}
-			for _, label := range labels {
-				for _, c := range label.elems {
-					c, ok := c.(*astContainer)
-					if !ok {
-						continue
-					}
-					c.env[args[1]] = args[2]
+			for _, c := range label.elems {
+				if err := setEnvHelper(c, args[1], args[2]); err != nil {
+					return nil, err
 				}
 			}
-		default:
-			c, ok := val.(*astContainer)
-			if !ok {
-				return nil, fmt.Errorf("unrecognized type to set"+
-					"environment variables: %s", arg)
+		case *astContainer:
+			if err := setEnvHelper(val, args[1], args[2]); err != nil {
+				return nil, err
 			}
-			c.env[args[1]] = args[2]
+		default:
+			return nil, fmt.Errorf("setEnv target must be either a label or container: %s", val)
 		}
 	}
 	return astList{}, nil

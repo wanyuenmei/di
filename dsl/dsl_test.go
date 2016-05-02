@@ -955,6 +955,21 @@ func TestEnv(t *testing.T) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
 	}
+
+	code = `(let ((foo (label "bar" (docker "a"))))
+	(setEnv foo "key" "value"))`
+	ctx = parseTest(t, code, "(list)")
+	containerA = Container{
+		Image: "a", Placement: Placement{make(map[[2]string]struct{})},
+		Env:      map[string]string{"key": "value"},
+		atomImpl: atomImpl{labels: []string{"bar"}},
+	}
+	expected = []*Container{&containerA}
+	containerResult = Dsl{"", ctx}.QueryContainers()
+	if !reflect.DeepEqual(containerResult, expected) {
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+			code, containerResult, expected))
+	}
 }
 
 func TestConnect(t *testing.T) {
