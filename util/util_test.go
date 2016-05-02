@@ -35,3 +35,52 @@ func TestToTar(t *testing.T) {
 		t.Error("Generated incorrect tar archive.")
 	}
 }
+
+func TestEditDistance(t *testing.T) {
+	if err := ed(nil, nil, 0); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"a"}, nil, 1); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed(nil, []string{"a"}, 1); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"a"}, []string{"a"}, 0); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"b"}, []string{"a"}, 2); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"b", "a"}, []string{"a"}, 1); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"b", "a"}, []string{}, 2); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"a", "b", "c"}, []string{"a", "b", "c"}, 0); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"b", "c"}, []string{"a", "b", "c"}, 1); err != "" {
+		t.Error(err)
+	}
+
+	if err := ed([]string{"b", "c"}, []string{"a", "c"}, 2); err != "" {
+		t.Error(err)
+	}
+}
+
+func ed(a, b []string, exp int) string {
+	if ed := EditDistance(a, b); ed != exp {
+		return fmt.Sprintf("Distance(%s, %s) = %v, expected %v", a, b, ed, exp)
+	}
+	return ""
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -83,6 +84,14 @@ func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Contai
 			}
 		}
 
+		var dkcLabels []string
+		for label, value := range dkc.Labels {
+			if !docker.IsUserLabel(label) || value != docker.LabelTrueValue {
+				continue
+			}
+			dkcLabels = append(dkcLabels, docker.ParseUserLabel(label))
+		}
+
 		switch {
 		case dkc.Image != dbc.Image:
 			return -1
@@ -91,7 +100,7 @@ func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Contai
 		case dkc.ID == dbc.SchedID:
 			return 0
 		default:
-			return 1
+			return util.EditDistance(dbc.Labels, dkcLabels)
 		}
 	}
 	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcsArg, score)

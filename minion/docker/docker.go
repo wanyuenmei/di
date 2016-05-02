@@ -43,14 +43,15 @@ var errNoSuchContainer = errors.New("container does not exist")
 
 // A Container as returned by the docker client API.
 type Container struct {
-	ID    string
-	Name  string
-	Image string
-	IP    string
-	Path  string
-	Args  []string
-	Pid   int
-	Env   map[string]string
+	ID     string
+	Name   string
+	Image  string
+	IP     string
+	Path   string
+	Args   []string
+	Pid    int
+	Env    map[string]string
+	Labels map[string]string
 }
 
 // A Client to the local docker daemon.
@@ -334,14 +335,15 @@ func (dk docker) Get(id string) (Container, error) {
 	}
 
 	return Container{
-		Name:  c.Name,
-		ID:    c.ID,
-		IP:    c.NetworkSettings.IPAddress,
-		Image: c.Config.Image,
-		Path:  c.Path,
-		Args:  c.Args,
-		Pid:   c.State.Pid,
-		Env:   env,
+		Name:   c.Name,
+		ID:     c.ID,
+		IP:     c.NetworkSettings.IPAddress,
+		Image:  c.Config.Image,
+		Path:   c.Path,
+		Args:   c.Args,
+		Pid:    c.State.Pid,
+		Env:    env,
+		Labels: c.Config.Labels,
 	}, nil
 }
 
@@ -391,6 +393,16 @@ func (dk docker) getID(name string) (string, error) {
 // UserLabel returns the supplied label tagged with the user prefix.
 func UserLabel(label string) string {
 	return userLabelPrefix + label
+}
+
+// IsUserLabel returns whether the supplied label represents a DI user label.
+func IsUserLabel(label string) bool {
+	return strings.HasPrefix(label, userLabelPrefix)
+}
+
+// ParseUserLabel returns the supplied label with the user prefix stripped.
+func ParseUserLabel(label string) string {
+	return strings.TrimPrefix(label, userLabelPrefix)
 }
 
 // SystemLabel returns the supplied label tagged with the system prefix.

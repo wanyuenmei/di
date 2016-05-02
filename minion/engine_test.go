@@ -10,6 +10,7 @@ import (
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/di/util"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -123,7 +124,7 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		for i, c := range containers {
 			if e.Image == c.Image &&
 				reflect.DeepEqual(e.Command, c.Command) &&
-				editDistance(c.Labels, e.Labels()) == 0 {
+				util.EditDistance(c.Labels, e.Labels()) == 0 {
 				containers = append(containers[:i], containers[i+1:]...)
 				found = true
 				break
@@ -267,53 +268,4 @@ func fired(c chan struct{}) bool {
 	default:
 		return false
 	}
-}
-
-func TestEditDistance(t *testing.T) {
-	if err := ed(nil, nil, 0); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"a"}, nil, 1); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed(nil, []string{"a"}, 1); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"a"}, []string{"a"}, 0); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"b"}, []string{"a"}, 2); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"b", "a"}, []string{"a"}, 1); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"b", "a"}, []string{}, 2); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"a", "b", "c"}, []string{"a", "b", "c"}, 0); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"b", "c"}, []string{"a", "b", "c"}, 1); err != "" {
-		t.Error(err)
-	}
-
-	if err := ed([]string{"b", "c"}, []string{"a", "c"}, 2); err != "" {
-		t.Error(err)
-	}
-}
-
-func ed(a, b []string, exp int) string {
-	if ed := editDistance(a, b); ed != exp {
-		return fmt.Sprintf("Distance(%s, %s) = %v, expected %v", a, b, ed, exp)
-	}
-	return ""
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
 	"github.com/NetSys/di/join"
+	"github.com/NetSys/di/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -77,7 +78,7 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 			return -1
 		}
 
-		score := editDistance(dbc.Labels, dslc.Labels())
+		score := util.EditDistance(dbc.Labels, dslc.Labels())
 		for k := range dbc.Placement.Exclusive {
 			if _, ok := dslc.Placement.Exclusive[k]; !ok {
 				score += 100
@@ -126,24 +127,4 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		dbc.Env = dslc.Env
 		view.Commit(dbc)
 	}
-}
-
-func editDistance(a, b []string) int {
-	amap := make(map[string]struct{})
-
-	for _, label := range a {
-		amap[label] = struct{}{}
-	}
-
-	ed := 0
-	for _, label := range b {
-		if _, ok := amap[label]; ok {
-			delete(amap, label)
-		} else {
-			ed++
-		}
-	}
-
-	ed += len(amap)
-	return ed
 }

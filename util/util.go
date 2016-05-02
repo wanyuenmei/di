@@ -66,6 +66,27 @@ func ShortUUID(uuid string) string {
 	return uuid[:12]
 }
 
+// EditDistance returns the number of strings that are in exclusively `a` or `b`.
+func EditDistance(a, b []string) int {
+	amap := make(map[string]struct{})
+
+	for _, label := range a {
+		amap[label] = struct{}{}
+	}
+
+	ed := 0
+	for _, label := range b {
+		if _, ok := amap[label]; ok {
+			delete(amap, label)
+		} else {
+			ed++
+		}
+	}
+
+	ed += len(amap)
+	return ed
+}
+
 // Stored in a variable so that we can replace it with in-memory filesystems for unit tests.
 var AppFs afero.Fs = afero.NewOsFs()
 
