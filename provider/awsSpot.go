@@ -16,6 +16,7 @@ import (
 )
 
 const spotPrice = "0.5"
+const diskSize = 32
 
 // Ubuntu 15.10, 64-bit hvm-ssd
 var amis = map[string]string{
@@ -110,15 +111,23 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 
 	var awsIDs []awsID
 	for br, count := range bootReqMap {
+		bd := &ec2.BlockDeviceMapping{
+			Ebs: &ec2.EbsBlockDevice{
+				DeleteOnTermination: aws.Bool(true),
+				VolumeSize:          aws.Int64(diskSize),
+			},
+		}
+
 		session := clst.getSession(br.region)
 		cloudConfig64 := base64.StdEncoding.EncodeToString([]byte(br.cfg))
 		resp, err := session.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 			SpotPrice: aws.String(spotPrice),
 			LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
-				ImageId:        aws.String(amis[br.region]),
-				InstanceType:   aws.String(br.size),
-				UserData:       &cloudConfig64,
-				SecurityGroups: []*string{&clst.namespace},
+				ImageId:             aws.String(amis[br.region]),
+				InstanceType:        aws.String(br.size),
+				UserData:            &cloudConfig64,
+				SecurityGroups:      []*string{&clst.namespace},
+				BlockDeviceMappings: []*ec2.BlockDeviceMapping{bd},
 			},
 			InstanceCount: &count,
 		})
