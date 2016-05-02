@@ -198,7 +198,7 @@ func (clst awsSpotCluster) Stop(machines []Machine) error {
 
 func (clst awsSpotCluster) Get() ([]Machine, error) {
 	machines := []Machine{}
-	for region, _ := range amis {
+	for region := range amis {
 		session := clst.getSession(region)
 
 		spots, err := session.DescribeSpotInstanceRequests(nil)
