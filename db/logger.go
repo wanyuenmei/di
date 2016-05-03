@@ -19,10 +19,16 @@ func (conn Conn) runLogger() {
 }
 
 func (conn Conn) logTable(t TableType) {
+	var truncated bool
 	var strs []string
 	conn.Transact(func(view Database) error {
 		var rows []row
 		for _, v := range view.tables[t].rows {
+			if len(rows) > 25 {
+				truncated = true
+				break
+			}
+
 			rows = append(rows, v)
 		}
 
@@ -33,5 +39,10 @@ func (conn Conn) logTable(t TableType) {
 		return nil
 	})
 
+	if truncated {
+		strs = append(strs, "Truncated ...")
+	}
+
 	log.Infof("%s:\n\t%s", t, strings.Join(strs, "\n\t"))
+
 }
