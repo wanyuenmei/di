@@ -82,7 +82,7 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) err
 		computeBaseURL,
 		"ubuntu-os-cloud/global/images/ubuntu-1510-wily-v20160310")
 	clst.baseURL = fmt.Sprintf("%s/%s", computeBaseURL, clst.projID)
-	clst.ipv4Range = "10.240.0.0/16"
+	clst.ipv4Range = "192.168.0.0/16"
 	clst.intFW = fmt.Sprintf("%s-internal", clst.ns)
 	clst.extFW = fmt.Sprintf("%s-external", clst.ns)
 
