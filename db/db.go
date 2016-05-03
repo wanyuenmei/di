@@ -174,7 +174,7 @@ func defaultString(r row) string {
 			formatString = fmt.Sprintf("%s=%%s", trow.Field(i).Name)
 		}
 		fieldString := fmt.Sprint(vrow.Field(i).Interface())
-		if fieldString == "" {
+		if fieldString == "" || fieldString == "0" {
 			continue
 		}
 		tags = append(tags, fmt.Sprintf(formatString, fieldString))
