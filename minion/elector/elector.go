@@ -27,7 +27,7 @@ func watchLeader(conn db.Conn, store consensus.Store) {
 	}
 
 	watch := store.Watch(leaderKey, 1*time.Second)
-	trigg := conn.TriggerTick(30, db.EtcdTable)
+	trigg := conn.TriggerTick(tickRate, db.EtcdTable)
 	for {
 		leader, _ := store.Get(leaderKey)
 		conn.Transact(func(view db.Database) error {
