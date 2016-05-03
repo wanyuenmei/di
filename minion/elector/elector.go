@@ -21,8 +21,13 @@ func Run(conn db.Conn, store consensus.Store) {
 }
 
 func watchLeader(conn db.Conn, store consensus.Store) {
+	tickRate := electionTTL
+	if tickRate > 30 {
+		tickRate = 30
+	}
+
 	watch := store.Watch(leaderKey, 1*time.Second)
-	trigg := conn.TriggerTick(electionTTL, db.EtcdTable)
+	trigg := conn.TriggerTick(30, db.EtcdTable)
 	for {
 		leader, _ := store.Get(leaderKey)
 		conn.Transact(func(view db.Database) error {
