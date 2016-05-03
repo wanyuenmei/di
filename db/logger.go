@@ -24,7 +24,7 @@ func (conn Conn) logTable(t TableType) {
 	conn.Transact(func(view Database) error {
 		var rows []row
 		for _, v := range view.tables[t].rows {
-			if len(rows) > 25 {
+			if len(rows) > 50 {
 				truncated = true
 				break
 			}
