@@ -20,10 +20,10 @@
 //   "master": list of db master nodes
 //   "slave": list of db slave nodes
 // memcached: list of memcached nodes
-(define (New prefix n db memcached)
+(define (New name n db memcached)
   (let ((args (makeArgs db memcached))
         (wp (makeList n (docker image args)))
-        (labelNames (strings.Range prefix n))
+        (labelNames (strings.Range name n))
         (wordpress (map label labelNames wp)))
   (connect 3306 wordpress (hmapGet db "master"))
   (connect 3306 wordpress (hmapGet db "slave"))
