@@ -585,6 +585,11 @@ func TestMachines(t *testing.T) {
 	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
+	// Test setting disk size
+	code = `(machine (diskSize 32))`
+	expMachine = Machine{DiskSize: 32}
+	checkMachines(code, code, expMachine)
+
 	// Test invalid attribute type
 	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
 }

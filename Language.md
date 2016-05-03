@@ -50,9 +50,9 @@ SSH keys are represented as atoms. Specifically, there's `(plaintextKey <key>)` 
 #### Machines
 Each instance of a machine is also an atom. A machine is defined as
 `(machine <attributes>)` where `<attributes>` are either `(provider <provider>)`,
-`(region <region>)`, or `(size <size>)`. For example,
+`(region <region>)`, `(diskSize <diskSize>)`, or `(size <size>)`. For example,
 ```
-(machine (provider "AmazonSpot") (size "m4.large") (region "us-west-2"))
+(machine (provider "AmazonSpot") (size "m4.large") (region "us-west-2") (diskSize 32))
 ```
 
 The attributes of labeled machines can be later modified with

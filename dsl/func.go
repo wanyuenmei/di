@@ -50,6 +50,7 @@ func init() {
 		"cons":             {consImpl, 2, false},
 		"cpu":              {rangeTypeImpl("cpu"), 1, false},
 		"define":           {defineImpl, 2, true},
+		"diskSize":         {diskSizeImpl, 1, false},
 		"docker":           {dockerImpl, 1, false},
 		"githubKey":        {githubKeyImpl, 1, false},
 		"hmap":             {hmapImpl, 0, true},
@@ -282,6 +283,8 @@ func setMachineAttributes(machine *astMachine, args []ast) error {
 			machine.region = val
 		case astSize:
 			machine.size = val
+		case astDiskSize:
+			machine.diskSize = val
 		case astRole:
 			machine.role = val
 		case astRange:
@@ -356,6 +359,14 @@ func regionImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 func sizeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astSize((args[0].(astString))), nil
+}
+
+func diskSizeImpl(ctx *evalCtx, args []ast) (ast, error) {
+	size, ok := args[0].(astInt)
+	if !ok {
+		return nil, fmt.Errorf("diskSize must be an int: %s", args[0])
+	}
+	return astDiskSize(size), nil
 }
 
 func toFloat(x ast) (astFloat, error) {

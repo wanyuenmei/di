@@ -138,6 +138,7 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 		}
 		m.SSHKeys = dslm.SSHKeys
 		m.Region = dslm.Region
+		m.DiskSize = dslm.DiskSize
 		dbMachines = append(dbMachines, m)
 	}
 	return dbMachines
@@ -182,6 +183,8 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 			return -1
 		case dbMachine.Role != db.None && dbMachine.Role != dslMachine.Role:
 			return -1
+		case dbMachine.DiskSize != dslMachine.DiskSize:
+			return -1
 		case dbMachine.PrivateIP == "":
 			return 2
 		case dbMachine.PublicIP == "":
@@ -210,6 +213,7 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 
 		dbMachine.Role = dslMachine.Role
 		dbMachine.Size = dslMachine.Size
+		dbMachine.DiskSize = dslMachine.DiskSize
 		dbMachine.Provider = dslMachine.Provider
 		dbMachine.Region = dslMachine.Region
 		dbMachine.SSHKeys = dslMachine.SSHKeys

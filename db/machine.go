@@ -15,6 +15,7 @@ type Machine struct {
 	Provider  Provider
 	Region    string
 	Size      string
+	DiskSize  int
 	SSHKeys   []string `rowStringer:"omit"`
 
 	/* Populated by the cloud provider. */

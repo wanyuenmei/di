@@ -86,6 +86,7 @@ type astSize astString
 type astProvider astString
 type astRole astString
 type astRegion astString
+type astDiskSize astInt
 type astMachine struct {
 	provider astProvider
 	role     astRole
@@ -93,6 +94,7 @@ type astMachine struct {
 	region   astRegion
 	cpu      astRange
 	ram      astRange
+	diskSize astDiskSize
 	sshKeys  []key
 
 	atomImpl
@@ -118,6 +120,10 @@ func (p astProvider) String() string {
 
 func (size astSize) String() string {
 	return fmt.Sprintf("(size %s)", astString(size).String())
+}
+
+func (size astDiskSize) String() string {
+	return fmt.Sprintf("(diskSize %d)", int(size))
 }
 
 func (role astRole) String() string {
@@ -223,6 +229,9 @@ func (m *astMachine) String() string {
 	}
 	if m.size != "" {
 		args = append(args, m.size)
+	}
+	if m.diskSize != 0 {
+		args = append(args, m.diskSize)
 	}
 	if m.ram.ident != "" {
 		args = append(args, m.ram)

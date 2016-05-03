@@ -248,6 +248,10 @@ func (r astRole) eval(ctx *evalCtx) (ast, error) {
 	return r, nil
 }
 
+func (s astDiskSize) eval(ctx *evalCtx) (ast, error) {
+	return s, nil
+}
+
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {

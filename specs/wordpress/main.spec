@@ -27,6 +27,7 @@
     (list (provider "AmazonSpot")
           (region "us-west-2")
           (size "m4.large")
+          (diskSize 32)
           (githubKey "nlsun"))))
 
 (let ((prefix "di")

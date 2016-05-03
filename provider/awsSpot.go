@@ -16,7 +16,6 @@ import (
 )
 
 const spotPrice = "0.5"
-const diskSize = 32
 
 // Ubuntu 15.10, 64-bit hvm-ssd
 var amis = map[string]string{
@@ -94,17 +93,19 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	}
 
 	type bootReq struct {
-		cfg    string
-		size   string
-		region string
+		cfg      string
+		size     string
+		region   string
+		diskSize int
 	}
 
 	bootReqMap := make(map[bootReq]int64) // From boot request to an instance count.
 	for _, m := range bootSet {
 		br := bootReq{
-			cfg:    cloudConfigUbuntu(m.SSHKeys, "wily"),
-			size:   m.Size,
-			region: m.Region,
+			cfg:      cloudConfigUbuntu(m.SSHKeys, "wily"),
+			size:     m.Size,
+			region:   m.Region,
+			diskSize: m.DiskSize,
 		}
 		bootReqMap[br] = bootReqMap[br] + 1
 	}
@@ -115,7 +116,7 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 			DeviceName: aws.String("/dev/sda1"),
 			Ebs: &ec2.EbsBlockDevice{
 				DeleteOnTermination: aws.Bool(true),
-				VolumeSize:          aws.Int64(diskSize),
+				VolumeSize:          aws.Int64(int64(br.diskSize)),
 				VolumeType:          aws.String("gp2"),
 			},
 		}
@@ -294,6 +295,24 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 
 				if inst.InstanceType != nil {
 					machine.Size = *inst.InstanceType
+				}
+
+				if len(inst.BlockDeviceMappings) != 0 {
+					volumeID := inst.BlockDeviceMappings[0].Ebs.VolumeId
+					volumeInfo, err := session.DescribeVolumes(&ec2.DescribeVolumesInput{
+						Filters: []*ec2.Filter{
+							{
+								Name:   aws.String("volume-id"),
+								Values: []*string{aws.String(*volumeID)},
+							},
+						},
+					})
+					if err != nil {
+						return nil, err
+					}
+					if len(volumeInfo.Volumes) == 1 {
+						machine.DiskSize = int(*volumeInfo.Volumes[0].Size)
+					}
 				}
 			}
 

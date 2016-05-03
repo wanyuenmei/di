@@ -44,6 +44,7 @@ type Machine struct {
 	Size     string
 	CPU      Range
 	RAM      Range
+	DiskSize int
 	Region   string
 	SSHKeys  []string
 
@@ -139,6 +140,7 @@ func convertAstMachine(machineAst astMachine) Machine {
 		Region:   string(machineAst.region),
 		RAM:      Range{Min: float64(machineAst.ram.min), Max: float64(machineAst.ram.max)},
 		CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
+		DiskSize: int(machineAst.diskSize),
 		SSHKeys:  parseKeys(machineAst.sshKeys),
 		atomImpl: machineAst.atomImpl,
 	}

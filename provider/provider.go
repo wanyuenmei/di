@@ -11,6 +11,7 @@ type Machine struct {
 	PublicIP  string
 	PrivateIP string
 	Size      string
+	DiskSize  int
 	SSHKeys   []string
 	Provider  db.Provider
 	Region    string

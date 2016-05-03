@@ -178,6 +178,9 @@ func (clst cluster) sync() {
 				if m.Size != "" {
 					dbm.Size = m.Size
 				}
+				if m.DiskSize != 0 {
+					dbm.DiskSize = m.DiskSize
+				}
 				dbm.Provider = m.Provider
 				// XXX: Get the SSH keys?
 				view.Commit(dbm)
@@ -204,6 +207,8 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 			return -1
 		case m.Size != "" && dbm.Size != m.Size:
 			return -1
+		case m.DiskSize != 0 && dbm.DiskSize != m.DiskSize:
+			return -1
 		case dbm.CloudID == m.ID:
 			return 0
 		case dbm.PublicIP == m.PublicIP:
@@ -228,6 +233,7 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 			Size:     m.Size,
 			Provider: m.Provider,
 			Region:   m.Region,
+			DiskSize: m.DiskSize,
 			SSHKeys:  m.SSHKeys})
 	}
 
