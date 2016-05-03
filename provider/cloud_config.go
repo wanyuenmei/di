@@ -44,6 +44,8 @@ initialize_docker() {
 	Description=docker
 
 	[Service]
+	# The below empty ExecStart deletes the official one installed by docker daemon.
+	ExecStart=
 	ExecStart=/usr/bin/docker daemon --bridge=none \
 	-H "${PRIVATE_IPv4}:2375" -H unix:///var/run/docker.sock \
 

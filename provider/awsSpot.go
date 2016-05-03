@@ -112,9 +112,11 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	var awsIDs []awsID
 	for br, count := range bootReqMap {
 		bd := &ec2.BlockDeviceMapping{
+			DeviceName: aws.String("/dev/sda1"),
 			Ebs: &ec2.EbsBlockDevice{
 				DeleteOnTermination: aws.Bool(true),
 				VolumeSize:          aws.Int64(diskSize),
+				VolumeType:          aws.String("gp2"),
 			},
 		}
 
