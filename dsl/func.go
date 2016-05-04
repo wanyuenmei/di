@@ -181,6 +181,17 @@ func setEnvHelper(container ast, key, value ast) error {
 	if !ok {
 		return fmt.Errorf("cannot setEnv on non-container: %s", c)
 	}
+
+	_, ok = key.(astString)
+	if !ok {
+		return fmt.Errorf("setEnv key must be a string: %s", key)
+	}
+
+	_, ok = value.(astString)
+	if !ok {
+		return fmt.Errorf("setEnv value must be a string: %s", value)
+	}
+
 	c.env[key] = value
 	return nil
 }

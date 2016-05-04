@@ -975,6 +975,9 @@ func TestEnv(t *testing.T) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
 	}
+
+	runtimeErr(t, `(setEnv (docker "foo") 1 "value")`, "1: setEnv key must be a string: 1")
+	runtimeErr(t, `(setEnv (docker "foo") "key" 1)`, "1: setEnv value must be a string: 1")
 }
 
 func TestConnect(t *testing.T) {
