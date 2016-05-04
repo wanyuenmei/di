@@ -5,27 +5,24 @@
 (define (hostStr labels)
   (strings.Join (map labelHost labels) ","))
 
-(define (makeArgs db memcached)
-  (list
-    (list "--dbm"
-          (hostStr (hmapGet db "master")))
-    (if (hmapContains db "slave")
-      (list "--repl-mysql"
-            (hostStr (hmapGet db "slave"))))
-    (if memcached
-      (list "--memcached" (hostStr memcached)))
-    "apache2-foreground"))
+(define (hostEnv host k v)
+  (setEnv host k (hostStr v)))
+
+(define (configure wp db memcached)
+  (hostEnv wp "MEMCACHED" memcached)
+  (hostEnv wp "DB_HOST" (hmapGet db "master"))
+  (hostEnv wp "DB_SLAVES" (hmapGet db "slave")))
 
 // db: hmap
 //   "master": list of db master nodes
 //   "slave": list of db slave nodes
 // memcached: list of memcached nodes
 (define (New name n db memcached)
-  (let ((args (makeArgs db memcached))
-        (wp (makeList n (docker image args)))
+  (let ((dk (makeList n (docker image)))
         (labelNames (strings.Range name n))
-        (wordpress (map label labelNames wp)))
-  (connect 3306 wordpress (hmapGet db "master"))
-  (connect 3306 wordpress (hmapGet db "slave"))
-  (connect 11211 wordpress memcached)
-  wordpress))
+        (wordpress (map label labelNames dk)))
+    (configure wordpress db memcached)
+    (connect 3306 wordpress (hmapGet db "master"))
+    (connect 3306 wordpress (hmapGet db "slave"))
+    (connect 11211 wordpress memcached)
+    wordpress))
