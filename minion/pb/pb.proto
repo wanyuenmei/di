@@ -17,6 +17,9 @@ message MinionConfig {
     Role role = 2;
     string PrivateIP = 3;
     string Spec = 4;
+    string Provider = 5;
+    string Size = 6;
+    string Region = 7;
 }
 
 message Reply {

@@ -176,6 +176,7 @@ func TestWorker(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
+		DITag:         nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -220,6 +221,7 @@ func TestChange(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
+		DITag:         nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -275,6 +277,7 @@ func TestChange(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
+		DITag:         nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -595,6 +598,7 @@ func validateImage(image string) {
 	case Ovncontroller:
 	case Ovsvswitchd:
 	case Ovsdb:
+	case DITag:
 	default:
 		panic("Bad Image")
 	}

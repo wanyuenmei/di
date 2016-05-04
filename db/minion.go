@@ -9,6 +9,10 @@ type Minion struct {
 	Role      Role
 	PrivateIP string
 	Spec      string
+
+	Provider string
+	Size     string
+	Region   string
 }
 
 // InsertMinion creates a new Minion and inserts it into 'db'.

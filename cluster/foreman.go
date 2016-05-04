@@ -171,6 +171,9 @@ func (fm *foreman) runOnce() {
 			Role:      db.RoleToPB(m.machine.Role),
 			PrivateIP: m.machine.PrivateIP,
 			Spec:      fm.spec,
+			Provider:  string(m.machine.Provider),
+			Size:      m.machine.Size,
+			Region:    m.machine.Region,
 		}
 
 		if newConfig == m.config {

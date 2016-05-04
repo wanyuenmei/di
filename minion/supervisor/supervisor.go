@@ -30,6 +30,9 @@ const (
 
 	// Swarm is the name of the docker swarm.
 	Swarm = "swarm"
+
+	// DITag is the name of the container used to tag the machine for placement.
+	DITag = "di-tag"
 )
 
 var images = map[string]string{
@@ -39,6 +42,7 @@ var images = map[string]string{
 	Ovsdb:         "quay.io/netsys/ovsdb-server",
 	Ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
 	Swarm:         "swarm:1.2.0",
+	DITag:         "google/pause",
 }
 
 const etcdHeartbeatInterval = "500"
@@ -53,6 +57,9 @@ type supervisor struct {
 	leaderIP string
 	IP       string
 	leader   bool
+	provider string
+	region   string
+	size     string
 }
 
 // Run blocks implementing the supervisor module.
@@ -181,7 +188,10 @@ func (sv *supervisor) runSystemOnce() {
 		reflect.DeepEqual(sv.etcdIPs, etcdRow.EtcdIPs) &&
 		sv.leaderIP == etcdRow.LeaderIP &&
 		sv.IP == minion.PrivateIP &&
-		sv.leader == etcdRow.Leader {
+		sv.leader == etcdRow.Leader &&
+		sv.provider == minion.Provider &&
+		sv.region == minion.Region &&
+		sv.size == minion.Size {
 		return
 	}
 
@@ -203,6 +213,30 @@ func (sv *supervisor) runSystemOnce() {
 	sv.leaderIP = etcdRow.LeaderIP
 	sv.IP = minion.PrivateIP
 	sv.leader = etcdRow.Leader
+	sv.provider = minion.Provider
+	sv.region = minion.Region
+	sv.size = minion.Size
+}
+
+func (sv *supervisor) tagWorker(provider, region, size string) {
+	if sv.provider != provider || sv.region != region || sv.size != size {
+		sv.Remove(DITag)
+	}
+	tags := map[string]string{
+		docker.SystemLabel("provider"): provider,
+		docker.SystemLabel("region"):   region,
+		docker.SystemLabel("size"):     size,
+	}
+
+	ro := docker.RunOptions{
+		Name:        DITag,
+		Image:       images[DITag],
+		Labels:      tags,
+		NetworkMode: "host",
+	}
+	if err := sv.dk.Run(ro); err != nil {
+		log.WithError(err).Warn("Failed to tag minion.")
+	}
 }
 
 func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string) {
@@ -232,13 +266,14 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 	if len(minions) != 1 {
 		return
 	}
+	minion := minions[0]
 
 	err := sv.dk.Exec(Ovsvswitchd, "ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leaderIP),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
-		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minions[0].MinionID),
+		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minion.MinionID),
 		"--", "add-br", "di-int",
 		"--", "set", "bridge", "di-int", "fail_mode=secure")
 	if err != nil {
@@ -249,6 +284,8 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 	 * So, we need to restart the container when the leader changes. */
 	sv.Remove(Ovncontroller)
 	sv.run(Ovncontroller)
+
+	sv.tagWorker(minion.Provider, minion.Region, minion.Size)
 }
 
 func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {

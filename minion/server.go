@@ -56,6 +56,9 @@ func (s server) GetMinionConfig(cts context.Context,
 		cfg.Role = pb.MinionConfig_Role(m.Role)
 		cfg.PrivateIP = m.PrivateIP
 		cfg.Spec = m.Spec
+		cfg.Provider = m.Provider
+		cfg.Size = m.Size
+		cfg.Region = m.Region
 	default:
 		panic("Not Reached")
 	}
@@ -82,6 +85,9 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.Role = db.Role(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
 		minion.Spec = msg.Spec
+		minion.Provider = msg.Provider
+		minion.Size = msg.Size
+		minion.Region = msg.Region
 		view.Commit(minion)
 
 		return nil
