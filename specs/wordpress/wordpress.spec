@@ -2,11 +2,9 @@
 
 (define image "quay.io/netsys/di-wordpress")
 
-(define (hostStr labels)
-  (strings.Join (map labelHost labels) ","))
-
-(define (hostEnv host k v)
-  (setEnv host k (hostStr v)))
+(define (hostEnv dk env labels)
+  (let ((hosts (map labelHost labels)))
+    (setEnv dk env (strings.Join hosts ","))))
 
 (define (configure wp db memcached)
   (hostEnv wp "MEMCACHED" memcached)
