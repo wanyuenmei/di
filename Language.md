@@ -52,14 +52,14 @@ Each instance of a machine is also an atom. A machine is defined as
 `(machine <attributes>)` where `<attributes>` are either `(provider <provider>)`,
 `(region <region>)`, `(diskSize <diskSize>)`, or `(size <size>)`. For example,
 ```
-(machine (provider "AmazonSpot") (size "m4.large") (region "us-west-2") (diskSize 32))
+(machine (provider "Amazon") (size "m4.large") (region "us-west-2") (diskSize 32))
 ```
 
 The attributes of labeled machines can be later modified with
 `(machineAttribute <machine> <attributes>)`. For example,
 ```
 (label "masters" (makeList 2 (machine)))
-(machineAttribute "masters" (size "m3.medium") (provider "AmazonSpot"))
+(machineAttribute "masters" (size "m3.medium") (provider "Amazon"))
 ```
 If the attribute is already defined, it is replaced. `machineAttributes` works
 both for a list of machines and a single instance.
@@ -69,7 +69,7 @@ before being applied. This allows you to do `define` settings as lists and then
 apply them.
 ```
 (define large (list (ram 16) (cpu 8)))
-(label "machines" (machine (provider "AmazonSpot") large))
+(label "machines" (machine (provider "Amazon") large))
 ```
 
 ##### Ranges

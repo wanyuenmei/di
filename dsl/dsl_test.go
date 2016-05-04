@@ -482,28 +482,28 @@ func TestStdlib(t *testing.T) {
 	         (machines.Boot
 	           1
 	           2
-			   (list (provider "AmazonSpot")
+			   (list (provider "Amazon")
 					 (size "m4.large")
 					 (plaintextKey "key")))`
 	expCode := `(module "machines" (list)
                 (list)
                 (list)
                 (list))
-                (list (machine (provider "AmazonSpot") (size "m4.large") (role "Master") (plaintextKey "key"))
-                      (machine (provider "AmazonSpot") (size "m4.large") (role "Worker") (plaintextKey "key"))
-                      (machine (provider "AmazonSpot") (size "m4.large") (role "Worker") (plaintextKey "key")))`
+                (list (machine (provider "Amazon") (size "m4.large") (role "Master") (plaintextKey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (plaintextKey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (plaintextKey "key")))`
 	expMachines := []Machine{
-		{Provider: "AmazonSpot",
+		{Provider: "Amazon",
 			Size:    "m4.large",
 			Role:    "Master",
 			SSHKeys: []string{"key"},
 		},
-		{Provider: "AmazonSpot",
+		{Provider: "Amazon",
 			Size:    "m4.large",
 			Role:    "Worker",
 			SSHKeys: []string{"key"},
 		},
-		{Provider: "AmazonSpot",
+		{Provider: "Amazon",
 			Size:    "m4.large",
 			Role:    "Worker",
 			SSHKeys: []string{"key"},
@@ -528,55 +528,55 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, code, expMachine)
 
 	// Test specifying the provider
-	code = `(machine (provider "AmazonSpot"))`
-	expMachine = Machine{Provider: "AmazonSpot"}
+	code = `(machine (provider "Amazon"))`
+	expMachine = Machine{Provider: "Amazon"}
 	checkMachines(code, code, expMachine)
 
 	// Test making a list of machines
-	code = `(makeList 2 (machine (provider "AmazonSpot")))`
-	expCode := `(list (machine (provider "AmazonSpot")) (machine (provider "AmazonSpot")))`
+	code = `(makeList 2 (machine (provider "Amazon")))`
+	expCode := `(list (machine (provider "Amazon")) (machine (provider "Amazon")))`
 	checkMachines(code, expCode, expMachine, expMachine)
 
-	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
-	code = `(machine (provider "AmazonSpot") (size "m4.large"))`
+	expMachine = Machine{Provider: "Amazon", Size: "m4.large"}
+	code = `(machine (provider "Amazon") (size "m4.large"))`
 	checkMachines(code, code, expMachine)
 
 	// Test heterogenous sizes
-	code = `(machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "AmazonSpot") (size "m4.xlarge"))`
-	expMachine2 := Machine{Provider: "AmazonSpot", Size: "m4.xlarge"}
+	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Amazon") (size "m4.xlarge"))`
+	expMachine2 := Machine{Provider: "Amazon", Size: "m4.xlarge"}
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test heterogenous providers
-	code = `(machine (provider "AmazonSpot") (size "m4.large")) (machine (provider "Vagrant"))`
+	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Vagrant"))`
 	expMachine2 = Machine{Provider: "Vagrant"}
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test cpu range (two args)
-	code = `(machine (provider "AmazonSpot") (cpu 4 8))`
-	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4, Max: 8}}
+	code = `(machine (provider "Amazon") (cpu 4 8))`
+	expMachine = Machine{Provider: "Amazon", CPU: Range{Min: 4, Max: 8}}
 	checkMachines(code, code, expMachine)
 
 	// Test cpu range (one arg)
-	code = `(machine (provider "AmazonSpot") (cpu 4))`
-	expMachine = Machine{Provider: "AmazonSpot", CPU: Range{Min: 4}}
+	code = `(machine (provider "Amazon") (cpu 4))`
+	expMachine = Machine{Provider: "Amazon", CPU: Range{Min: 4}}
 	checkMachines(code, code, expMachine)
 
 	// Test ram range
-	code = `(machine (provider "AmazonSpot") (ram 8 12))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 8, Max: 12}}
+	code = `(machine (provider "Amazon") (ram 8 12))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 8, Max: 12}}
 	checkMachines(code, code, expMachine)
 
 	// Test float range
-	code = `(machine (provider "AmazonSpot") (ram 0.5 2))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 0.5, Max: 2}}
+	code = `(machine (provider "Amazon") (ram 0.5 2))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 0.5, Max: 2}}
 	checkMachines(code, code, expMachine)
 
 	// Test named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-	(machine (provider "AmazonSpot") large)`
+	(machine (provider "Amazon") large)`
 	expCode = `(list)
-	(machine (provider "AmazonSpot") (ram 16) (cpu 8))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	(machine (provider "Amazon") (ram 16) (cpu 8))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting region
@@ -591,7 +591,7 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, code, expMachine)
 
 	// Test invalid attribute type
-	runtimeErr(t, `(machine (provider "AmazonSpot") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
+	runtimeErr(t, `(machine (provider "Amazon") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
 }
 
 func TestMachineAttribute(t *testing.T) {
@@ -606,75 +606,75 @@ func TestMachineAttribute(t *testing.T) {
 
 	// Test adding an attribute to an empty machine definition
 	code := `(define machines (list (machine)))
-	(machineAttribute machines (provider "AmazonSpot"))`
+	(machineAttribute machines (provider "Amazon"))`
 	expCode := `(list)
-	(list (machine (provider "AmazonSpot")))`
-	expMachine := Machine{Provider: "AmazonSpot"}
+	(list (machine (provider "Amazon")))`
+	expMachine := Machine{Provider: "Amazon"}
 	checkMachines(code, expCode, expMachine)
 
 	// Test adding an attribute to a machine that already has another attribute
 	code = `(define machines (list (machine (size "m4.large"))))
-	(machineAttribute machines (provider "AmazonSpot"))`
+	(machineAttribute machines (provider "Amazon"))`
 	expCode = `(list)
-	(list (machine (provider "AmazonSpot") (size "m4.large")))`
-	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
+	(list (machine (provider "Amazon") (size "m4.large")))`
+	expMachine = Machine{Provider: "Amazon", Size: "m4.large"}
 	checkMachines(code, expCode, expMachine)
 
 	// Test adding two attributes
 	code = `(define machines (list (machine)))
-	(machineAttribute machines (provider "AmazonSpot") (size "m4.large"))`
+	(machineAttribute machines (provider "Amazon") (size "m4.large"))`
 	expCode = `(list)
-	(list (machine (provider "AmazonSpot") (size "m4.large")))`
-	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.large"}
+	(list (machine (provider "Amazon") (size "m4.large")))`
+	expMachine = Machine{Provider: "Amazon", Size: "m4.large"}
 	checkMachines(code, expCode, expMachine)
 
 	// Test replacing an attribute
-	code = `(define machines (list (machine (provider "AmazonSpot") (size "m4.large"))))
+	code = `(define machines (list (machine (provider "Amazon") (size "m4.large"))))
 	(machineAttribute machines (size "m4.medium"))`
 	expCode = `(list)
-	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
-	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
+	(list (machine (provider "Amazon") (size "m4.medium")))`
+	expMachine = Machine{Provider: "Amazon", Size: "m4.medium"}
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes on a single machine (non-list)
-	code = `(define machines (machine (provider "AmazonSpot")))
+	code = `(define machines (machine (provider "Amazon")))
 	(machineAttribute machines (size "m4.medium"))`
 	expCode = `(list)
-	(list (machine (provider "AmazonSpot") (size "m4.medium")))`
-	expMachine = Machine{Provider: "AmazonSpot", Size: "m4.medium"}
+	(list (machine (provider "Amazon") (size "m4.medium")))`
+	expMachine = Machine{Provider: "Amazon", Size: "m4.medium"}
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting attribute on a non-machine
 	code = `(define badMachine (docker "foo"))
-	(machineAttribute badMachine (machine (provider "AmazonSpot")))`
+	(machineAttribute badMachine (machine (provider "Amazon")))`
 	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
 
 	// Test setting range attributes
-	code = `(define machines (machine (provider "AmazonSpot")))
+	code = `(define machines (machine (provider "Amazon")))
 	(machineAttribute machines (ram 1))`
 	expCode = `(list)
-	(list (machine (provider "AmazonSpot") (ram 1)))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 1}}
+	(list (machine (provider "Amazon") (ram 1)))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 1}}
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting using a named attribute
 	code = `(define large (list (ram 16) (cpu 8)))
-	(define machines (machine (provider "AmazonSpot")))
+	(define machines (machine (provider "Amazon")))
 	(machineAttribute machines large)`
 	expCode = `(list)
 	(list)
-	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	(list (machine (provider "Amazon") (ram 16) (cpu 8)))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting attributes from within a lambda
-	code = `(define machines (machine (provider "AmazonSpot")))
+	code = `(define machines (machine (provider "Amazon")))
 	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
 	(makeLarge machines)`
 	expCode = `(list)
 	(list)
-	(list (machine (provider "AmazonSpot") (ram 16) (cpu 8)))`
-	expMachine = Machine{Provider: "AmazonSpot", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
+	(list (machine (provider "Amazon") (ram 16) (cpu 8)))`
+	expMachine = Machine{Provider: "Amazon", RAM: Range{Min: 16}, CPU: Range{Min: 8}}
 	checkMachines(code, expCode, expMachine)
 }
 
@@ -752,13 +752,13 @@ func TestLabel(t *testing.T) {
 
 	// Test referring to a label directly
 	code = `(define myMachines (machine))
-	(machineAttribute myMachines (provider "AmazonSpot"))`
+	(machineAttribute myMachines (provider "Amazon"))`
 	exp = `(list)
-	(list (machine (provider "AmazonSpot")))`
+	(list (machine (provider "Amazon")))`
 	ctx = parseTest(t, code, exp)
 	expMachines := []Machine{
 		{
-			Provider: "AmazonSpot",
+			Provider: "Amazon",
 		},
 	}
 	machineResult := Dsl{"", ctx}.QueryMachines()

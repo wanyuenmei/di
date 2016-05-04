@@ -10,7 +10,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
-var FakeAmazonSpot db.Provider = "FakeAmazonSpot"
+var FakeAmazon db.Provider = "FakeAmazon"
 var FakeVagrant db.Provider = "FakeVagrant"
 var amazonCloudConfig = "Amazon Cloud Config"
 var vagrantCloudConfig = "Vagrant Cloud Config"
@@ -92,7 +92,7 @@ func newTestCluster() cluster {
 		providers: make(map[db.Provider]provider.Provider),
 	}
 
-	clst.providers[FakeAmazonSpot] = newFakeProvider(amazonCloudConfig)
+	clst.providers[FakeAmazon] = newFakeProvider(amazonCloudConfig)
 	clst.providers[FakeVagrant] = newFakeProvider(vagrantCloudConfig)
 
 	return clst
@@ -114,10 +114,10 @@ func TestSyncDB(t *testing.T) {
 	}
 
 	var noMachines []provider.Machine
-	dbNoSize := db.Machine{Provider: FakeAmazonSpot}
-	cmNoSize := provider.Machine{Provider: FakeAmazonSpot}
-	dbLarge := db.Machine{Provider: FakeAmazonSpot, Size: "m4.large"}
-	cmLarge := provider.Machine{Provider: FakeAmazonSpot, Size: "m4.large"}
+	dbNoSize := db.Machine{Provider: FakeAmazon}
+	cmNoSize := provider.Machine{Provider: FakeAmazon}
+	dbLarge := db.Machine{Provider: FakeAmazon, Size: "m4.large"}
+	cmLarge := provider.Machine{Provider: FakeAmazon, Size: "m4.large"}
 
 	// Test boot with no size
 	checkSyncDB(noMachines, []db.Machine{dbNoSize}, []provider.Machine{cmNoSize}, noMachines)
@@ -169,26 +169,26 @@ func TestSync(t *testing.T) {
 		m := view.InsertMachine()
 		m.ClusterID = clst.id
 		m.Role = db.Master
-		m.Provider = FakeAmazonSpot
+		m.Provider = FakeAmazon
 		m.Size = "m4.large"
 		view.Commit(m)
 
 		return nil
 	})
-	checkSync(clst, FakeAmazonSpot, []bootRequest{amazonLargeBoot}, noStops)
+	checkSync(clst, FakeAmazon, []bootRequest{amazonLargeBoot}, noStops)
 
 	// Test adding a machine with the same provider
 	clst.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
 		m.ClusterID = clst.id
 		m.Role = db.Master
-		m.Provider = FakeAmazonSpot
+		m.Provider = FakeAmazon
 		m.Size = "m4.xlarge"
 		view.Commit(m)
 
 		return nil
 	})
-	checkSync(clst, FakeAmazonSpot, []bootRequest{amazonXLargeBoot}, noStops)
+	checkSync(clst, FakeAmazon, []bootRequest{amazonXLargeBoot}, noStops)
 
 	// Test adding a machine with a different provider
 	clst.conn.Transact(func(view db.Database) error {
@@ -207,30 +207,30 @@ func TestSync(t *testing.T) {
 	var toRemove db.Machine
 	clst.conn.Transact(func(view db.Database) error {
 		toRemove = view.SelectFromMachine(func(m db.Machine) bool {
-			return m.Provider == FakeAmazonSpot && m.Size == "m4.xlarge"
+			return m.Provider == FakeAmazon && m.Size == "m4.xlarge"
 		})[0]
 		view.Remove(toRemove)
 		return nil
 	})
-	checkSync(clst, FakeAmazonSpot, noBoots, []string{toRemove.CloudID})
+	checkSync(clst, FakeAmazon, noBoots, []string{toRemove.CloudID})
 
 	// Test removing and adding a machine
 	clst.conn.Transact(func(view db.Database) error {
 		toRemove = view.SelectFromMachine(func(m db.Machine) bool {
-			return m.Provider == FakeAmazonSpot && m.Size == "m4.large"
+			return m.Provider == FakeAmazon && m.Size == "m4.large"
 		})[0]
 		view.Remove(toRemove)
 
 		m := view.InsertMachine()
 		m.ClusterID = clst.id
 		m.Role = db.Worker
-		m.Provider = FakeAmazonSpot
+		m.Provider = FakeAmazon
 		m.Size = "m4.xlarge"
 		view.Commit(m)
 
 		return nil
 	})
-	checkSync(clst, FakeAmazonSpot, []bootRequest{amazonXLargeBoot}, []string{toRemove.CloudID})
+	checkSync(clst, FakeAmazon, []bootRequest{amazonXLargeBoot}, []string{toRemove.CloudID})
 }
 
 func emptySlices(slice1 interface{}, slice2 interface{}) bool {

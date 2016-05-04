@@ -65,7 +65,7 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 		providers: make(map[db.Provider]provider.Provider),
 	}
 
-	for _, p := range []db.Provider{db.AmazonSpot, db.Google, db.Azure, db.Vagrant} {
+	for _, p := range []db.Provider{db.Amazon, db.Google, db.Azure, db.Vagrant} {
 		inst := provider.New(p)
 		err := inst.Start(conn, id, namespace)
 		if err == nil {

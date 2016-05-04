@@ -10,7 +10,7 @@
   (machines.Boot
     masterCount
     workerCount
-    (list (provider "AmazonSpot")
+    (list (provider "Amazon")
           (region "us-west-2")
           (size "m4.large")
           (diskSize 32)

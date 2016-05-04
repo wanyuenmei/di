@@ -20,11 +20,11 @@
 (define AdminACL (list "local"))
 
 (let ((masterCount 1)
-      (workerCount 1)) 
+      (workerCount 1))
   (machines.Boot
     masterCount
     workerCount
-    (list (provider "AmazonSpot")
+    (list (provider "Amazon")
           (region "us-west-2")
           (size "m4.large")
           (diskSize 32)

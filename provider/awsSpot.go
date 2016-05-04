@@ -24,7 +24,7 @@ var amis = map[string]string{
 	"us-west-2":      "ami-acd63bcc",
 }
 
-type awsSpotCluster struct {
+type amazonCluster struct {
 	sessions map[string]*ec2.EC2
 
 	namespace  string
@@ -58,7 +58,7 @@ func groupByRegion(ids []awsID) map[string][]awsID {
 	return grouped
 }
 
-func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+func (clst *amazonCluster) Start(conn db.Conn, clusterID int, namespace string) error {
 	clst.sessions = make(map[string]*ec2.EC2)
 	clst.namespace = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)
@@ -68,13 +68,13 @@ func (clst *awsSpotCluster) Start(conn db.Conn, clusterID int, namespace string)
 	return nil
 }
 
-func (clst *awsSpotCluster) Disconnect() {
+func (clst *amazonCluster) Disconnect() {
 	/* Ideally we'd close clst.ec2 as well, but the API doesn't export that ability
 	* apparently. */
 	clst.aclTrigger.Stop()
 }
 
-func (clst awsSpotCluster) getSession(region string) *ec2.EC2 {
+func (clst amazonCluster) getSession(region string) *ec2.EC2 {
 	if _, ok := clst.sessions[region]; ok {
 		return clst.sessions[region]
 	}
@@ -88,7 +88,7 @@ func (clst awsSpotCluster) getSession(region string) *ec2.EC2 {
 	return newEC2
 }
 
-func (clst awsSpotCluster) Boot(bootSet []Machine) error {
+func (clst amazonCluster) Boot(bootSet []Machine) error {
 	if len(bootSet) <= 0 {
 		return nil
 	}
@@ -158,7 +158,7 @@ func (clst awsSpotCluster) Boot(bootSet []Machine) error {
 	return nil
 }
 
-func (clst awsSpotCluster) Stop(machines []Machine) error {
+func (clst amazonCluster) Stop(machines []Machine) error {
 	var awsIDs []awsID
 	for _, m := range machines {
 		awsIDs = append(awsIDs, awsID{
@@ -209,7 +209,7 @@ func (clst awsSpotCluster) Stop(machines []Machine) error {
 	return nil
 }
 
-func (clst awsSpotCluster) Get() ([]Machine, error) {
+func (clst amazonCluster) Get() ([]Machine, error) {
 	machines := []Machine{}
 	for region := range amis {
 		session := clst.getSession(region)
@@ -277,7 +277,7 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 			machine := Machine{
 				ID:       *spot.SpotInstanceRequestId,
 				Region:   region,
-				Provider: db.AmazonSpot,
+				Provider: db.Amazon,
 			}
 
 			if inst != nil {
@@ -324,11 +324,11 @@ func (clst awsSpotCluster) Get() ([]Machine, error) {
 	return machines, nil
 }
 
-func (clst *awsSpotCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst *amazonCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 
-func (clst *awsSpotCluster) tagSpotRequests(awsIDs []awsID) error {
+func (clst *amazonCluster) tagSpotRequests(awsIDs []awsID) error {
 OuterLoop:
 	for region, ids := range groupByRegion(awsIDs) {
 		session := clst.getSession(region)
@@ -362,7 +362,7 @@ OuterLoop:
 
 /* Wait for the spot request 'ids' to have booted or terminated depending on the value of
 * 'boot' */
-func (clst *awsSpotCluster) wait(awsIDs []awsID, boot bool) error {
+func (clst *amazonCluster) wait(awsIDs []awsID, boot bool) error {
 OuterLoop:
 	for i := 0; i < 100; i++ {
 		machines, err := clst.Get()
@@ -395,7 +395,7 @@ OuterLoop:
 	return errors.New("timed out")
 }
 
-func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
+func (clst *amazonCluster) updateSecurityGroups(acls []string) error {
 	for _, session := range clst.sessions {
 		resp, err := session.DescribeSecurityGroups(
 			&ec2.DescribeSecurityGroupsInput{
@@ -514,7 +514,7 @@ func (clst *awsSpotCluster) updateSecurityGroups(acls []string) error {
 	return nil
 }
 
-func (clst *awsSpotCluster) watchACLs(conn db.Conn, clusterID int) {
+func (clst *amazonCluster) watchACLs(conn db.Conn, clusterID int) {
 	for range clst.aclTrigger.C {
 		var acls []string
 		conn.Transact(func(view db.Database) error {

@@ -5,7 +5,7 @@
 (let ((masters (makeList MasterCount (machine (role "Master"))))
       (workers (makeList WorkerCount (machine (role "Worker")))))
   (machineAttribute (list masters workers)
-    (provider "AmazonSpot")
+    (provider "Amazon")
     (size "m3.medium")
     (region "us-west-2")
     (diskSize 32)

@@ -35,8 +35,8 @@ type Provider interface {
 // New returns an empty instance of the Provider represented by `dbp`
 func New(dbp db.Provider) Provider {
 	switch dbp {
-	case db.AmazonSpot:
-		return &awsSpotCluster{}
+	case db.Amazon:
+		return &amazonCluster{}
 	case db.Google:
 		return &gceCluster{}
 	case db.Azure:
