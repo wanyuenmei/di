@@ -427,4 +427,18 @@ func TestPlacementTxn(t *testing.T) {
 			},
 		},
 	)
+
+	// Machine placement
+	spec = `(label "foo" (docker "foo"))
+	(place (machineRule "on" (size "m4.large")) "foo")`
+	checkPlacement(spec,
+		db.Placement{
+			TargetLabel: "foo",
+			Rule: db.MachineRule{
+				Exclusive: false,
+				Attribute: "size",
+				Value:     "m4.large",
+			},
+		},
+	)
 }

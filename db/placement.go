@@ -44,6 +44,20 @@ func (lr LabelRule) String() string {
 	return lr.AffinityStr()
 }
 
+type MachineRule struct {
+	Attribute string
+	Value     string
+	Exclusive bool
+}
+
+func (mr MachineRule) AffinityStr() string {
+	return toAffinity(docker.SystemLabel(mr.Attribute), !mr.Exclusive, mr.Value)
+}
+
+func (mr MachineRule) String() string {
+	return mr.AffinityStr()
+}
+
 func toAffinity(left string, eq bool, right string) string {
 	eqStr := "!="
 	if eq {

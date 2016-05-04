@@ -14,8 +14,9 @@ type Dsl struct {
 }
 
 type Rule struct {
-	Exclusive   bool
-	OtherLabels []string
+	Exclusive         bool
+	OtherLabels       []string
+	MachineAttributes map[string]string
 }
 
 type Placement struct {

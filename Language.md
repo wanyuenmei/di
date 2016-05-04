@@ -249,6 +249,9 @@ Placement Rules:
 Any container labeled `label{1..N}` will never be placed on the same host as
 `foo`. Note that this doesn't mean `label{1..N}` can't be placed together.
 
+- `machineRule`: `(labelRule "exclusive" (region "us-west-2"))`
+The target labels will be placed on a machine located in the region "us-west-2".
+
 ```
 // A 'webServer' and 'database' will never share a host
 (label webServer (docker apache))

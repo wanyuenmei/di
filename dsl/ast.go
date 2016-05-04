@@ -113,6 +113,33 @@ type astLabelRule struct {
 	exclusive   astBool
 }
 
+type astMachineRule struct {
+	exclusive astBool
+	provider  astProvider
+	region    astRegion
+	size      astSize
+}
+
+func (r astMachineRule) String() string {
+	exclusiveStr := "on"
+	if r.exclusive {
+		exclusiveStr = "exclusive"
+	}
+
+	var tags []string
+	if r.provider != "" {
+		tags = append(tags, fmt.Sprintf("(provider %s)", r.provider))
+	}
+	if r.region != "" {
+		tags = append(tags, fmt.Sprintf("(region %s)", r.region))
+	}
+	if r.size != "" {
+		tags = append(tags, fmt.Sprintf("(size %s)", r.size))
+	}
+
+	return fmt.Sprintf("(machineRule %s %s)", exclusiveStr, strings.Join(tags, " "))
+}
+
 func (r astLabelRule) String() string {
 	exclusiveStr := "on"
 	if r.exclusive {

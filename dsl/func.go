@@ -73,6 +73,7 @@ func init() {
 		"list":             {listImpl, 0, false},
 		"machine":          {machineImpl, 0, false},
 		"machineAttribute": {machineAttributeImpl, 2, false},
+		"machineRule":      {machineRuleImpl, 1, false},
 		"makeList":         {makeListImpl, 2, true},
 		"map":              {mapImpl, 2, false},
 		"module":           {moduleImpl, 2, true},
@@ -252,6 +253,32 @@ func parseExclusive(arg ast) (astBool, error) {
 	return astBool(isExclusive), nil
 }
 
+func machineRuleImpl(ctx *evalCtx, args []ast) (ast, error) {
+	exclusive, err := parseExclusive(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	machineRule := astMachineRule{
+		exclusive: exclusive,
+	}
+
+	for _, constraint := range flatten(args[1:]) {
+		switch c := constraint.(type) {
+		case astProvider:
+			machineRule.provider = c
+		case astRegion:
+			machineRule.region = c
+		case astSize:
+			machineRule.size = c
+		default:
+			return nil, fmt.Errorf("can't constrain placement on: %s\n", c)
+		}
+	}
+
+	return machineRule, nil
+}
+
 func labelRuleImpl(ctx *evalCtx, args []ast) (ast, error) {
 	exclusive, err := parseExclusive(args[0])
 	if err != nil {
@@ -285,9 +312,9 @@ func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	globalCtx := ctx.globalCtx()
 	for _, targetLabel := range targetLabels {
+		var rule Rule
 		switch ruleAst := args[0].(type) {
 		case astLabelRule:
-			var rule Rule
 			rule.Exclusive = bool(ruleAst.exclusive)
 
 			var otherLabels []string
@@ -295,14 +322,20 @@ func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 				otherLabels = append(otherLabels, string(l))
 			}
 			rule.OtherLabels = otherLabels
+		case astMachineRule:
+			rule.Exclusive = bool(ruleAst.exclusive)
 
-			*globalCtx.placements = append(*globalCtx.placements, Placement{
-				TargetLabel: targetLabel,
-				Rule:        rule,
-			})
+			rule.MachineAttributes = make(map[string]string)
+			rule.MachineAttributes["provider"] = string(ruleAst.provider)
+			rule.MachineAttributes["size"] = string(ruleAst.size)
+			rule.MachineAttributes["region"] = string(ruleAst.region)
 		default:
 			return nil, fmt.Errorf("invalid place rule: %s", args[0])
 		}
+		*globalCtx.placements = append(*globalCtx.placements, Placement{
+			TargetLabel: targetLabel,
+			Rule:        rule,
+		})
 	}
 
 	return astList{}, nil

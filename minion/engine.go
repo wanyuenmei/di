@@ -47,6 +47,20 @@ func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
 			}
 			placementSet[placement] = struct{}{}
 		}
+		for attr, val := range rule.MachineAttributes {
+			if val == "" {
+				continue
+			}
+			placement := db.Placement{
+				TargetLabel: dslP.TargetLabel,
+				Rule: db.MachineRule{
+					Exclusive: rule.Exclusive,
+					Attribute: attr,
+					Value:     val,
+				},
+			}
+			placementSet[placement] = struct{}{}
+		}
 	}
 
 	var placements []db.Placement

@@ -16,6 +16,12 @@ func TestAffinity(t *testing.T) {
 		Exclusive:  false,
 		OtherLabel: "foo",
 	}, "affinity:di.user.label.foo==1")
+
+	testAffinity(t, db.MachineRule{
+		Exclusive: false,
+		Attribute: "size",
+		Value:     "m4.large",
+	}, "affinity:di.system.label.size==m4.large")
 }
 
 func testAffinity(t *testing.T, rule db.PlacementRule, exp string) {

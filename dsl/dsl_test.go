@@ -849,6 +849,23 @@ func TestPlacement(t *testing.T) {
 				Exclusive:   true,
 				OtherLabels: []string{"red"},
 			},
+		})
+
+	// Test machine rule
+	code = `(place
+	(machineRule "on" (region "us-west-2") (provider "AmazonSpot") (size "m4.large"))
+	(label "blue" (docker "bar")))`
+	checkPlacement(code, "(list)",
+		Placement{
+			TargetLabel: "blue",
+			Rule: Rule{
+				Exclusive: false,
+				MachineAttributes: map[string]string{
+					"region":   "us-west-2",
+					"provider": "AmazonSpot",
+					"size":     "m4.large",
+				},
+			},
 		},
 	)
 }

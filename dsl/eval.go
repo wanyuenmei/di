@@ -258,6 +258,10 @@ func (r astLabelRule) eval(ctx *evalCtx) (ast, error) {
 	return r, nil
 }
 
+func (r astMachineRule) eval(ctx *evalCtx) (ast, error) {
+	return r, nil
+}
+
 func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 	var result []ast
 	for _, a := range args {
