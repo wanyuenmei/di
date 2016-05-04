@@ -104,11 +104,11 @@ func TestSyncDB(t *testing.T) {
 	checkSyncDB := func(cloudMachines []provider.Machine, databaseMachines []db.Machine, expectedBoot, expectedStop []provider.Machine) {
 		_, bootResult, stopResult := syncDB(cloudMachines, databaseMachines)
 		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult, expectedBoot) {
-			t.Error(spew.Sprintf("booted wrong machines. Expected %s, got %s.",
+			t.Error(spew.Sprintf("booted wrong machines. Expected %v, got %v.",
 				expectedBoot, bootResult))
 		}
 		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult, expectedStop) {
-			t.Error(spew.Sprintf("stopped wrong machines. Expected %s, got %s.",
+			t.Error(spew.Sprintf("stopped wrong machines. Expected %v, got %v.",
 				expectedStop, stopResult))
 		}
 	}
