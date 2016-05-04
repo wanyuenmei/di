@@ -73,7 +73,10 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 		}
 	}
 	go func() {
+		rateLimit := time.NewTicker(5 * time.Second)
+		defer rateLimit.Stop()
 		for range clst.trigger.C {
+			<-rateLimit.C
 			clst.sync()
 		}
 		for _, p := range clst.providers {
