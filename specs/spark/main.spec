@@ -19,6 +19,5 @@
 (let ((prefix "di")
       (nSparkMaster 2)
       (nSparkWorker 2)
-      (nZookeeper 2)
-      (disperse true))
-  (exspark.New prefix nSparkMaster nSparkWorker nZookeeper disperse))
+      (nZookeeper 2))
+  (exspark.New prefix nSparkMaster nSparkWorker nZookeeper))

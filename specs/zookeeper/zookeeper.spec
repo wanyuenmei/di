@@ -14,17 +14,10 @@
 (define (link zoos)
   (connect (list 1000 65535) zoos zoos))
 
-(define (place zoos disperse)
-  (if disperse
-    (placement "exclusive" zoos zoos)))
-
-// disperse: If true, Zookeepers won't be placed on the same vm as another
-//   Zookeeper.
-(define (New prefix n disperse)
+(define (New prefix n)
   // Zookeeper is port 2181
   (let ((zoos (create prefix n)))
     (if zoos
       (progn
         (link zoos)
-        (place zoos disperse)
         zoos))))

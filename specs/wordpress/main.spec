@@ -37,7 +37,6 @@
       (nHaproxy 2)
       (nSparkMaster 2)
       (nSparkWorker 2)
-      (nZookeeper 3)
-      (disperse true))
+      (nZookeeper 3))
   (exwp.New prefix nMemcached nMysqlSlave nWordpress nHaproxy
-            nSparkMaster nSparkWorker nZookeeper disperse))
+            nSparkMaster nSparkWorker nZookeeper))

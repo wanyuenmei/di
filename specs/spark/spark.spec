@@ -33,21 +33,12 @@
   (if zookeeper
     (connect 2181 masters zookeeper)))
 
-(define (place masters workers disperse)
-  (if disperse
-    (progn
-      (placement "exclusive" masters masters)
-      (placement "exclusive" workers workers))))
-
-// disperse: If true, Spark masters won't be placed on the same vm as
-//   another master. The same applies to Spark workers.
 // zookeeper: optional list of zookeeper nodes (empty list if unwanted)
-(define (New prefix nMaster nWorker disperse zookeeper)
+(define (New prefix nMaster nWorker zookeeper)
   (let ((masters (createMasters prefix nMaster zookeeper))
         (workers (createWorkers prefix nWorker masters)))
     (if (and masters workers)
       (progn
         (link masters workers zookeeper)
-        (place masters workers disperse)
         (hmap ("master" masters)
               ("worker" workers))))))
