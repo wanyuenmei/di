@@ -6,21 +6,21 @@
   (let ((hosts (map labelHost labels)))
     (setEnv dk env (strings.Join hosts ","))))
 
-(define (configure wp db memcached)
-  (hostEnv wp "MEMCACHED" memcached)
+(define (configure wp db memcd)
+  (hostEnv wp "MEMCACHED" memcd)
   (hostEnv wp "DB_HOST" (hmapGet db "master"))
   (hostEnv wp "DB_SLAVES" (hmapGet db "slave")))
 
 // db: hmap
 //   "master": list of db master nodes
 //   "slave": list of db slave nodes
-// memcached: list of memcached nodes
-(define (New name n db memcached)
+// memcd: list of memcached nodes
+(define (New name n db memcd)
   (let ((dk (makeList n (docker image)))
         (labelNames (strings.Range name n))
-        (wordpress (map label labelNames dk)))
-    (configure wordpress db memcached)
-    (connect 3306 wordpress (hmapGet db "master"))
-    (connect 3306 wordpress (hmapGet db "slave"))
-    (connect 11211 wordpress memcached)
+        (wp (map label labelNames dk)))
+    (configure wp db memcd)
+    (connect 3306 wp (hmapGet db "master"))
+    (connect 3306 wp (hmapGet db "slave"))
+    (connect 11211 wp memcd)
     wordpress))
