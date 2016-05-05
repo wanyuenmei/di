@@ -368,7 +368,7 @@ OuterLoop:
 		machines, err := clst.Get()
 		if err != nil {
 			log.WithError(err).Warn("Failed to get machines.")
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
@@ -384,7 +384,7 @@ OuterLoop:
 
 		for _, id := range awsIDs {
 			if _, ok := exists[id]; ok != boot {
-				time.Sleep(2 * time.Second)
+				time.Sleep(10 * time.Second)
 				continue OuterLoop
 			}
 		}
