@@ -148,7 +148,8 @@ func (clst *azureCluster) Disconnect() {
 }
 
 func (clst *azureCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
-	return ""
+	// XXX: Use ExtraLarge by default because we haven't scraped the CPU and RAM information yet.
+	return "ExtraLarge"
 }
 
 // Create one Azure instance (blocking).
