@@ -23,4 +23,4 @@
     (connect 3306 wp (hmapGet db "master"))
     (connect 3306 wp (hmapGet db "slave"))
     (connect 11211 wp memcd)
-    wordpress))
+    wp))
