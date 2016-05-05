@@ -151,7 +151,7 @@ func (clst cluster) sync() {
 	 * instances) that should be reflected in the database.  Therefore, if updates
 	 * are necessary the code loops so that database can be updated before
 	 * the next sync() call. */
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 3; i++ {
 		cloudMachines, err := clst.get()
 		if err != nil {
 			log.WithError(err).Error("Failed to list machines.")
@@ -192,8 +192,8 @@ func (clst cluster) sync() {
 		})
 
 		clst.updateCloud(bootSet, true)
-
 		clst.updateCloud(terminateSet, false)
+		time.Sleep(5 * time.Second)
 	}
 }
 
