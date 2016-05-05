@@ -15,6 +15,7 @@ import (
 )
 
 var myIP = util.MyIP
+var defaultDiskSize = 32
 
 // UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
 func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
@@ -114,18 +115,21 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 	var dbMachines []db.Machine
 	for _, dslm := range machines {
 		var m db.Machine
+
 		role, err := db.ParseRole(dslm.Role)
 		if err != nil {
 			log.WithError(err).Error("Error parsing role.")
 			continue
 		}
 		m.Role = role
+
 		p, err := db.ParseProvider(dslm.Provider)
 		if err != nil {
 			log.WithError(err).Error("Error parsing provider.")
 			continue
 		}
 		m.Provider = p
+
 		if dslm.Size != "" {
 			m.Size = dslm.Size
 		} else {
@@ -136,9 +140,14 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 			log.Errorf("No valid size for %v, skipping.", m)
 			continue
 		}
+
+		m.DiskSize = dslm.DiskSize
+		if m.DiskSize == 0 {
+			m.DiskSize = defaultDiskSize
+		}
+
 		m.SSHKeys = dslm.SSHKeys
 		m.Region = dslm.Region
-		m.DiskSize = dslm.DiskSize
 		dbMachines = append(dbMachines, m)
 	}
 	return dbMachines
