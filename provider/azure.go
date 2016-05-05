@@ -124,7 +124,7 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 
 	for _, m := range bootSet {
 		name := "di-" + uuid.NewV4().String()
-		if err := clst.instanceNew(name, m.Size, cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
+		if err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
 			return err
 		}
 	}
@@ -152,7 +152,11 @@ func (clst *azureCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice floa
 }
 
 // Create one Azure instance (blocking).
-func (clst *azureCluster) instanceNew(name string, vmSize string, cloudConfig string) error {
+func (clst *azureCluster) instanceNew(name string, vmSize string, region string,
+	cloudConfig string) error {
+	if region != clst.location {
+		return fmt.Errorf("cannot create instance in %s, only %s is supported", region, clusterLocation)
+	}
 	// create hostedservice
 	err := clst.hsClient.CreateHostedService(
 		hostedservice.CreateHostedServiceParameters{
