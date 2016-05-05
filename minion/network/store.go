@@ -246,7 +246,7 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 		}
 
 		dbc := dbcs[0]
-		if dbc.IP == "" || dir[dbc.IP]["IP"] == dbc.IP {
+		if dbc.IP == "" || dir[label]["IP"] == dbc.IP {
 			continue
 		}
 
