@@ -77,13 +77,16 @@ initialize_minion() {
 }
 
 install_docker() {
-	# Disable default sources list since we don't use them anyways
+	# Disable default sources to speed up the initial 'apt-get update'
 	mv /etc/apt/sources.list /etc/apt/sources.list.bak
 
 	echo "deb https://apt.dockerproject.org/repo ubuntu-%[3]s main" > /etc/apt/sources.list.d/docker.list
 	apt-get update
 	apt-get install docker-engine=1.9.1-0~%[3]s -y --force-yes
 	systemctl stop docker.service
+
+	# Restore the default sources
+	mv /etc/apt/sources.list.bak /etc/apt/sources.list
 }
 
 setup_user() {
