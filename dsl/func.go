@@ -76,7 +76,7 @@ func init() {
 		"module":           {moduleImpl, 2, true},
 		"nth":              {nthImpl, 2, false},
 		"or":               {orImpl, 1, true},
-		"placement":        {placementImpl, 2, false},
+		"place":            {placeImpl, 2, false},
 		"plaintextKey":     {plaintextKeyImpl, 1, false},
 		"panic":            {panicImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
@@ -236,10 +236,10 @@ func plaintextKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astPlaintextKey(key), nil
 }
 
-func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
+func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	str, ok := args[0].(astString)
 	if !ok {
-		return nil, fmt.Errorf("placement type must be a string, found: %s", args[0])
+		return nil, fmt.Errorf("place type must be a string, found: %s", args[0])
 	}
 	ptype := string(str)
 
@@ -271,7 +271,7 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 			for _, c := range label.elems {
 				c, ok := c.(*astContainer)
 				if !ok {
-					return nil, fmt.Errorf("placement labels must contain containers: %s", label)
+					return nil, fmt.Errorf("place labels must contain containers: %s", label)
 				}
 				for k, v := range parsedLabels {
 					c.Placement.Exclusive[k] = v
@@ -279,10 +279,10 @@ func placementImpl(ctx *evalCtx, args []ast) (ast, error) {
 			}
 		}
 	default:
-		return nil, fmt.Errorf("not a valid placement type: %s", ptype)
+		return nil, fmt.Errorf("not a valid place type: %s", ptype)
 	}
 
-	return astFunc(astIdent("placement"), args), nil
+	return astFunc(astIdent("place"), args), nil
 }
 
 func setMachineAttributes(machine *astMachine, args []ast) error {

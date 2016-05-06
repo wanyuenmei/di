@@ -785,16 +785,16 @@ func TestLabel(t *testing.T) {
 		"1: attempt to redefine label: foo")
 }
 
-func TestPlacement(t *testing.T) {
+func TestPlace(t *testing.T) {
 	// Normal
 	code := `(label "red" (docker "a"))
 	(label "blue" (docker "b"))
 	(label "yellow" (docker "c"))
-	(placement "exclusive" "red" "blue" "yellow")`
+	(place "exclusive" "red" "blue" "yellow")`
 	expCode := `(label "red" (docker "a"))
 	(label "blue" (docker "b"))
 	(label "yellow" (docker "c"))
-	(placement "exclusive" "red" "blue" "yellow")`
+	(place "exclusive" "red" "blue" "yellow")`
 	ctx := parseTest(t, code, expCode)
 	containerA := Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
@@ -828,11 +828,11 @@ func TestPlacement(t *testing.T) {
 	code = `(label "red" (docker "a"))
 	(label "blue" "red")
 	(label "yellow" "red")
-	(placement "exclusive" "red" (list "blue" "yellow"))`
+	(place "exclusive" "red" (list "blue" "yellow"))`
 	expCode = `(label "red" (docker "a"))
 	(label "blue" (docker "a"))
 	(label "yellow" (docker "a"))
-	(placement "exclusive" "red" (list "blue" "yellow"))`
+	(place "exclusive" "red" (list "blue" "yellow"))`
 	ctx = parseTest(t, code, expCode)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
@@ -850,7 +850,7 @@ func TestPlacement(t *testing.T) {
 
 	// Duplicates
 	code = `(label "red" (docker "a"))
-	(placement "exclusive" "red" "red" "red")`
+	(place "exclusive" "red" "red" "red")`
 	ctx = parseTest(t, code, code)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{
@@ -866,9 +866,9 @@ func TestPlacement(t *testing.T) {
 
 	// Unrelated definitions
 	code = `(label "red" (docker "a"))
-	(placement "exclusive" "red" "red")
+	(place "exclusive" "red" "red")
 	(label "blue" (docker "b"))
-	(placement "exclusive" "blue" "blue")`
+	(place "exclusive" "blue" "blue")`
 	ctx = parseTest(t, code, code)
 	containerA = Container{
 		Image: "a", Placement: Placement{map[[2]string]struct{}{

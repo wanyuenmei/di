@@ -92,7 +92,7 @@ There are two types of functions: built-ins, and `lambda` functions.
 
 #### Built-ins
 Built-ins have special evaluation functions written in `go`. Examples include
-`placement` and `connect`.
+`place` and `connect`.
 
 #### Lambda
 `lambda` functions are written in the spec language, and can be defined by the
@@ -240,7 +240,7 @@ by the **connect** keyword.
 
 ## Placement
 ```
-(placement <PLACEMENT_TYPE> <label1> <label2> ... <labelN>)
+(place <PLACEMENT_TYPE> <label1> <label2> ... <labelN>)
 ```
 
 Placement Types:
@@ -252,10 +252,10 @@ can't be satisfied then they won't be scheduled.
 // A 'webServer' and 'database' will never share a host
 (label webServer (docker apache))
 (label database (docker mysql))
-(placement "exclusive" "webServer" "database")
+(place "exclusive" "webServer" "database")
 
 // A 'dataPipeline' will never share a host with another 'dataPipeline'
 (label dataPipeline (docker spark))
-(placement "exclusive" "dataPipeline" "dataPipeline")
+(place "exclusive" "dataPipeline" "dataPipeline")
 ```
 
