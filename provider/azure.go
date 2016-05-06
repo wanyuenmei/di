@@ -184,6 +184,7 @@ func (clst *azureCluster) instanceNew(name string, vmSize string, cloudConfig st
 	vmutils.ConfigureWithExternalPort(&role, "etcd-2", 2380, 2380, virtualmachine.InputEndpointProtocolTCP)
 	vmutils.ConfigureWithExternalPort(&role, "ovsdb", 6640, 6640, virtualmachine.InputEndpointProtocolTCP)
 	vmutils.ConfigureWithExternalPort(&role, "geneve", 6081, 6081, virtualmachine.InputEndpointProtocolUDP)
+	vmutils.ConfigureWithExternalPort(&role, "http", 80, 80, virtualmachine.InputEndpointProtocolTCP)
 
 	role.ConfigurationSets[0].CustomData =
 		base64.StdEncoding.EncodeToString([]byte(cloudConfig))
