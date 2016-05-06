@@ -308,6 +308,11 @@ func TestList(t *testing.T) {
 	parseTest(t, "(cons 1 (cdr (list 1 2 3)))", "(list 1 2 3)")
 	parseTest(t, "(car (cons 1 (cdr (list 1 2 3))))", "1")
 
+	parseTest(t, "(append (list) 1)", "(list 1)")
+	parseTest(t, "(append (list 1) 2)", "(list 1 2)")
+	parseTest(t, "(append (list 1) 2 3)", "(list 1 2 3)")
+	runtimeErr(t, "(append 1 1)", "1: append applies to lists: 1")
+
 	parseTest(t, `(nth 0 (list 1 2 3))`, "1")
 	parseTest(t, `(nth 1 (list 1 2 3))`, "2")
 	parseTest(t, `(nth 2 (list 1 2 3))`, "3")

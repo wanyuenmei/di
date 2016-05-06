@@ -42,6 +42,7 @@ func init() {
 		"=":                {eqImpl, 2, false},
 		">":                {more, 2, false},
 		"and":              {andImpl, 1, true},
+		"append":           {appendImpl, 2, false},
 		"apply":            {applyImpl, 2, false},
 		"bool":             {boolImpl, 1, false},
 		"car":              {carImpl, 1, false},
@@ -988,6 +989,14 @@ func consImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return astList(append([]ast{args[0]}, list...)), nil
+}
+
+func appendImpl(ctx *evalCtx, args []ast) (ast, error) {
+	lst, ok := args[0].(astList)
+	if !ok {
+		return nil, fmt.Errorf("append applies to lists: %s", args[0])
+	}
+	return astList(append(lst, args[1:]...)), nil
 }
 
 func nthImpl(ctx *evalCtx, args []ast) (ast, error) {
