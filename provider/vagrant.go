@@ -48,7 +48,7 @@ func (clst vagrantCluster) Boot(bootSet []Machine) error {
 	return nil
 }
 
-func (clst vagrantCluster) Get() ([]Machine, error) {
+func (clst vagrantCluster) List() ([]Machine, error) {
 	vagrant := clst.vagrant
 	machines := []Machine{}
 	instanceIDs, err := vagrant.List()

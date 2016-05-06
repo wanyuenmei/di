@@ -48,7 +48,7 @@ func (p *fakeProvider) clearLogs() {
 	p.stopRequests = []string{}
 }
 
-func (p *fakeProvider) Get() ([]provider.Machine, error) {
+func (p *fakeProvider) List() ([]provider.Machine, error) {
 	var machines []provider.Machine
 	for _, machine := range p.machines {
 		machines = append(machines, machine)

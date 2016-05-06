@@ -21,7 +21,7 @@ type Machine struct {
 type Provider interface {
 	Start(conn db.Conn, id int, namespace string) error
 
-	Get() ([]Machine, error)
+	List() ([]Machine, error)
 
 	Boot([]Machine) error
 

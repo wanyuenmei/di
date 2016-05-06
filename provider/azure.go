@@ -68,7 +68,7 @@ func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string) e
 }
 
 // Retrieve list of instances.
-func (clst *azureCluster) Get() ([]Machine, error) {
+func (clst *azureCluster) List() ([]Machine, error) {
 	var mList []Machine
 
 	hsResponse, err := clst.hsClient.ListHostedServices()

@@ -209,7 +209,7 @@ func (clst amazonCluster) Stop(machines []Machine) error {
 	return nil
 }
 
-func (clst amazonCluster) Get() ([]Machine, error) {
+func (clst amazonCluster) List() ([]Machine, error) {
 	machines := []Machine{}
 	for region := range amis {
 		session := clst.getSession(region)
@@ -365,7 +365,7 @@ OuterLoop:
 func (clst *amazonCluster) wait(awsIDs []awsID, boot bool) error {
 OuterLoop:
 	for i := 0; i < 100; i++ {
-		machines, err := clst.Get()
+		machines, err := clst.List()
 		if err != nil {
 			log.WithError(err).Warn("Failed to get machines.")
 			time.Sleep(10 * time.Second)

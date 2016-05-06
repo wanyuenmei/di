@@ -104,7 +104,7 @@ func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) err
 //
 // XXX: This doesn't use the instance group listing functionality because
 // listing that way doesn't get you information about the instances
-func (clst *gceCluster) Get() ([]Machine, error) {
+func (clst *gceCluster) List() ([]Machine, error) {
 	var mList []Machine
 	for _, zone := range supportedZones {
 		list, err := gceService.Instances.List(clst.projID, zone).
@@ -210,7 +210,7 @@ func (clst *gceCluster) wait(names []string, live bool) error {
 
 		for len(names) > 0 {
 			name := names[0]
-			instances, err := clst.Get()
+			instances, err := clst.List()
 			if err != nil {
 				return err
 			}

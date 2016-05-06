@@ -91,7 +91,7 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 func (clst cluster) get() ([]provider.Machine, error) {
 	var cloudMachines []provider.Machine
 	for _, p := range clst.providers {
-		providerMachines, err := p.Get()
+		providerMachines, err := p.List()
 		if err != nil {
 			return []provider.Machine{}, err
 		}
