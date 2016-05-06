@@ -9,6 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+var sleep = time.Sleep
+
 type cluster struct {
 	id      int
 	conn    db.Conn
@@ -135,7 +137,7 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 		log.Infof("Successfully %sed machines.", actionString)
 	} else {
 		log.Infof("Due to failures, sleeping for 1 minute")
-		time.Sleep(60 * time.Second)
+		sleep(60 * time.Second)
 	}
 }
 
@@ -193,7 +195,7 @@ func (clst cluster) sync() {
 
 		clst.updateCloud(bootSet, true)
 		clst.updateCloud(terminateSet, false)
-		time.Sleep(5 * time.Second)
+		sleep(5 * time.Second)
 	}
 }
 

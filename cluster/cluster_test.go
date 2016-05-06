@@ -3,6 +3,7 @@ package cluster
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/dsl"
@@ -95,6 +96,7 @@ func newTestCluster() cluster {
 	clst.providers[FakeAmazon] = newFakeProvider(amazonCloudConfig)
 	clst.providers[FakeVagrant] = newFakeProvider(vagrantCloudConfig)
 
+	sleep = func(t time.Duration) {}
 	return clst
 }
 
