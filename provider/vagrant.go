@@ -14,7 +14,7 @@ type vagrantCluster struct {
 	vagrant   vagrantAPI
 }
 
-func (clst *vagrantCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+func (clst *vagrantCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
 	vagrant := newVagrantAPI()
 	err := vagrant.AddBox("boxcutter/ubuntu1504", "virtualbox")
 	if err != nil {

@@ -67,7 +67,7 @@ type gceCluster struct {
 // filtering off of that.
 //
 // XXX: A lot of the fields are hardcoded.
-func (clst *gceCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+func (clst *gceCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
 	if err := gceInit(); err != nil {
 		log.WithError(err).Debug("failed to start up gce")
 		return err

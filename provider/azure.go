@@ -42,7 +42,7 @@ type azureCluster struct {
 }
 
 // Create an Azure cluster.
-func (clst *azureCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+func (clst *azureCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
 	if namespace == "" {
 		return errors.New("namespace cannot be empty")
 	}

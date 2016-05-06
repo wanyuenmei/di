@@ -58,7 +58,7 @@ func groupByRegion(ids []awsID) map[string][]awsID {
 	return grouped
 }
 
-func (clst *amazonCluster) Start(conn db.Conn, clusterID int, namespace string) error {
+func (clst *amazonCluster) Connect(conn db.Conn, clusterID int, namespace string) error {
 	clst.sessions = make(map[string]*ec2.EC2)
 	clst.namespace = namespace
 	clst.aclTrigger = conn.TriggerTick(60, db.ClusterTable)

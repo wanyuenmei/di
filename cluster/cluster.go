@@ -69,7 +69,7 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 
 	for _, p := range []db.Provider{db.Amazon, db.Google, db.Azure, db.Vagrant} {
 		inst := provider.New(p)
-		err := inst.Start(conn, id, namespace)
+		err := inst.Connect(conn, id, namespace)
 		if err == nil {
 			clst.providers[p] = inst
 		}
