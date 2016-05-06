@@ -29,7 +29,7 @@ type Provider interface {
 
 	Disconnect()
 
-	PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string
+	ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string
 }
 
 // New returns an empty instance of the Provider represented by `dbp`

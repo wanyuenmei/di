@@ -185,7 +185,7 @@ func (clst *gceCluster) Disconnect() {
 	// should delete the network
 }
 
-func (clst *gceCluster) PickBestSize(ram dsl.Range, cpu dsl.Range,
+func (clst *gceCluster) ChooseSize(ram dsl.Range, cpu dsl.Range,
 	maxPrice float64) string {
 	return pickBestSize(googleDescriptions, ram, cpu, maxPrice)
 }

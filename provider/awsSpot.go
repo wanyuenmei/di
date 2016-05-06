@@ -324,7 +324,7 @@ func (clst amazonCluster) List() ([]Machine, error) {
 	return machines, nil
 }
 
-func (clst *amazonCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst *amazonCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 

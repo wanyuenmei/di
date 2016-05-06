@@ -80,7 +80,7 @@ func (p *fakeProvider) Disconnect() {}
 
 func (p *fakeProvider) Connect(conn db.Conn, id int, namespace string) error { return nil }
 
-func (p *fakeProvider) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (p *fakeProvider) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return ""
 }
 

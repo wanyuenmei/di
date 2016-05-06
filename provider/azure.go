@@ -147,7 +147,7 @@ func (clst *azureCluster) Disconnect() {
 	// nothing
 }
 
-func (clst *azureCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst *azureCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return ""
 }
 

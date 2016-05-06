@@ -130,7 +130,7 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 			m.Size = dslm.Size
 		} else {
 			providerInst := provider.New(p)
-			m.Size = providerInst.PickBestSize(dslm.RAM, dslm.CPU, maxPrice)
+			m.Size = providerInst.ChooseSize(dslm.RAM, dslm.CPU, maxPrice)
 		}
 		if m.Size == "" {
 			log.Errorf("No valid size for %v, skipping.", m)

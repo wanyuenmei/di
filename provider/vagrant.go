@@ -94,6 +94,6 @@ func (clst vagrantCluster) Disconnect() {
 
 }
 
-func (clst vagrantCluster) PickBestSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst vagrantCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
 	return clst.vagrant.CreateSize(ram.Min, cpu.Min)
 }
