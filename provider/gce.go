@@ -43,7 +43,7 @@ const (
 	global
 )
 
-var supportedZones = []string{"us-central1-a", "us-east1-b"}
+var supportedZones = []string{"us-central1-a", "us-east1-b", "europe-west1-b"}
 
 var gAuthClient *http.Client    // the oAuth client
 var gceService *compute.Service // gce service
