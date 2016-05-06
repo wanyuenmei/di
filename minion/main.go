@@ -29,5 +29,14 @@ func main() {
 	go elector.Run(conn, store)
 	go network.Run(conn, store, dk)
 
-	select {}
+	for range conn.TriggerTick(60, db.MinionTable).C {
+		conn.Transact(func(view db.Database) error {
+			minions := view.SelectFromMinion(nil)
+			if len(minions) != 1 {
+				return nil
+			}
+			updatePolicy(view, minions[0].Role, minions[0].Spec)
+			return nil
+		})
+	}
 }

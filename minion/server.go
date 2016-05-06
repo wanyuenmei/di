@@ -55,6 +55,7 @@ func (s server) GetMinionConfig(cts context.Context,
 		cfg.ID = m.MinionID
 		cfg.Role = pb.MinionConfig_Role(m.Role)
 		cfg.PrivateIP = m.PrivateIP
+		cfg.Spec = m.Spec
 	default:
 		panic("Not Reached")
 	}
@@ -80,9 +81,8 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.MinionID = msg.ID
 		minion.Role = db.Role(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
+		minion.Spec = msg.Spec
 		view.Commit(minion)
-
-		updatePolicy(view, minion.Role, msg.Spec)
 
 		return nil
 	})
