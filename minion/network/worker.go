@@ -28,7 +28,7 @@ const (
 	nsPath    string = "/var/run/netns"
 	innerVeth string = "eth0"
 	loopback  string = "lo"
-	innerMTU  int    = 1450
+	innerMTU  int    = 1400
 )
 
 const (
