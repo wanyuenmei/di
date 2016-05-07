@@ -123,6 +123,13 @@ func runWorker(conn db.Conn, dk docker.Client) {
 		return
 	}
 
+	odb, err := ovsdb.Open()
+	if err != nil {
+		// XXX: Really should log or something.
+		return
+	}
+	defer odb.Close()
+
 	var labels []db.Label
 	var containers []db.Container
 	var connections []db.Connection
@@ -140,12 +147,11 @@ func runWorker(conn db.Conn, dk docker.Client) {
 	updateNamespaces(containers)
 	updateVeths(containers)
 	updateNAT(containers, connections)
-	if ovsdbIsRunning(dk) {
-		updatePorts(containers)
-	}
+	updatePorts(odb, containers)
+
 	if exists, err := linkExists("", diBridge); exists {
-		updateDefaultGw()
-		updateOpenFlow(dk, containers, labels, connections)
+		updateDefaultGw(odb)
+		updateOpenFlow(dk, odb, containers, labels, connections)
 	} else if err != nil {
 		log.WithError(err).Error("failed to check if link exists")
 	}
@@ -486,15 +492,8 @@ func generateTargetNatRules(containers []db.Container, connections []db.Connecti
 }
 
 // There certain exceptions, as certain ports will never be deleted.
-func updatePorts(containers []db.Container) {
+func updatePorts(odb ovsdb.Ovsdb, containers []db.Container) {
 	// An Open vSwitch patch port is referred to as a "port".
-
-	odb, err := ovsdb.Open()
-	if err != nil {
-		log.WithError(err).Error("failed to connect to OVSDB")
-		return
-	}
-	defer odb.Close()
 
 	targetPorts := generateTargetPorts(containers)
 	currentPorts, err := generateCurrentPorts(odb)
@@ -684,14 +683,7 @@ func modPort(odb ovsdb.Ovsdb, current ovsPort, target ovsPort) error {
 	return nil
 }
 
-func updateDefaultGw() {
-	odb, err := ovsdb.Open()
-	if err != nil {
-		log.WithError(err).Error("failed to connect to OVSDB")
-		return
-	}
-	defer odb.Close()
-
+func updateDefaultGw(odb ovsdb.Ovsdb) {
 	currMac, err := getMac("", diBridge)
 	if err != nil {
 		log.WithError(err).Errorf("failed to get MAC for %s", diBridge)
@@ -884,9 +876,9 @@ func generateCurrentRoutes(namespace string) ([]route, error) {
 //
 // XXX: The multipath action doesn't perform well.  We should migrate away from it
 // choosing datapath recirculation instead.
-func updateOpenFlow(dk docker.Client, containers []db.Container, labels []db.Label,
-	connections []db.Connection) {
-	targetOF, err := generateTargetOpenFlow(dk, containers, labels, connections)
+func updateOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container,
+	labels []db.Label, connections []db.Connection) {
+	targetOF, err := generateTargetOpenFlow(dk, odb, containers, labels, connections)
 	if err != nil {
 		log.WithError(err).Error("failed to get target OpenFlow flows")
 		return
@@ -957,7 +949,7 @@ func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
 // The target flows must be in the same format as the output from ovs-ofctl
 // dump-flows. To achieve this, we have some rather ugly hacks that handle
 // a few special cases.
-func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
+func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container,
 	labels []db.Label, connections []db.Connection) ([]OFRule, error) {
 
 	dflGatewayMAC, err := getMac("", diBridge)
@@ -971,18 +963,12 @@ func generateTargetOpenFlow(dk docker.Client, containers []db.Container,
 		_, peerDI := patchPorts(dbc.SchedID)
 		dbcMac := dbc.Mac
 
-		ovsdb, err := ovsdb.Open()
-		if err != nil {
-			return nil, fmt.Errorf("failed to open OVSDB")
-		}
-		defer ovsdb.Close()
-
-		ofDI, err := ovsdb.GetOFPortNo(peerDI)
+		ofDI, err := odb.GetOFPortNo(peerDI)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get OpenFlow port")
 		}
 
-		ofVeth, err := ovsdb.GetOFPortNo(vethOut)
+		ofVeth, err := odb.GetOFPortNo(vethOut)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get OpenFlow port")
 		}
@@ -1271,15 +1257,6 @@ func namespaceExists(namespace string) (bool, error) {
 	} else {
 	}
 	return false, nil
-}
-
-func ovsdbIsRunning(dk docker.Client) bool {
-	required, err := dk.List(map[string][]string{"name": {"ovs-vswitchd"}})
-	if err != nil {
-		log.WithError(err).Error("list filter for ovsdb container failed")
-		return false
-	}
-	return (len(required) != 0)
 }
 
 func networkNS(id string) string {
