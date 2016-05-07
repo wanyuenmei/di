@@ -52,12 +52,16 @@ type LPort struct {
 
 // Acl is a firewall rule in OVN.
 type Acl struct {
-	uuid      ovs.UUID
+	uuid ovs.UUID
+	Core AclCore
+	Log  bool
+}
+
+type AclCore struct {
 	Priority  int
 	Direction string
 	Match     string
 	Action    string
-	Log       bool
 }
 
 // ExistError is returned as a pointer (*ExistError) when what was searched
@@ -444,12 +448,14 @@ func (ovsdb OvsdbClient) ListACLs(lswitch string) ([]Acl, error) {
 		}
 		for _, result := range results {
 			acl := Acl{
-				uuid:      ovs.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
-				Priority:  int(result["priority"].(float64)),
-				Direction: result["direction"].(string),
-				Match:     result["match"].(string),
-				Action:    result["action"].(string),
-				Log:       result["log"].(bool),
+				uuid: ovs.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
+				Core: AclCore{
+					Priority:  int(result["priority"].(float64)),
+					Direction: result["direction"].(string),
+					Match:     result["match"].(string),
+					Action:    result["action"].(string),
+				},
+				Log: result["log"].(bool),
 			}
 			acls = append(acls, acl)
 		}
@@ -521,13 +527,13 @@ func (ovsdb OvsdbClient) DeleteACL(lswitch string, dir string, priority int, mat
 		return err
 	}
 	for _, acl := range acls {
-		if dir != "*" && acl.Direction != dir {
+		if dir != "*" && acl.Core.Direction != dir {
 			continue
 		}
-		if match != "*" && acl.Match != match {
+		if match != "*" && acl.Core.Match != match {
 			continue
 		}
-		if priority >= 0 && acl.Priority != priority {
+		if priority >= 0 && acl.Core.Priority != priority {
 			continue
 		}
 

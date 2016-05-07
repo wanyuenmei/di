@@ -20,7 +20,7 @@ func TestACL(t *testing.T) {
 		return &client, nil
 	}
 
-	defaultRules := []ovsdb.Acl{
+	defaultRules := []ovsdb.AclCore{
 		{
 			Priority:  0,
 			Match:     "ip",
@@ -36,11 +36,19 @@ func TestACL(t *testing.T) {
 
 	// `expACLs` should NOT contain the default rules.
 	checkAcl := func(connections []db.Connection, labels []db.Label,
-		containers []db.Container, expACLs []ovsdb.Acl, resetClient bool) {
+		containers []db.Container, coreExpACLs []ovsdb.AclCore, resetClient bool) {
 		if resetClient {
 			client = fakeOvsdb{}
 		}
-		expACLs = append(defaultRules, expACLs...)
+		coreExpACLs = append(defaultRules, coreExpACLs...)
+
+		var expACLs []ovsdb.Acl
+		for _, core := range coreExpACLs {
+			expACLs = append(expACLs, ovsdb.Acl{
+				Core: core,
+			})
+		}
+
 		updateACLs(connections, labels, containers)
 		res, _ := client.ListACLs(testSwitch)
 		sort.Sort(ACLList(expACLs))
@@ -92,7 +100,7 @@ func TestACL(t *testing.T) {
 		"(icmp || %d <= udp.src <= %d || %[3]d <= tcp.src <= %[4]d)"
 
 	// No connections should result in no ACLs but the default drop rules.
-	checkAcl([]db.Connection{}, []db.Label{}, []db.Container{}, []ovsdb.Acl{}, true)
+	checkAcl([]db.Connection{}, []db.Label{}, []db.Container{}, []ovsdb.AclCore{}, true)
 
 	// Test one connection (with range)
 	checkAcl([]db.Connection{
@@ -102,7 +110,7 @@ func TestACL(t *testing.T) {
 			MaxPort: 81}},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{
+		[]ovsdb.AclCore{
 			{Direction: "to-lport",
 				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 81),
 				Action:   "allow",
@@ -133,7 +141,7 @@ func TestACL(t *testing.T) {
 			MaxPort: 80}},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{
+		[]ovsdb.AclCore{
 			{Direction: "to-lport",
 				Match:    fmt.Sprintf(matchFmt, redContainerIP, yellowLabelIP, 80, 80),
 				Action:   "allow",
@@ -184,7 +192,7 @@ func TestACL(t *testing.T) {
 			MaxPort: 80}},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{
+		[]ovsdb.AclCore{
 			{Direction: "to-lport",
 				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
 				Action:   "allow",
@@ -209,7 +217,7 @@ func TestACL(t *testing.T) {
 	checkAcl([]db.Connection{},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{},
+		[]ovsdb.AclCore{},
 		false)
 
 	// Test removing one connection, but not another
@@ -224,7 +232,7 @@ func TestACL(t *testing.T) {
 			MaxPort: 80}},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{
+		[]ovsdb.AclCore{
 			{Direction: "to-lport",
 				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
 				Action:   "allow",
@@ -273,7 +281,7 @@ func TestACL(t *testing.T) {
 			MaxPort: 80}},
 		allLabels,
 		allContainers,
-		[]ovsdb.Acl{
+		[]ovsdb.AclCore{
 			{Direction: "to-lport",
 				Match:    fmt.Sprintf(matchFmt, yellowContainerIP, purpleLabelIP, 80, 80),
 				Action:   "allow",
@@ -311,14 +319,14 @@ func (lst ACLList) Less(i, j int) bool {
 	l, r := lst[i], lst[j]
 
 	switch {
-	case l.Match != r.Match:
-		return l.Match < r.Match
-	case l.Direction != r.Direction:
-		return l.Direction < r.Direction
-	case l.Action != r.Action:
-		return l.Action < r.Action
+	case l.Core.Match != r.Core.Match:
+		return l.Core.Match < r.Core.Match
+	case l.Core.Direction != r.Core.Direction:
+		return l.Core.Direction < r.Core.Direction
+	case l.Core.Action != r.Core.Action:
+		return l.Core.Action < r.Core.Action
 	default:
-		return l.Priority < r.Priority
+		return l.Core.Priority < r.Core.Priority
 	}
 }
 
@@ -331,11 +339,14 @@ type fakeOvsdb struct {
 func (odb *fakeOvsdb) CreateACL(lswitch string, dir string, priority int,
 	match string, action string, doLog bool) error {
 	odb.acls = append(odb.acls,
-		ovsdb.Acl{Direction: dir,
-			Priority: priority,
-			Match:    match,
-			Action:   action,
-			Log:      doLog,
+		ovsdb.Acl{
+			Core: ovsdb.AclCore{
+				Direction: dir,
+				Priority:  priority,
+				Match:     match,
+				Action:    action,
+			},
+			Log: doLog,
 		})
 	return nil
 }
@@ -343,13 +354,13 @@ func (odb *fakeOvsdb) CreateACL(lswitch string, dir string, priority int,
 func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int, match string) error {
 	for i := 0; i < len(odb.acls); i += 1 {
 		acl := odb.acls[i]
-		if dir != "*" && acl.Direction != dir {
+		if dir != "*" && acl.Core.Direction != dir {
 			continue
 		}
-		if match != "*" && acl.Match != match {
+		if match != "*" && acl.Core.Match != match {
 			continue
 		}
-		if priority >= 0 && acl.Priority != priority {
+		if priority >= 0 && acl.Core.Priority != priority {
 			continue
 		}
 		odb.acls = append(odb.acls[:i], odb.acls[i+1:]...)
@@ -361,7 +372,11 @@ func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int, match 
 }
 
 func (odb *fakeOvsdb) ListACLs(lswitch string) ([]ovsdb.Acl, error) {
-	return odb.acls, nil
+	var result []ovsdb.Acl
+	for _, acl := range odb.acls {
+		result = append(result, acl)
+	}
+	return result, nil
 }
 
 // Unused in the tests.

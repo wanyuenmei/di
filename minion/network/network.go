@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/join"
 	"github.com/NetSys/di/minion/consensus"
 	"github.com/NetSys/di/minion/docker"
 	"github.com/NetSys/di/ovsdb"
@@ -186,65 +185,58 @@ func updateACLs(connections []db.Connection, labels []db.Label,
 		}
 	}
 
+	acls := make(map[ovsdb.AclCore]struct{})
+
 	// Drop all ip traffic by default.
-	acls := []ovsdb.Acl{
-		{
-			Priority:  0,
-			Match:     "ip",
-			Action:    "drop",
-			Direction: "to-lport"},
-		{
-			Priority:  0,
-			Match:     "ip",
-			Action:    "drop",
-			Direction: "from-lport"},
-	}
+	new := ovsdb.AclCore{
+		Priority:  0,
+		Match:     "ip",
+		Action:    "drop",
+		Direction: "to-lport"}
+	acls[new] = struct{}{}
+
+	new = ovsdb.AclCore{
+		Priority:  0,
+		Match:     "ip",
+		Action:    "drop",
+		Direction: "from-lport"}
+	acls[new] = struct{}{}
 
 	for match := range matchSet {
-		acls = append(acls,
-			ovsdb.Acl{
-				Priority:  1,
-				Direction: "to-lport",
-				Action:    "allow",
-				Match:     match,
-			},
-			ovsdb.Acl{
-				Priority:  1,
-				Direction: "from-lport",
-				Action:    "allow",
-				Match:     match,
-			})
+		new = ovsdb.AclCore{
+			Priority:  1,
+			Direction: "to-lport",
+			Action:    "allow",
+			Match:     match}
+		acls[new] = struct{}{}
+
+		new = ovsdb.AclCore{
+			Priority:  1,
+			Direction: "from-lport",
+			Action:    "allow",
+			Match:     match}
+		acls[new] = struct{}{}
 	}
 
-	_, lonelyACLS, lonelyOVS := join.Join(acls, ovsdbACLs,
-		func(left, right interface{}) int {
-			acl := left.(ovsdb.Acl)
-			ovsc := right.(ovsdb.Acl)
+	for _, acl := range ovsdbACLs {
+		core := acl.Core
+		if _, ok := acls[core]; ok {
+			delete(acls, core)
+			continue
+		}
 
-			if acl.Priority == ovsc.Priority &&
-				acl.Direction == ovsc.Direction &&
-				acl.Action == ovsc.Action &&
-				acl.Match == ovsc.Match {
-				return 0
-			}
-			return -1
-		})
-
-	for _, toCreate := range lonelyACLS {
-		acl := toCreate.(ovsdb.Acl)
-		err := ovsdbClient.CreateACL(lSwitch, acl.Direction, acl.Priority,
-			acl.Match, acl.Action, acl.Log)
+		err := ovsdbClient.DeleteACL(lSwitch, core.Direction, core.Priority,
+			core.Match)
 		if err != nil {
-			log.WithError(err).Warn("Error adding ACL")
+			log.WithError(err).Warn("Error deleting ACL")
 		}
 	}
 
-	for _, toDelete := range lonelyOVS {
-		acl := toDelete.(ovsdb.Acl)
-		err := ovsdbClient.DeleteACL(lSwitch, acl.Direction, acl.Priority,
-			acl.Match)
+	for acl := range acls {
+		err := ovsdbClient.CreateACL(lSwitch, acl.Direction, acl.Priority,
+			acl.Match, acl.Action, false)
 		if err != nil {
-			log.WithError(err).Warn("Error deleting ACL")
+			log.WithError(err).Warn("Error adding ACL")
 		}
 	}
 }
