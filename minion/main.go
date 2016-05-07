@@ -29,7 +29,7 @@ func main() {
 	go elector.Run(conn, store)
 	go network.Run(conn, store, dk)
 
-	for range conn.TriggerTick(60, db.MinionTable).C {
+	for range conn.Trigger(db.MinionTable).C {
 		conn.Transact(func(view db.Database) error {
 			minions := view.SelectFromMinion(nil)
 			if len(minions) != 1 {
