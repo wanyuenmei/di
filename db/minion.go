@@ -39,6 +39,10 @@ func (conn Conn) SelectFromMinion(check func(Minion) bool) []Minion {
 	return minions
 }
 
+func (m Minion) equal(r row) bool {
+	return m == r.(Minion)
+}
+
 func (m Minion) getID() int {
 	return m.ID
 }

@@ -59,6 +59,32 @@ func (conn Conn) SelectFromContainer(check func(Container) bool) []Container {
 	return containers
 }
 
+func placementEqual(x, y map[[2]string]struct{}) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k := range x {
+		if _, ok := y[k]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (c Container) equal(r row) bool {
+	other := r.(Container)
+	return c.ID == other.ID &&
+		c.Pid == other.Pid &&
+		c.IP == other.IP &&
+		c.Mac == other.Mac &&
+		c.SchedID == other.SchedID &&
+		c.Image == other.Image &&
+		util.StrSliceEqual(c.Command, other.Command) &&
+		util.StrSliceEqual(c.Labels, other.Labels) &&
+		util.StrStrMapEqual(c.Env, other.Env) &&
+		placementEqual(c.Placement.Exclusive, other.Placement.Exclusive)
+}
+
 func (c Container) getID() int {
 	return c.ID
 }

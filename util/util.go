@@ -100,3 +100,29 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	}
 	return a.WriteFile(filename, data, perm)
 }
+
+func StrSliceEqual(x, y []string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, v := range x {
+		if v != y[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func StrStrMapEqual(x, y map[string]string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k, v := range x {
+		if yVal, ok := y[k]; !ok {
+			return false
+		} else if v != yVal {
+			return false
+		}
+	}
+	return true
+}

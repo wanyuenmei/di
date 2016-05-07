@@ -1,6 +1,8 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // A Connection allows the members of two labels to speak to each other on the port range
 // [MinPort, MaxPort] inclusive.
@@ -30,6 +32,10 @@ func (db Database) SelectFromConnection(check func(Connection) bool) []Connectio
 	}
 
 	return result
+}
+
+func (c Connection) equal(r row) bool {
+	return c == r.(Connection)
 }
 
 func (c Connection) getID() int {

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	minionImage = "quay.io/netsys/di-minion:latest"
+	minionImage = "quay.io/nlsun/di-minion:latest"
 )
 
 func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {

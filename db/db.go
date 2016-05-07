@@ -23,6 +23,7 @@ type Trigger struct {
 
 type row interface {
 	less(row) bool
+	equal(row) bool
 	String() string
 	getID() int
 }
@@ -129,7 +130,7 @@ func (db Database) Commit(r row) {
 		panic("Type Error")
 	}
 
-	if !reflect.DeepEqual(table.rows[rid], r) {
+	if !r.equal(table.rows[rid]) {
 		table.rows[rid] = r
 		table.seq++
 	}

@@ -1,6 +1,10 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/NetSys/di/util"
+)
 
 // A Cluster is a group of Machines which can operate containers.
 type Cluster struct {
@@ -30,6 +34,14 @@ func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	}
 
 	return result
+}
+
+func (c Cluster) equal(r row) bool {
+	other := r.(Cluster)
+	return c.ID == other.ID &&
+		c.Namespace == other.Namespace &&
+		c.Spec == other.Spec &&
+		util.StrSliceEqual(c.ACLs, other.ACLs)
 }
 
 func (c Cluster) getID() int {
