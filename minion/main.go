@@ -2,11 +2,14 @@
 package main
 
 import (
+	"time"
+
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/minion/consensus"
 	"github.com/NetSys/quilt/minion/docker"
 	"github.com/NetSys/quilt/minion/elector"
 	"github.com/NetSys/quilt/minion/network"
+	"github.com/NetSys/quilt/minion/pprofile"
 	"github.com/NetSys/quilt/minion/scheduler"
 	"github.com/NetSys/quilt/minion/supervisor"
 	"github.com/NetSys/quilt/util"
@@ -15,6 +18,9 @@ import (
 )
 
 func main() {
+	// XXX Uncomment the following line to run the profiler
+	//runProfiler(5 * time.Minute)
+
 	log.Info("Minion Start")
 
 	log.SetFormatter(util.Formatter{})
@@ -39,4 +45,15 @@ func main() {
 			return nil
 		})
 	}
+}
+
+func runProfiler(duration time.Duration) {
+	go func() {
+		p := pprofile.New("minion")
+		for {
+			if err := p.TimedRun(duration); err != nil {
+				log.Error(err)
+			}
+		}
+	}()
 }
