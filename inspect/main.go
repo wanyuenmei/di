@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
-	"github.com/NetSys/di/dsl"
 	"os"
 	"strings"
 	"text/scanner"
+
+	"github.com/NetSys/di/dsl"
 )
 
 const diPathKey = "DI_PATH"
@@ -49,7 +50,7 @@ func main() {
 	}
 
 	graph := makeGraph()
-	for _, conn := range spec.QueryConnections() {
+	for conn := range spec.QueryConnections() {
 		graph.addConnection(conn.From, conn.To)
 	}
 

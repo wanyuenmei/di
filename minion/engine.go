@@ -33,33 +33,25 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 }
 
 func updateConnections(view db.Database, spec dsl.Dsl) {
-	scoreFunc := func(left, right interface{}) int {
-		dslc := left.(dsl.Connection)
-		dbc := right.(db.Connection)
-
-		if dslc.From == dbc.From && dslc.To == dbc.To &&
-			dslc.MinPort == dbc.MinPort && dslc.MaxPort == dbc.MaxPort {
-			return 0
+	dslcs := spec.QueryConnections()
+	for _, dbc := range view.SelectFromConnection(nil) {
+		key := dsl.Connection{
+			From:    dbc.From,
+			To:      dbc.To,
+			MinPort: dbc.MinPort,
+			MaxPort: dbc.MaxPort,
 		}
 
-		return 1
+		if _, ok := dslcs[key]; ok {
+			delete(dslcs, key)
+			continue
+		}
+
+		view.Remove(dbc)
 	}
 
-	pairs, dsls, dbcs := join.Join(spec.QueryConnections(),
-		view.SelectFromConnection(nil), scoreFunc)
-
-	for _, dbc := range dbcs {
-		view.Remove(dbc.(db.Connection))
-	}
-
-	for _, dslc := range dsls {
-		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertConnection()})
-	}
-
-	for _, pair := range pairs {
-		dslc := pair.L.(dsl.Connection)
-		dbc := pair.R.(db.Connection)
-
+	for dslc := range dslcs {
+		dbc := view.InsertConnection()
 		dbc.From = dslc.From
 		dbc.To = dslc.To
 		dbc.MinPort = dslc.MinPort

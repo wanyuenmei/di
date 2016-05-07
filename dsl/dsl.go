@@ -178,12 +178,12 @@ func (dsl Dsl) QueryMachines() []Machine {
 }
 
 // QueryConnections returns the connections declared in the dsl.
-func (dsl Dsl) QueryConnections() []Connection {
-	var connections []Connection
+func (dsl Dsl) QueryConnections() map[Connection]struct{} {
+	copy := map[Connection]struct{}{}
 	for c := range dsl.ctx.connections {
-		connections = append(connections, c)
+		copy[c] = struct{}{}
 	}
-	return connections
+	return copy
 }
 
 // QueryFloat returns a float value defined in the dsl.
