@@ -39,6 +39,10 @@ func (conn Conn) SelectFromMinion(check func(Minion) bool) []Minion {
 	return minions
 }
 
+func (m Minion) getID() int {
+	return m.ID
+}
+
 func (m Minion) String() string {
 	return defaultString(m)
 }

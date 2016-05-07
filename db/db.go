@@ -24,6 +24,7 @@ type Trigger struct {
 type row interface {
 	less(row) bool
 	String() string
+	getID() int
 }
 
 type transaction struct {
@@ -115,12 +116,12 @@ func (t Trigger) Stop() {
 func (db Database) insert(r row) {
 	table := db.tables[getTableType(r)]
 	table.seq++
-	table.rows[getID(r)] = r
+	table.rows[r.getID()] = r
 }
 
 // Commit update the database with the data contained in row.
 func (db Database) Commit(r row) {
-	rid := getID(r)
+	rid := r.getID()
 	table := db.tables[getTableType(r)]
 	old := table.rows[rid]
 
@@ -137,7 +138,7 @@ func (db Database) Commit(r row) {
 // Remove deletes row from the database.
 func (db Database) Remove(r row) {
 	table := db.tables[getTableType(r)]
-	delete(table.rows, getID(r))
+	delete(table.rows, r.getID())
 	table.seq++
 }
 
@@ -182,10 +183,6 @@ func defaultString(r row) string {
 
 	id := vrow.FieldByName("ID").Int()
 	return fmt.Sprintf("%s-%d{%s}", trow.Name(), id, strings.Join(tags, ", "))
-}
-
-func getID(r row) int {
-	return int(reflect.ValueOf(r).FieldByName("ID").Int())
 }
 
 func getTableType(r row) TableType {

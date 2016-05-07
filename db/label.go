@@ -39,6 +39,10 @@ func (conn Conn) SelectFromLabel(check func(Label) bool) []Label {
 	return result
 }
 
+func (r Label) getID() int {
+	return r.ID
+}
+
 func (r Label) String() string {
 	return defaultString(r)
 }

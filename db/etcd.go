@@ -15,6 +15,10 @@ func (e Etcd) String() string {
 	return defaultString(e)
 }
 
+func (e Etcd) getID() int {
+	return e.ID
+}
+
 // InsertEtcd creates a new etcd row and inserts it into the database.
 func (db Database) InsertEtcd() Etcd {
 	result := Etcd{ID: db.nextID()}

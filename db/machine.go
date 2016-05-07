@@ -42,6 +42,10 @@ func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 	return result
 }
 
+func (m Machine) getID() int {
+	return m.ID
+}
+
 func (m Machine) String() string {
 	return defaultString(m)
 }

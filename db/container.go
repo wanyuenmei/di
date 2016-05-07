@@ -59,6 +59,10 @@ func (conn Conn) SelectFromContainer(check func(Container) bool) []Container {
 	return containers
 }
 
+func (c Container) getID() int {
+	return c.ID
+}
+
 func (c Container) String() string {
 	cmdStr := strings.Join(append([]string{"run", c.Image}, c.Command...), " ")
 	tags := []string{cmdStr}

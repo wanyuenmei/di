@@ -32,7 +32,7 @@ func (db Database) SelectFromCluster(check func(Cluster) bool) []Cluster {
 	return result
 }
 
-func (c Cluster) id() int {
+func (c Cluster) getID() int {
 	return c.ID
 }
 
