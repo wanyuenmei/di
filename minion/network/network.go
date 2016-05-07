@@ -6,6 +6,7 @@ package network
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/NetSys/di/db"
 	"github.com/NetSys/di/minion/consensus"
@@ -25,6 +26,8 @@ const gatewayMAC = "02:00:0a:00:00:01"
 
 // Run blocks implementing the network services.
 func Run(conn db.Conn, store consensus.Store, dk docker.Client) {
+	time.Sleep(200 * time.Second)
+
 	go readStoreRun(conn, store)
 	go writeStoreRun(conn, store)
 
