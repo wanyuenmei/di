@@ -8,7 +8,7 @@
 
 (define (configure wp db memcd)
   (hostEnv wp "MEMCACHED" memcd)
-  (hostEnv wp "DB_HOST" (hmapGet db "master"))
+  (hostEnv wp "DB_MASTER" (hmapGet db "master"))
   (hostEnv wp "DB_SLAVES" (hmapGet db "slave")))
 
 // db: hmap
