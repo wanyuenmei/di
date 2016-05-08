@@ -145,5 +145,6 @@ func (s swarm) terminate(ids []string) {
 		terminateChn <- id
 	}
 
+	close(terminateChn)
 	wg.Wait()
 }
