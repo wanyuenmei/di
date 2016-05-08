@@ -520,6 +520,11 @@ func (f fakeDocker) Pull(image string) error {
 	return nil
 }
 
+func (f fakeDocker) IsRunning(name string) (bool, error) {
+	_, running := f.running[name]
+	return running, nil
+}
+
 func (f fakeDocker) ExecVerbose(name string, cmd ...string) ([]byte, []byte, error) {
 	panic("Supervisor does not ExecVerbose()")
 }

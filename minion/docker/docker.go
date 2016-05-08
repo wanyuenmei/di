@@ -70,6 +70,7 @@ type Client interface {
 	Get(id string) (Container, error)
 	WriteToContainer(id, src, dst, archiveName string, permission int) error
 	GetFromContainer(id string, src string) (string, error)
+	IsRunning(name string) (bool, error)
 }
 
 // RunOptions changes the behavior of the Run function.
@@ -351,15 +352,20 @@ func (dk docker) Get(id string) (Container, error) {
 	}, nil
 }
 
+func (dk docker) IsRunning(name string) (bool, error) {
+	containers, err := dk.List(map[string][]string{
+		"name": {name},
+	})
+	if err != nil {
+		return false, err
+	}
+	return len(containers) != 0, nil
+}
+
 func (dk docker) create(name, image string, args []string,
 	labels map[string]string, env map[string]struct{}) (string, error) {
 	if err := dk.Pull(image); err != nil {
 		return "", err
-	}
-
-	id, err := dk.getID(name)
-	if err == nil {
-		return id, nil
 	}
 
 	envList := make([]string, len(env))

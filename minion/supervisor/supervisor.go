@@ -327,6 +327,15 @@ func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
 }
 
 func (sv *supervisor) run(name string, args ...string) {
+	isRunning, err := sv.dk.IsRunning(name)
+	if err != nil {
+		log.WithError(err).Warnf("could not check running status of %s.", name)
+		return
+	}
+	if isRunning {
+		return
+	}
+
 	ro := docker.RunOptions{
 		Name:        name,
 		Image:       images[name],
