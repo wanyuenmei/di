@@ -53,9 +53,11 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 }
 
 func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
-	Namespace := dsl.QueryString("Namespace")
-	if Namespace == "" {
-		return 0, fmt.Errorf("policy must specify a 'Namespace'")
+	namespace := dsl.QueryString("Namespace")
+	if namespace == "" {
+		namespace = "DEFAULT_NAMESPACE"
+		msg := "policy did not specify 'Namespace', defaulting to '%s'"
+		log.Warn(fmt.Sprintf(msg, namespace))
 	}
 
 	var cluster db.Cluster
@@ -69,10 +71,9 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 		panic("Unimplemented")
 	}
 
-	cluster.Namespace = Namespace
+	cluster.Namespace = namespace
 	cluster.Spec = dsl.String()
 	view.Commit(cluster)
-
 	return cluster.ID, nil
 }
 
