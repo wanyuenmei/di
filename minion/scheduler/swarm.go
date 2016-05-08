@@ -25,13 +25,18 @@ func (s swarm) list() ([]docker.Container, error) {
 }
 
 func (s swarm) boot(dbcs []db.Container, placements []db.Placement, connections []db.Connection) {
-	var wg sync.WaitGroup
-	wg.Add(len(dbcs))
+	numWorkers := 100
+	if len(dbcs) < numWorkers {
+		numWorkers = len(dbcs)
+	}
 
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+	bootChn := make(chan db.Container, len(dbcs))
 	logChn := make(chan string, 1)
-	for _, dbc := range dbcs {
-		dbc := dbc
-		go func() {
+
+	bootFunc := func() {
+		for dbc := range bootChn {
 			labels := makeLabels(dbc, connections)
 			env := makeEnv(dbc, placements)
 			err := s.dk.Run(docker.RunOptions{
@@ -51,8 +56,15 @@ func (s swarm) boot(dbcs []db.Container, placements []db.Placement, connections 
 				log.Infof("Started container: %s %s", dbc.Image,
 					strings.Join(dbc.Command, " "))
 			}
-			wg.Done()
-		}()
+		}
+		wg.Done()
+	}
+	for i := 0; i < numWorkers; i++ {
+		go bootFunc()
+	}
+
+	for _, dbc := range dbcs {
+		bootChn <- dbc
 	}
 
 	wg.Wait()
@@ -106,17 +118,31 @@ func makeEnv(dbc db.Container, placements []db.Placement) map[string]struct{} {
 }
 
 func (s swarm) terminate(ids []string) {
+	numWorkers := 100
+	if len(ids) < numWorkers {
+		numWorkers = len(ids)
+	}
+
 	var wg sync.WaitGroup
-	wg.Add(len(ids))
-	defer wg.Wait()
-	for _, id := range ids {
-		id := id
-		go func() {
+	wg.Add(numWorkers)
+	terminateChn := make(chan string, len(ids))
+
+	terminateFunc := func() {
+		for id := range terminateChn {
 			err := s.dk.RemoveID(id)
 			if err != nil {
 				log.WithError(err).Warn("Failed to stop container.")
 			}
-			wg.Done()
-		}()
+		}
+		wg.Done()
 	}
+	for i := 0; i < numWorkers; i++ {
+		go terminateFunc()
+	}
+
+	for _, id := range ids {
+		terminateChn <- id
+	}
+
+	wg.Wait()
 }
