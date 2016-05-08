@@ -120,6 +120,5 @@ func (p Placement) getID() int {
 }
 
 func (p Placement) equal(r row) bool {
-	other := r.(Placement)
-	return p.TargetLabel == other.TargetLabel && p.Rule == other.Rule
+	return p == r.(Placement)
 }
