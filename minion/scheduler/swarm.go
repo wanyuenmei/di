@@ -67,6 +67,7 @@ func (s swarm) boot(dbcs []db.Container, placements []db.Placement, connections 
 		bootChn <- dbc
 	}
 
+	close(bootChn)
 	wg.Wait()
 
 	select {
