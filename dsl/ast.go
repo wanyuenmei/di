@@ -179,7 +179,7 @@ func (key astGithubKey) String() string {
 }
 
 func (key astPlaintextKey) String() string {
-	return fmt.Sprintf("(plaintextKey %s)", astString(key).String())
+	return fmt.Sprintf("(sshkey %s)", astString(key).String())
 }
 
 func (root astRoot) String() string {

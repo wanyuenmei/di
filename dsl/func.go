@@ -80,7 +80,7 @@ func init() {
 		"nth":              {nthImpl, 2, false},
 		"or":               {orImpl, 1, true},
 		"place":            {placeImpl, 2, false},
-		"plaintextKey":     {plaintextKeyImpl, 1, false},
+		"sshkey":           {sshkeyImpl, 1, false},
 		"panic":            {panicImpl, 1, false},
 		"progn":            {prognImpl, 1, false},
 		"provider":         {providerImpl, 1, false},
@@ -230,7 +230,7 @@ func githubKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
 	return astGithubKey(username), nil
 }
 
-func plaintextKeyImpl(ctx *evalCtx, args []ast) (ast, error) {
+func sshkeyImpl(ctx *evalCtx, args []ast) (ast, error) {
 	key, ok := args[0].(astString)
 	if !ok {
 		return nil, fmt.Errorf("key must be a string: %s", args[0])

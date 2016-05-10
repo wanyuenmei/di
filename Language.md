@@ -44,7 +44,7 @@ As stitch supports more functionality, atoms will naturally expand to implement
 more concepts.
 
 ### SSH Keys
-SSH keys are represented as atoms. Specifically, there's `(plaintextKey <key>)` and
+SSH keys are represented as atoms. Specifically, there's `(sshkey <key>)` and
 `(githubKey <username>)`.
 
 #### Machines

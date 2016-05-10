@@ -474,14 +474,14 @@ func TestStdlib(t *testing.T) {
 	           2
 			   (list (provider "Amazon")
 					 (size "m4.large")
-					 (plaintextKey "key")))`
+					 (sshkey "key")))`
 	expCode := `(module "machines" (list)
                 (list)
                 (list)
                 (list))
-                (list (machine (provider "Amazon") (size "m4.large") (role "Master") (plaintextKey "key"))
-                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (plaintextKey "key"))
-                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (plaintextKey "key")))`
+                (list (machine (provider "Amazon") (size "m4.large") (role "Master") (sshkey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (sshkey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (sshkey "key")))`
 	expMachines := []Machine{
 		{Provider: "Amazon",
 			Size:    "m4.large",
@@ -686,13 +686,13 @@ func TestKeys(t *testing.T) {
 		}
 	}
 
-	code := `(label "sshkeys" (machine (plaintextKey "key")))`
+	code := `(label "sshkeys" (machine (sshkey "key")))`
 	checkKeys(code, code, "key")
 
 	code = `(label "sshkeys" (machine (githubKey "user")))`
 	checkKeys(code, code, "user")
 
-	code = `(label "sshkeys" (machine (githubKey "user") (plaintextKey "key")))`
+	code = `(label "sshkeys" (machine (githubKey "user") (sshkey "key")))`
 	checkKeys(code, code, "user", "key")
 }
 
