@@ -167,7 +167,6 @@ func (fm *foreman) runOnce() {
 		}
 
 		newConfig := pb.MinionConfig{
-			ID:        m.machine.CloudID,
 			Role:      db.RoleToPB(m.machine.Role),
 			PrivateIP: m.machine.PrivateIP,
 			Spec:      fm.spec,

@@ -52,7 +52,6 @@ func (s server) GetMinionConfig(cts context.Context,
 		cfg.Role = pb.MinionConfig_Role(db.None)
 	case 1:
 		m := minionRows[0]
-		cfg.ID = m.MinionID
 		cfg.Role = pb.MinionConfig_Role(m.Role)
 		cfg.PrivateIP = m.PrivateIP
 		cfg.Spec = m.Spec
@@ -81,7 +80,6 @@ func (s server) SetMinionConfig(ctx context.Context,
 			panic("Not Reached")
 		}
 
-		minion.MinionID = msg.ID
 		minion.Role = db.Role(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
 		minion.Spec = msg.Spec

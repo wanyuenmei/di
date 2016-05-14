@@ -5,7 +5,6 @@ package db
 type Minion struct {
 	ID int
 
-	MinionID  string
 	Role      Role
 	PrivateIP string
 	Spec      string

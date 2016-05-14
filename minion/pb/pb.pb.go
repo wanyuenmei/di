@@ -59,7 +59,6 @@ func (x MinionConfig_Role) String() string {
 func (MinionConfig_Role) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 0} }
 
 type MinionConfig struct {
-	ID        string            `protobuf:"bytes,1,opt,name=ID,json=iD" json:"ID,omitempty"`
 	Role      MinionConfig_Role `protobuf:"varint,2,opt,name=role,enum=MinionConfig_Role" json:"role,omitempty"`
 	PrivateIP string            `protobuf:"bytes,3,opt,name=PrivateIP,json=privateIP" json:"PrivateIP,omitempty"`
 	Spec      string            `protobuf:"bytes,4,opt,name=Spec,json=spec" json:"Spec,omitempty"`

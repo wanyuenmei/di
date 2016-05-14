@@ -183,14 +183,8 @@ func TestWorker(t *testing.T) {
 			spew.Sdump(exp))
 	}
 
-	var mID string
-	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
-		mID = m.MinionID
-		return nil
-	})
 	exp = map[string][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -228,14 +222,8 @@ func TestChange(t *testing.T) {
 			spew.Sdump(exp))
 	}
 
-	var mID string
-	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
-		mID = m.MinionID
-		return nil
-	})
 	exp = map[string][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -285,7 +273,7 @@ func TestChange(t *testing.T) {
 	}
 
 	exp = map[string][]string{
-		Ovsvswitchd: ovsExecArgs(mID, ip, leaderIP),
+		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
 		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
@@ -460,7 +448,6 @@ func initTest() testCtx {
 
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.InsertMinion()
-		m.MinionID = "Minion1"
 		view.Commit(m)
 		e := view.InsertEtcd()
 		view.Commit(e)
@@ -583,13 +570,13 @@ func etcdArgsWorker(etcdIPs []string) []string {
 	}
 }
 
-func ovsExecArgs(id, ip, leader string) []string {
+func ovsExecArgs(ip, leader string) []string {
 	return []string{"ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leader),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", ip),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leader),
-		fmt.Sprintf("external_ids:system-id=\"%s\"", id),
+		fmt.Sprintf("external_ids:system-id=\"quilt\""),
 		"--", "add-br", "quilt-int",
 		"--", "set", "bridge", "quilt-int", "fail_mode=secure",
 	}
