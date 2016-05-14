@@ -965,16 +965,16 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 
 		ofDI, err := odb.GetOFPortNo(peerDI)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get OpenFlow port")
+			continue
 		}
 
 		ofVeth, err := odb.GetOFPortNo(vethOut)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get OpenFlow port")
+			continue
 		}
 
 		if ofDI < 0 || ofVeth < 0 {
-			return nil, fmt.Errorf("missing OpenFlow port number")
+			continue
 		}
 
 		rules = append(rules, []string{
