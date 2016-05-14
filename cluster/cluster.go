@@ -12,11 +12,10 @@ import (
 var sleep = time.Sleep
 
 type cluster struct {
-	id             int
-	conn           db.Conn
-	machineTrigger db.Trigger
-	aclTrigger     db.Trigger
-	fm             foreman
+	id      int
+	conn    db.Conn
+	trigger db.Trigger
+	fm      foreman
 
 	providers map[db.Provider]provider.Provider
 
@@ -52,8 +51,7 @@ func Run(conn db.Conn) {
 				clst.mark = false
 			} else {
 				clst.fm.stop()
-				clst.machineTrigger.Stop()
-				clst.aclTrigger.Stop()
+				clst.trigger.Stop()
 				delete(clusters, k)
 			}
 		}
@@ -62,12 +60,11 @@ func Run(conn db.Conn) {
 
 func newCluster(conn db.Conn, id int, namespace string) cluster {
 	clst := cluster{
-		id:             id,
-		conn:           conn,
-		machineTrigger: conn.TriggerTick(30, db.MachineTable),
-		aclTrigger:     conn.TriggerTick(60, db.ClusterTable),
-		fm:             newForeman(conn, id),
-		providers:      make(map[db.Provider]provider.Provider),
+		id:        id,
+		conn:      conn,
+		trigger:   conn.TriggerTick(30, db.ClusterTable, db.MachineTable),
+		fm:        newForeman(conn, id),
+		providers: make(map[db.Provider]provider.Provider),
 	}
 
 	for _, p := range []db.Provider{db.Amazon, db.Google, db.Azure, db.Vagrant} {
@@ -80,7 +77,7 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 	go func() {
 		rateLimit := time.NewTicker(5 * time.Second)
 		defer rateLimit.Stop()
-		for range clst.machineTrigger.C {
+		for range clst.trigger.C {
 			<-rateLimit.C
 			clst.sync()
 		}
@@ -88,7 +85,6 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 			p.Disconnect()
 		}
 	}()
-	go clst.watchACLs()
 	return clst
 }
 
@@ -146,6 +142,30 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 }
 
 func (clst cluster) sync() {
+	var acls []string
+	clst.conn.Transact(func(view db.Database) error {
+		clusters := view.SelectFromCluster(func(c db.Cluster) bool {
+			return c.ID == clst.id
+		})
+
+		if len(clusters) == 0 {
+			log.Warn("Undefined cluster.")
+			return nil
+		} else if len(clusters) > 1 {
+			panic("Duplicate Clusters")
+		}
+
+		acls = clusters[0].ACLs
+		return nil
+	})
+
+	for providerName, provider := range clst.providers {
+		if err := provider.SetACLs(acls); err != nil {
+			log.WithError(err).Warnf("Could not update ACLs on %s.",
+				providerName)
+		}
+	}
+
 	/* Each iteration of this loop does the following:
 	 *
 	 * - Get the current set of machines from the cloud provider.
@@ -247,31 +267,4 @@ func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []
 	}
 
 	return pairs, bootSet, terminateSet
-}
-
-func (clst cluster) watchACLs() {
-	for range clst.aclTrigger.C {
-		var acls []string
-		clst.conn.Transact(func(view db.Database) error {
-			clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-				return c.ID == clst.id
-			})
-
-			if len(clusters) == 0 {
-				log.Warn("Undefined cluster.")
-				return nil
-			} else if len(clusters) > 1 {
-				panic("Duplicate Clusters")
-			}
-
-			acls = clusters[0].ACLs
-			return nil
-		})
-
-		for providerName, provider := range clst.providers {
-			if err := provider.SetACLs(acls); err != nil {
-				log.WithError(err).Warnf("Could not update ACLs on %s.", providerName)
-			}
-		}
-	}
 }
