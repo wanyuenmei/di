@@ -11,13 +11,31 @@ import (
 )
 
 const electionTTL = 30
-const bootDelay = 60
-const leaderKey = "/minion/leader"
+const dir = "/minion"
+const leaderKey = dir + "/leader"
 
 // Run blocks implementing leader election.
 func Run(conn db.Conn, store consensus.Store) {
+	bootWait(store)
 	go watchLeader(conn, store)
 	campaign(conn, store)
+}
+
+func bootWait(store consensus.Store) {
+	defer log.Info("Etcd cluster is up.")
+	for {
+		err := store.Mkdir(dir)
+		if err == nil {
+			return
+		}
+
+		clientErr, ok := err.(client.Error)
+		if ok && clientErr.Code == client.ErrorCodeNodeExist {
+			return
+		}
+
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func watchLeader(conn db.Conn, store consensus.Store) {
@@ -59,22 +77,13 @@ func campaign(conn db.Conn, store consensus.Store) {
 
 		minions := conn.SelectFromMinion(nil)
 		etcdRows := conn.SelectFromEtcd(nil)
-		master := len(minions) == 1 && len(etcdRows) == 1 && minions[0].Role == db.Master
-		switch {
-		case oldMaster && !master:
-			commitLeader(conn, false, "")
-		case !oldMaster && master:
-			// When we first boot, wait a bit for etcd to come up.
-			log.Infof("Starting leader election in %d seconds", bootDelay)
-			time.Sleep(bootDelay * time.Second)
-
-			// Update in case something changed while we were sleeping
-			minions = conn.SelectFromMinion(nil)
-			master = len(minions) == 1 && minions[0].Role == db.Master
-		}
-		oldMaster = master
+		master := len(minions) == 1 && len(etcdRows) == 1 &&
+			minions[0].Role == db.Master
 
 		if !master {
+			if oldMaster {
+				commitLeader(conn, false, "")
+			}
 			continue
 		}
 
