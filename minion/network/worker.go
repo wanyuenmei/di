@@ -125,7 +125,7 @@ func runWorker(conn db.Conn, dk docker.Client) {
 
 	odb, err := ovsdb.Open()
 	if err != nil {
-		// XXX: Really should log or something.
+		log.Warning("Failed to connect to ovsdb-server: %s", err)
 		return
 	}
 	defer odb.Close()

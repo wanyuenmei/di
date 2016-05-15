@@ -20,6 +20,7 @@ type Store interface {
 	Create(path, value string, ttl time.Duration) error
 	Update(path, value string, ttl time.Duration) error
 	Set(path, value string) error
+	BootWait() chan struct{}
 }
 
 type store struct {
@@ -138,6 +139,27 @@ func (s store) Update(path, value string, ttl time.Duration) error {
 func (s store) Set(path, value string) error {
 	_, err := s.kapi.Set(ctx(), path, value, nil)
 	return err
+}
+
+func (s store) BootWait() chan struct{} {
+	chn := make(chan struct{})
+	go func() {
+		defer close(chn)
+		for {
+			err := s.Mkdir("/minion")
+			if err == nil {
+				return
+			}
+
+			clientErr, ok := err.(client.Error)
+			if ok && clientErr.Code == client.ErrorCodeNodeExist {
+				return
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
+	return chn
 }
 
 func ctx() context.Context {

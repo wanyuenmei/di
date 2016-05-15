@@ -55,19 +55,7 @@ func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
 }
 
 func readStoreRun(conn db.Conn, store consensus.Store) {
-	wc := wakeChan(conn, store)
-
-	// Before we dig into it, wait for etcd to fully come up.  Otherwise we'll spew a
-	// bunch of useless error messages because the cluster isn't configured.
-	for range wc {
-		etcd := conn.SelectFromEtcd(nil)
-		if len(etcd) == 1 && etcd[0].LeaderIP != "" {
-			time.Sleep(30 * time.Second)
-			break
-		}
-	}
-
-	for range wc {
+	for range wakeChan(conn, store) {
 		labelDir, err := getDirectory(store, labelDir)
 		containerDir, err2 := getDirectory(store, containerDir)
 		if err2 != nil {

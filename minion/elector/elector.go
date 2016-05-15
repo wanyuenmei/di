@@ -16,26 +16,9 @@ const leaderKey = dir + "/leader"
 
 // Run blocks implementing leader election.
 func Run(conn db.Conn, store consensus.Store) {
-	bootWait(store)
+	<-store.BootWait()
 	go watchLeader(conn, store)
 	campaign(conn, store)
-}
-
-func bootWait(store consensus.Store) {
-	defer log.Info("Etcd cluster is up.")
-	for {
-		err := store.Mkdir(dir)
-		if err == nil {
-			return
-		}
-
-		clientErr, ok := err.(client.Error)
-		if ok && clientErr.Code == client.ErrorCodeNodeExist {
-			return
-		}
-
-		time.Sleep(5 * time.Second)
-	}
 }
 
 func watchLeader(conn db.Conn, store consensus.Store) {
