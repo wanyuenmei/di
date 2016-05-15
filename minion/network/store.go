@@ -55,6 +55,12 @@ func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
 }
 
 func readStoreRun(conn db.Conn, store consensus.Store) {
+	// If the directories don't exist, create them so we may watch them.  If they
+	// exist already these will return an error that we won't log, but that's ok
+	// cause the loop will error too.
+	store.Mkdir(labelDir)
+	store.Mkdir(containerDir)
+
 	for range wakeChan(conn, store) {
 		labelDir, err := getDirectory(store, labelDir)
 		containerDir, err2 := getDirectory(store, containerDir)
