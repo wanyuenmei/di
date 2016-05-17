@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/NetSys/di/db"
+	"github.com/NetSys/quilt/db"
 )
 
 func TestNoConnections(t *testing.T) {
@@ -37,8 +37,8 @@ func TestImplementsSingleLabel(t *testing.T) {
 
 	actual := generateEtcHosts(dbc, labels, connections)
 	exp := `1.1.1.1         abcdefghijkl
-10.0.0.2        blue.di
-10.0.0.3        green.di` + localhosts()
+10.0.0.2        blue.q
+10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
 		t.Error(fmt.Sprintf("Generated wrong single label /etc/hosts."+
@@ -57,9 +57,9 @@ func TestImplementsMultipleLabels(t *testing.T) {
 
 	actual := generateEtcHosts(dbc, labels, connections)
 	exp := `1.1.1.1         abcdefghijkl
-10.0.0.1        red.di
-10.0.0.2        blue.di
-10.0.0.3        green.di` + localhosts()
+10.0.0.1        red.q
+10.0.0.2        blue.q
+10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
 		t.Error(fmt.Sprintf("Generated wrong multi-label /etc/hosts"+
@@ -67,7 +67,7 @@ func TestImplementsMultipleLabels(t *testing.T) {
 	}
 }
 
-// Both red and blue connect to green. Make sure that green.di only appears once in /etc/hosts.
+// Both red and blue connect to green. Make sure that green.q only appears once in /etc/hosts.
 func TestDuplicateConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
@@ -81,9 +81,9 @@ func TestDuplicateConnections(t *testing.T) {
 
 	actual := generateEtcHosts(dbc, labels, connections)
 	exp := `1.1.1.1         abcdefghijkl
-10.0.0.1        red.di
-10.0.0.2        blue.di
-10.0.0.3        green.di` + localhosts()
+10.0.0.1        red.q
+10.0.0.2        blue.q
+10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
 		t.Error(fmt.Sprintf(

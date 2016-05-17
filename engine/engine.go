@@ -5,11 +5,11 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/provider"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/provider"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -43,7 +43,7 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 	// We can't process the ACLs with the rest of the cluster fields
 	// because this must occur after the cloud machines are synced with
 	// the database. If we didn't, inter-machine ACLs would get removed
-	// when the DI controller restarts, even if there are running cloud
+	// when the Quilt controller restarts, even if there are running cloud
 	// machines that still need to communicate.
 	if err = aclTxn(view, dsl, cluster); err != nil {
 		return err
@@ -154,7 +154,7 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 	return dbMachines
 }
 
-// DI can only boot if there is at least one master and one worker.
+// Quilt can only boot if there is at least one master and one worker.
 func canBoot(machines []db.Machine) bool {
 	hasMaster := false
 	hasWorker := false

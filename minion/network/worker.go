@@ -13,13 +13,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/minion/docker"
-	"github.com/NetSys/di/minion/supervisor"
-	"github.com/NetSys/di/ovsdb"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/minion/docker"
+	"github.com/NetSys/quilt/minion/supervisor"
+	"github.com/NetSys/quilt/ovsdb"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -90,26 +90,26 @@ type OFRule struct {
 //      assign them the appropriate addresses
 //    - Move one of the interfaces into the network namespace of the container,
 //      and assign it the MAC and IP addresses from OVN
-//    - Attach the other interface to the OVS bridge di-int
+//    - Attach the other interface to the OVS bridge quilt-int
 //    - Attach this container to the logical network by creating a pair of OVS
-//      patch ports between br-int and di-int, then install flows to send traffic
-//      between the patch port on di-int and the container's outer interface
+//      patch ports between br-int and quilt-int, then install flows to send traffic
+//      between the patch port on quilt-int and the container's outer interface
 //      (These flows live in Table 2)
 //    - Update the container's /etc/hosts file with the set of labels it may access.
-//    - Populate di-int with the OpenFlow rules necessary to facilitate forwarding.
+//    - Populate quilt-int with the OpenFlow rules necessary to facilitate forwarding.
 //
 // To connect to the public internet, we do the following setup:
 //    - On the host:
-//        * Bring up the di-int device and assign it the IP address 10.0.0.1/8, and
+//        * Bring up the quilt-int device and assign it the IP address 10.0.0.1/8, and
 //          the corresponding MAC address.
-//          di-int is the containers' default gateway.
+//          quilt-int is the containers' default gateway.
 //        * Set up NAT for packets coming from the 10/8 subnet and leaving on eth0.
 //    - On each container:
 //        * Make eth0 the route to the 10/8 subnet.
-//        * Make the di-int device on the host the default gateway (this is the LOCAL port
-//          on the di-int bridge).
+//        * Make the quilt-int device on the host the default gateway (this is the LOCAL port
+//          on the quilt-int bridge).
 //        * Setup /etc/resolv.conf with the same nameservers as the host.
-//    - On the di-int bridge:
+//    - On the quilt-int bridge:
 //        * Forward packets from containers to LOCAL, if their dst MAC is that of the
 //          default gateway.
 //        * Forward arp packets to both br-int and the default gateway.
@@ -149,7 +149,7 @@ func runWorker(conn db.Conn, dk docker.Client) {
 	updateNAT(containers, connections)
 	updatePorts(odb, containers)
 
-	if exists, err := linkExists("", diBridge); exists {
+	if exists, err := linkExists("", quiltBridge); exists {
 		updateDefaultGw(odb)
 		updateOpenFlow(dk, odb, containers, labels, connections)
 	} else if err != nil {
@@ -539,14 +539,14 @@ func generateTargetPorts(containers []db.Container) []ovsPort {
 	var configs []ovsPort
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
-		peerBr, peerDI := patchPorts(dbc.SchedID)
+		peerBr, peerQuilt := patchPorts(dbc.SchedID)
 		configs = append(configs, ovsPort{
 			name:   vethOut,
-			bridge: diBridge,
+			bridge: quiltBridge,
 		})
 		configs = append(configs, ovsPort{
-			name:   peerDI,
-			bridge: diBridge,
+			name:   peerQuilt,
+			bridge: quiltBridge,
 			patch:  true,
 			peer:   peerBr,
 		})
@@ -554,7 +554,7 @@ func generateTargetPorts(containers []db.Container) []ovsPort {
 			name:        peerBr,
 			bridge:      ovnBridge,
 			patch:       true,
-			peer:        peerDI,
+			peer:        peerQuilt,
 			attachedMAC: dbc.Mac,
 			ifaceID:     dbc.SchedID,
 		})
@@ -564,7 +564,7 @@ func generateTargetPorts(containers []db.Container) []ovsPort {
 
 func generateCurrentPorts(odb ovsdb.Ovsdb) ([]ovsPort, error) {
 	var configs []ovsPort
-	for _, bridge := range []string{diBridge, ovnBridge} {
+	for _, bridge := range []string{quiltBridge, ovnBridge} {
 		ports, err := odb.ListOFPorts(bridge)
 		if err != nil {
 			return nil, fmt.Errorf("error listing ports on bridge %s: %s",
@@ -684,26 +684,26 @@ func modPort(odb ovsdb.Ovsdb, current ovsPort, target ovsPort) error {
 }
 
 func updateDefaultGw(odb ovsdb.Ovsdb) {
-	currMac, err := getMac("", diBridge)
+	currMac, err := getMac("", quiltBridge)
 	if err != nil {
-		log.WithError(err).Errorf("failed to get MAC for %s", diBridge)
+		log.WithError(err).Errorf("failed to get MAC for %s", quiltBridge)
 		return
 	}
 
 	if currMac != gatewayMAC {
-		if err := odb.SetBridgeMac(diBridge, gatewayMAC); err != nil {
+		if err := odb.SetBridgeMac(quiltBridge, gatewayMAC); err != nil {
 			log.WithError(err).Error("failed to set MAC for default gateway")
 		}
 	}
 
-	if err := upLink("", diBridge); err != nil {
+	if err := upLink("", quiltBridge); err != nil {
 		log.WithError(err).Error("failed to up default gateway")
 	}
 
-	currIPs, err := listIP("", diBridge)
+	currIPs, err := listIP("", quiltBridge)
 	targetIPs := []string{gatewayIP + "/8"}
 
-	if err := updateIPs("", diBridge, currIPs, targetIPs); err != nil {
+	if err := updateIPs("", quiltBridge, currIPs, targetIPs); err != nil {
 		log.WithError(err).Errorf("failed to update IPs")
 	}
 }
@@ -913,7 +913,7 @@ func updateOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container
 }
 
 func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
-	args := "ovs-ofctl dump-flows " + diBridge
+	args := "ovs-ofctl dump-flows " + quiltBridge
 	stdout, _, err := dk.ExecVerbose(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 	if err != nil {
@@ -952,7 +952,7 @@ func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
 func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container,
 	labels []db.Label, connections []db.Connection) ([]OFRule, error) {
 
-	dflGatewayMAC, err := getMac("", diBridge)
+	dflGatewayMAC, err := getMac("", quiltBridge)
 	if err != nil {
 		log.WithError(err).Error("failed to get MAC of default gateway.")
 	}
@@ -960,10 +960,10 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 	var rules []string
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
-		_, peerDI := patchPorts(dbc.SchedID)
+		_, peerQuilt := patchPorts(dbc.SchedID)
 		dbcMac := dbc.Mac
 
-		ofDI, err := odb.GetOFPortNo(peerDI)
+		ofQuilt, err := odb.GetOFPortNo(peerQuilt)
 		if err != nil {
 			continue
 		}
@@ -973,17 +973,17 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 			continue
 		}
 
-		if ofDI < 0 || ofVeth < 0 {
+		if ofQuilt < 0 || ofVeth < 0 {
 			continue
 		}
 
 		rules = append(rules, []string{
 			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
-				"actions=output:%d", 5000, ofDI, ofVeth),
+				"actions=output:%d", 5000, ofQuilt, ofVeth),
 			fmt.Sprintf("table=2 priority=%d,in_port=%d "+
-				"actions=output:%d", 5000, ofVeth, ofDI),
+				"actions=output:%d", 5000, ofVeth, ofQuilt),
 			fmt.Sprintf("table=0 priority=%d,in_port=%d "+
-				"actions=output:%d", 0, ofVeth, ofDI),
+				"actions=output:%d", 0, ofVeth, ofQuilt),
 		}...)
 
 		protocols := []string{"tcp", "udp"}
@@ -1000,7 +1000,7 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 			}
 		}
 
-		// LOCAL is the default di-int port created with the bridge.
+		// LOCAL is the default quilt-int port created with the bridge.
 		egressRule := fmt.Sprintf("table=0 priority=%d,in_port=%d,", 5000, ofVeth) +
 			"%s,%s," + fmt.Sprintf("dl_dst=%s actions=LOCAL", dflGatewayMAC)
 		ingressRule := fmt.Sprintf("table=0 priority=%d,in_port=LOCAL,", 5000) +
@@ -1036,9 +1036,9 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 				fmt.Sprintf("table=0 priority=%d,icmp,in_port=LOCAL,dl_dst=%s"+
 					" actions=output:%d", 5000, dbcMac, ofVeth))
 
-			arpDst = fmt.Sprintf("%d,LOCAL", ofDI)
+			arpDst = fmt.Sprintf("%d,LOCAL", ofQuilt)
 		} else {
-			arpDst = fmt.Sprintf("%d", ofDI)
+			arpDst = fmt.Sprintf("%d", ofQuilt)
 		}
 
 		if len(portsFromWeb) > 0 {
@@ -1220,7 +1220,7 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 				continue
 			}
 			if ip := labelIP[toLabel]; ip != "" {
-				newHosts[entry{ip, toLabel + ".di"}] = struct{}{}
+				newHosts[entry{ip, toLabel + ".q"}] = struct{}{}
 			}
 		}
 	}
@@ -1273,8 +1273,8 @@ func tempVethPairName(out string) (in string) {
 	return fmt.Sprintf("%s_i", out[0:13])
 }
 
-func patchPorts(id string) (br, di string) {
-	return fmt.Sprintf("%s_br", id[0:12]), fmt.Sprintf("%s_di", id[0:12])
+func patchPorts(id string) (br, quilt string) {
+	return fmt.Sprintf("%s_br", id[0:12]), fmt.Sprintf("%s_q", id[0:12])
 }
 
 func ipExec(namespace, format string, args ...interface{}) error {
@@ -1428,7 +1428,7 @@ func deleteRoute(namespace string, r route) error {
 
 func addOFRule(dk docker.Client, flow OFRule) error {
 	args := fmt.Sprintf("ovs-ofctl add-flow %s %s,%s,actions=%s",
-		diBridge, flow.table, flow.match, flow.actions)
+		quiltBridge, flow.table, flow.match, flow.actions)
 	err := dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 	if err != nil {
 		return err
@@ -1438,7 +1438,7 @@ func addOFRule(dk docker.Client, flow OFRule) error {
 
 func deleteOFRule(dk docker.Client, flow OFRule) error {
 	args := fmt.Sprintf("ovs-ofctl del-flows --strict %s %s,%s",
-		diBridge, flow.table, flow.match)
+		quiltBridge, flow.table, flow.match)
 	err := dk.Exec(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 	if err != nil {
 		return err

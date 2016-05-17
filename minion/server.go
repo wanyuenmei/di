@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/pb"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/pb"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

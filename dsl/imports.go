@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"text/scanner"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 )
 
 func resolveImports(asts []ast, paths []string) ([]ast, error) {

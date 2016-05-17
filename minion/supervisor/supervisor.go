@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/minion/docker"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -31,18 +31,18 @@ const (
 	// Swarm is the name of the docker swarm.
 	Swarm = "swarm"
 
-	// DITag is the name of the container used to tag the machine for placement.
-	DITag = "di-tag"
+	// QuiltTag is the name of the container used to tag the machine for placement.
+	QuiltTag = "quilt-tag"
 )
 
 var images = map[string]string{
 	Etcd:          "quay.io/coreos/etcd:v2.2.4",
-	Ovncontroller: "quay.io/netsys/ovn-controller",
-	Ovnnorthd:     "quay.io/netsys/ovn-northd",
-	Ovsdb:         "quay.io/netsys/ovsdb-server",
-	Ovsvswitchd:   "quay.io/netsys/ovs-vswitchd",
+	Ovncontroller: "quilt/ovs:ovn-controller",
+	Ovnnorthd:     "quilt/ovs:ovn-northd",
+	Ovsdb:         "quilt/ovs:ovsdb",
+	Ovsvswitchd:   "quilt/ovs:vswitchd",
 	Swarm:         "swarm:1.2.0",
-	DITag:         "google/pause",
+	QuiltTag:      "google/pause",
 }
 
 const etcdHeartbeatInterval = "500"
@@ -220,7 +220,7 @@ func (sv *supervisor) runSystemOnce() {
 
 func (sv *supervisor) tagWorker(provider, region, size string) {
 	if sv.provider != provider || sv.region != region || sv.size != size {
-		sv.Remove(DITag)
+		sv.Remove(QuiltTag)
 	}
 	tags := map[string]string{
 		docker.SystemLabel("provider"): provider,
@@ -229,8 +229,8 @@ func (sv *supervisor) tagWorker(provider, region, size string) {
 	}
 
 	ro := docker.RunOptions{
-		Name:        DITag,
-		Image:       images[DITag],
+		Name:        QuiltTag,
+		Image:       images[QuiltTag],
 		Labels:      tags,
 		NetworkMode: "host",
 	}
@@ -273,9 +273,9 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
-		fmt.Sprintf("external_ids:system-id=\"di-%s\"", minion.MinionID),
-		"--", "add-br", "di-int",
-		"--", "set", "bridge", "di-int", "fail_mode=secure")
+		fmt.Sprintf("external_ids:system-id=\"%s\"", minion.MinionID),
+		"--", "add-br", "quilt-int",
+		"--", "set", "bridge", "quilt-int", "fail_mode=secure")
 	if err != nil {
 		log.WithError(err).Warnf("Failed to exec in %s.", Ovsvswitchd)
 	}

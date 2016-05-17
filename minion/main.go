@@ -2,14 +2,14 @@
 package main
 
 import (
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/consensus"
-	"github.com/NetSys/di/minion/docker"
-	"github.com/NetSys/di/minion/elector"
-	"github.com/NetSys/di/minion/network"
-	"github.com/NetSys/di/minion/scheduler"
-	"github.com/NetSys/di/minion/supervisor"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/consensus"
+	"github.com/NetSys/quilt/minion/docker"
+	"github.com/NetSys/quilt/minion/elector"
+	"github.com/NetSys/quilt/minion/network"
+	"github.com/NetSys/quilt/minion/scheduler"
+	"github.com/NetSys/quilt/minion/supervisor"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )

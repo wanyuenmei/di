@@ -3,8 +3,8 @@ package cluster
 import (
 	"testing"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/pb"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/pb"
 	"github.com/davecgh/go-spew/spew"
 )
 

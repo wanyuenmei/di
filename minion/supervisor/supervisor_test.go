@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/docker"
 	"github.com/davecgh/go-spew/spew"
 	dkc "github.com/fsouza/go-dockerclient"
 )
@@ -176,7 +176,7 @@ func TestWorker(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
-		DITag:         nil,
+		QuiltTag:      nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -221,7 +221,7 @@ func TestChange(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
-		DITag:         nil,
+		QuiltTag:      nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -277,7 +277,7 @@ func TestChange(t *testing.T) {
 		Ovncontroller: nil,
 		Ovsvswitchd:   nil,
 		Swarm:         swarmArgsWorker(ip),
-		DITag:         nil,
+		QuiltTag:      nil,
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -589,9 +589,9 @@ func ovsExecArgs(id, ip, leader string) []string {
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", ip),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leader),
-		fmt.Sprintf("external_ids:system-id=\"di-%s\"", id),
-		"--", "add-br", "di-int",
-		"--", "set", "bridge", "di-int", "fail_mode=secure",
+		fmt.Sprintf("external_ids:system-id=\"%s\"", id),
+		"--", "add-br", "quilt-int",
+		"--", "set", "bridge", "quilt-int", "fail_mode=secure",
 	}
 }
 
@@ -603,7 +603,7 @@ func validateImage(image string) {
 	case Ovncontroller:
 	case Ovsvswitchd:
 	case Ovsdb:
-	case DITag:
+	case QuiltTag:
 	default:
 		panic("Bad Image")
 	}

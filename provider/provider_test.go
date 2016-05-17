@@ -1,8 +1,9 @@
 package provider
 
 import (
-	"github.com/NetSys/di/dsl"
 	"testing"
+
+	"github.com/NetSys/quilt/dsl"
 )
 
 func TestConstraints(t *testing.T) {

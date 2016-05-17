@@ -1,7 +1,7 @@
 export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
-REPO = quay.io/netsys
+REPO = quilt
 DOCKER = docker
 
 all:
@@ -40,28 +40,27 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 	rm $@.out
 
 # BUILD
-
-docker-build-di:
+docker-build-quilt:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	${DOCKER} build -t ${REPO}/di .
+	${DOCKER} build -t ${REPO}/quilt .
 
 docker-build-tester:
-	cd -P di-tester && ${DOCKER} build -t ${REPO}/di-tester .
+	cd -P quilt-tester && ${DOCKER} build -t ${REPO}/tester .
 
 docker-build-minion:
 	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
-	 && ${DOCKER} build -t ${REPO}/di-minion .
+	 && ${DOCKER} build -t ${REPO}/minion .
 
 # PUSH
 
-docker-push-di:
-	${DOCKER} push ${REPO}/di
+docker-push-quilt:
+	${DOCKER} push ${REPO}/quilt
 
 docker-push-tester:
-	${DOCKER} push ${REPO}/di-tester
+	${DOCKER} push ${REPO}/tester
 
 docker-push-minion:
-	${DOCKER} push ${REPO}/di-minion
+	${DOCKER} push ${REPO}/minion
 
 # Include all .mk files so you can have your own local configurations
 include $(wildcard *.mk)

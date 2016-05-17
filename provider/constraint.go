@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/dsl"
 )
 
 type description struct {

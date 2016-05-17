@@ -9,9 +9,9 @@ import (
 	"text/scanner"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/util"
 	"github.com/davecgh/go-spew/spew"
 )
 

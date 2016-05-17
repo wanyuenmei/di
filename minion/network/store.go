@@ -9,9 +9,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/minion/consensus"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/minion/consensus"
 
 	log "github.com/Sirupsen/logrus"
 )

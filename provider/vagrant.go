@@ -3,8 +3,8 @@ package provider
 import (
 	"sync"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
 	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
 )

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	minionImage = "quay.io/netsys/di-minion:latest"
+	minionImage = "quilt/minion:latest"
 )
 
 func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {
@@ -57,7 +57,7 @@ initialize_docker() {
 initialize_minion() {
 	cat <<- EOF > /etc/systemd/system/minion.service
 	[Unit]
-	Description=DI Minion
+	Description=Quilt Minion
 	After=docker.service
 	Requires=docker.service
 
@@ -119,7 +119,7 @@ initialize_docker
 initialize_minion
 
 ssh_keys="%[2]s"
-setup_user di "$ssh_keys"
+setup_user quilt "$ssh_keys"
 
 # Reload because we replaced the docker.service provided by the package
 systemctl daemon-reload
@@ -166,7 +166,7 @@ coreos:
           command: start
           content: |
             [Unit]
-            Description=DI Minion
+            Description=Quilt Minion
             After=docker.service
             Requires=docker.service
 

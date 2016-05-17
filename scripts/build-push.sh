@@ -17,7 +17,7 @@ fi
 
 status_line "Building containers..."
 
-make docker-build-di docker-build-tester docker-build-minion
+make docker-build-quilt docker-build-tester docker-build-minion
 status_line "Successfully built containers."
 
 if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
@@ -34,8 +34,8 @@ docker version
 
 status_line "Pushing containers..."
 
-docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" quay.io
+docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" docker.io
 status_line "Successfully logged into docker."
 
-make docker-push-di docker-push-tester docker-push-minion
+make docker-push-quilt docker-push-tester docker-push-minion
 status_line "Successfully pushed containers."

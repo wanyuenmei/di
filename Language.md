@@ -1,5 +1,5 @@
-Policy Language Design
-======================
+Stitch -- The Quilt Language Design
+===================================
 Designing languages is hard, so it's a good idea to get started early.
 This is a living proposal for the policy language.  It may or may not reflect
 the actual implementation at any given point in time.
@@ -40,7 +40,7 @@ directly implemented in the dataplane.  Administrators for example:
 (user github melvinw) # Github user melvinw
 ```
 
-As DI supports more functionality, atoms will naturally expand to implement
+As stitch supports more functionality, atoms will naturally expand to implement
 more concepts.
 
 ### SSH Keys
@@ -109,8 +109,9 @@ Lambdas can be given names by combining them with a `define`:
 `(define Add2 (lambda (x) (+ x 2)))`
 
 #### Evaluation
-Both built-ins and lambda functions are evaluted in the same way. The first item in the S-expression
-refers to the function to be invoked, and the remaining items are the arguments.
+Both built-ins and lambda functions are evaluated in the same way. The first
+item in the S-expression refers to the function to be invoked, and the
+remaining items are the arguments.
 
 ```
 (+ 2 2) // => 4
@@ -126,9 +127,9 @@ refers to the function to be invoked, and the remaining items are the arguments.
 ```
 
 ## Modules
-`module` is a way of creating a namespace. It evalutes its body, and then makes
-exportable binds and labels available as `<module_name>.ident`.
-Only binds and labels that start with a capital letter are exported.
+`module` is a way of creating a namespace. It evaluates its body, and then
+makes exportable binds and labels available as `<module_name>.ident`.  Only
+binds and labels that start with a capital letter are exported.
 ```
 (module "math" (define Square (lambda (x) (* x x))))
 (math.Square 5) // => 25
@@ -148,16 +149,16 @@ body is the contents of the body.
 (math.Square 5) // => 25
 ```
 
-### DI_PATH
-`di` looks for imports according to the `DI_PATH` environment variable.
+### QUILT_PATH
+`quilt` looks for imports according to the `QUILT_PATH` environment variable.
 So if you have a spec that imports `stdlib`, and `stdlib.spec` is located at
-`specs/stdlib.spec`, then your `DI_PATH` should be `DI_PATH="specs"`.
+`specs/stdlib.spec`, then your `QUILT_PATH` should be `QUILT_PATH="specs"`.
 
-Multiple paths are separated by colons, so you may do `DI_PATH="specs:specs/spark"`.
+Multiple paths are separated by colons, so you may do `QUILT_PATH="specs:specs/spark"`.
 
-You can invoke `di` with the path in one line:
+You can invoke `quilt` with the path in one line:
 ```
-DI_PATH="specs" ./di -c config.spec
+QUILT_PATH="specs" ./quilt -c config.spec
 ```
 
 or `export` it into your environment.
@@ -195,7 +196,7 @@ The same labelling construction will be used for authentication policy as well.
 (label admin (list grad undergrad))
 ```
 
-As DI supports more use cases, the same labeling system will apply naturally.
+As Stitch supports more use cases, the same labeling system will apply naturally.
 
 ##### Open Questions
 * How do overlapping labels work?  Seems like labels should be lexically scoped
@@ -224,7 +225,7 @@ The labels used in the **connect** keyword have real meaning in the
 application dataplane.  The *to* label will be made available to the *from*
 atoms as a hostname on which sockets can be opened.  In the above
 example the containers implementing *webTier* may open a socket to the
-hostname "database.di" which will connect them to the appropriate database
+hostname "database.q" which will connect them to the appropriate database
 containers.
 
 ##### Load Balancing
@@ -234,9 +235,9 @@ However, for connections to multiple atoms, the dataplane will automatically
 load balance new connections across all available atoms.
 
 ##### Firewalling
-By default, atoms in DI cannot communicate with each other due to an implicit
-"deny all" firewall.  Communication between atoms must be explicitly permitted
-by the **connect** keyword.
+By default, atoms in Stitch cannot communicate with each other due to an
+implicit "deny all" firewall.  Communication between atoms must be explicitly
+permitted by the **connect** keyword.
 
 ## Placement
 ```

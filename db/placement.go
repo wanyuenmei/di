@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/quilt/minion/docker"
 )
 
 type Placement struct {

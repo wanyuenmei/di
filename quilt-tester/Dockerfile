@@ -1,4 +1,4 @@
-From quay.io/netsys/di
+From quilt/quilt
 Maintainer Ethan J. Jackson
 
 RUN apk add --no-cache bash python py-pip curl openssh-client && \
@@ -9,4 +9,4 @@ Copy tests /tests
 Copy config/id_rsa /root/.ssh/id_rsa
 RUN chmod 0600 /root/.ssh/id_rsa
 
-Entrypoint ["di-tester"]
+Entrypoint ["quilt-tester"]

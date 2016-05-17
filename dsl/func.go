@@ -600,7 +600,7 @@ func labelHostImpl(ctx *evalCtx, args []ast) (ast, error) {
 	if !ok {
 		return nil, fmt.Errorf("labelHost applies to labels: %s", args[0])
 	}
-	return astString(fmt.Sprintf("%s.di", string(label.ident))), nil
+	return astString(fmt.Sprintf("%s.q", string(label.ident))), nil
 }
 
 func listImpl(ctx *evalCtx, args []ast) (ast, error) {

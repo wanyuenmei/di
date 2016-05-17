@@ -2,7 +2,7 @@
 
 import os, sys, re, json
 
-DICTL_TMP='/tmp/dictl'
+QUILT_CTL_TMP='/tmp/quilt-ctl'
 machine_regex = re.compile(r'Machine-(\d+){ClusterID=(.*), Role=(.*), CloudID=(.*), PublicIP=(.*), PrivateIP=(.*)}')
 machines = {}
 while True:
@@ -24,8 +24,8 @@ while True:
 
         machines[machine_num] = machine
         try:
-            os.remove(DICTL_TMP)
+            os.remove(QUILT_CTL_TMP)
         except OSError:
             pass
-        with open(DICTL_TMP, 'w') as fp:
+        with open(QUILT_CTL_TMP, 'w') as fp:
             json.dump(machines, fp)

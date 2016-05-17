@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -413,7 +413,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 				clst.namespace)
 		} else if len(groups) == 0 {
 			session.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-				Description: aws.String("Declarative Infrastructure Group"),
+				Description: aws.String("Quilt Group"),
 				GroupName:   aws.String(clst.namespace),
 			})
 		} else {

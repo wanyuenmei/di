@@ -7,7 +7,7 @@ package provider
 //
 // 2) Create or use an existing Service Account
 //
-// 3) For your Service Account, create and save a key as "~/.gce/di.json"
+// 3) For your Service Account, create and save a key as "~/.gce/quilt.json"
 //
 // 4) In the Google Developer Console navigate to:
 //    Permissions > Permissions
@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
@@ -132,7 +132,7 @@ func (clst *gceCluster) List() ([]Machine, error) {
 func (clst *gceCluster) Boot(bootSet []Machine) error {
 	var names []string
 	for _, m := range bootSet {
-		name := "di-" + uuid.NewV4().String()
+		name := "quilt-" + uuid.NewV4().String()
 		_, err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily"))
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -469,7 +469,7 @@ func gceInit() error {
 		keyfile := filepath.Join(
 			os.Getenv("HOME"),
 			".gce",
-			"di.json")
+			"quilt.json")
 		err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", keyfile)
 		if err != nil {
 			return err

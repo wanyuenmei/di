@@ -8,8 +8,8 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/util"
 )
 
 func TestReadme(t *testing.T) {

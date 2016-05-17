@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/provider"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/provider"
 	"github.com/davecgh/go-spew/spew"
 )
 

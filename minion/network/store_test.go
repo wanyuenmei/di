@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/consensus"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/consensus"
 	"github.com/davecgh/go-spew/spew"
 )
 

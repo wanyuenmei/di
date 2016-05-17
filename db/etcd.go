@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 )
 
 // The Etcd table contains configuration pertaining to the minion etcd cluster including

@@ -10,11 +10,11 @@ import (
 	"text/scanner"
 	"time"
 
-	"github.com/NetSys/di/cluster"
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/engine"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/cluster"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/engine"
+	"github.com/NetSys/quilt/util"
 
 	"google.golang.org/grpc/grpclog"
 
@@ -54,7 +54,7 @@ func main() {
 	cluster.Run(conn)
 }
 
-const diPathKey = "DI_PATH"
+const quiltPath = "QUILT_PATH"
 
 func updateConfig(conn db.Conn, configPath string) error {
 	f, err := util.Open(configPath)
@@ -68,7 +68,7 @@ func updateConfig(conn db.Conn, configPath string) error {
 			Filename: configPath,
 		},
 	}
-	pathStr, _ := os.LookupEnv(diPathKey)
+	pathStr, _ := os.LookupEnv(quiltPath)
 	pathSlice := strings.Split(pathStr, ":")
 	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), pathSlice)
 	if err != nil {

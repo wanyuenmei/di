@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 )
 
 // A Cluster is a group of Machines which can operate containers.

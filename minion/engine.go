@@ -6,10 +6,10 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )

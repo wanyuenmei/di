@@ -14,8 +14,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
 
 	"github.com/Azure/azure-sdk-for-go/management"
 	"github.com/Azure/azure-sdk-for-go/management/hostedservice"
@@ -123,7 +123,7 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 	}
 
 	for _, m := range bootSet {
-		name := "di-" + uuid.NewV4().String()
+		name := "quilt-" + uuid.NewV4().String()
 		if err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
 			return err
 		}

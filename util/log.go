@@ -9,7 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// Formatter implements the log formatter for DI.
+// Formatter implements the log formatter for Quilt.
 type Formatter struct{}
 
 // Format converts a logrus entry into a string for logging.

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/join"
-	"github.com/NetSys/di/minion/docker"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/minion/docker"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )

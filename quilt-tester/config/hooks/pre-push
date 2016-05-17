@@ -1,0 +1,18 @@
+#!/bin/sh
+
+red='\033[0;31m'
+green='\033[0;32m'
+no_color='\033[0m'
+
+QUILT_TESTER_IP=""
+current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+
+test_out=$(curl --connect-timeout 5 "$QUILT_TESTER_IP/cgi-bin/trigger_run?branch=$current_branch" 2>/dev/null )
+
+if [ $? -ne 0 ] ; then
+    echo -e "${red}Attempt to trigger tests timed out. Is $QUILT_TESTER_IP the IP of the vagrant box?${no_color}"
+else
+    echo -e "${green}$test_out${no_color}"
+fi
+
+exit 0

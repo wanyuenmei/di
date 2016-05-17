@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 	homedir "github.com/mitchellh/go-homedir"
 )
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Read in settings
-if [ -f ~/.di-tester.conf ] ; then
-    source ~/.di-tester.conf
+if [ -f ~/.quilt-tester.conf ] ; then
+    source ~/.quilt-tester.conf
 fi
 
 # Try to guess the location of all the files if it's not explicitely set in the conf file
@@ -15,7 +15,7 @@ export PATH="$PATH:$TESTER_ROOT/bin"
 
 TEST_DIR="$TESTER_ROOT/tests" # Where the tests live
 if [ -z $WEB_ROOT ] ; then
-    WEB_ROOT="/var/www/di-tester"
+    WEB_ROOT="/var/www/quilt-tester"
 fi
 if [ -z $BOOT_SLEEP ] ; then
     BOOT_SLEEP="500" # XXX: tuning is necessary for this: it definitely needs to be higher
@@ -33,10 +33,10 @@ ln -s $WEB_OUT $WEB_ROOT/latest
 
 # Log files
 LOG_DIR="$WEB_OUT/log"
-LOG_FILE="$LOG_DIR/di-tester.log"
+LOG_FILE="$LOG_DIR/quilt-tester.log"
 RUN_OUT="$LOG_DIR/run_out.log"
 
-function di_namespace() {
+function quilt_namespace() {
   sed -i 's/(define Namespace .*/(define Namespace "'"$2"'")/' $1
 }
 
@@ -44,26 +44,26 @@ function generate_namespace() {
     echo "tester-$$-$(echo $MY_IP | tr '.' '_')"
 }
 
-function di_set() {
+function quilt_set() {
   sed -i 's/(define MasterCount .*/(define MasterCount '"$2"')/' $1
   sed -i 's/(define WorkerCount .*/(define WorkerCount '"$3"')/' $1
 }
 
-function di_ssh() {
+function quilt_ssh() {
     host="$1"
     cmd="$2"
-    output=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no di@$host "$cmd" 2>&1)
+    output=$(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no quilt@$host "$cmd" 2>&1)
     res=$?
     # We can't grep and return in the same line because the grep will pollute the exit code
     echo "$output" | grep -v 'Warning: Permanently added'
     return $res
 }
 
-function di_scp() {
+function quilt_scp() {
     host="$1"
     src="$2"
     tgt="$3"
-    scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "$src" "di@$host:$tgt" &> /dev/null
+    scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no "$src" "quilt@$host:$tgt" &> /dev/null
 }
 
 function run_test() {
@@ -71,8 +71,8 @@ function run_test() {
     test_path="$2"
     test_file="$(basename $test_path)"
     chmod +x "$test_path"
-    di_scp $server "$test_path" "$test_file"
-    test_out=$(di_ssh $server "./$test_file")
+    quilt_scp $server "$test_path" "$test_file"
+    test_out=$(quilt_ssh $server "./$test_file")
     passed=$?
     cat <<EOF
 Exit code: $passed
@@ -107,16 +107,16 @@ function slack() {
     fi
     value="Passed: $num_passed\nFailed: $num_failed"
     field='{"title":"Continuous Integration", "short":"false", "value":"'"$value"'"}'
-    payload='payload={"username":"di-bot", "channel": "'"$SLACK_CHANNEL"'", "icon_emoji":"'$icon'", "color":"'$color'", "pretext":"'"$pretext"'", "fields":['"$field"']}'
+    payload='payload={"username":"quilt-bot", "channel": "'"$SLACK_CHANNEL"'", "icon_emoji":"'$icon'", "color":"'$color'", "pretext":"'"$pretext"'", "fields":['"$field"']}'
     curl -X POST --data-urlencode "$payload" https://hooks.slack.com/services/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 &> /dev/null
 }
 
-function di_verbose() {
+function quilt_verbose() {
     echo "$1" >> $LOG_FILE
     echo "$1"
 }
 
-function di_info() {
+function quilt_info() {
     echo "$1"
     echo "" >> $LOG_FILE
     echo "=== $1 ===" >> $LOG_FILE
@@ -126,8 +126,8 @@ function di_info() {
 function kill_aws() {
     instances=$(aws ec2 describe-instances --filters "Name=network-interface.group-name,Values=$(generate_namespace)" --query 'Reservations[].Instances[].[InstanceId]' --output text | tr "\n" " ")
     if [ -n "$instances" ] ; then
-        di_verbose "Forcefully terminating instances:  $instances"
-        di_verbose "$(aws ec2 terminate-instances --instance-ids $instances)"
+        quilt_verbose "Forcefully terminating instances:  $instances"
+        quilt_verbose "$(aws ec2 terminate-instances --instance-ids $instances)"
     fi
 }
 
@@ -140,10 +140,10 @@ function abort() {
     ABORT_MESSAGE="$1"
 
     cleanup
-    di_info "ABORTING: ${ABORT_MESSAGE}"
+    quilt_info "ABORTING: ${ABORT_MESSAGE}"
     URL="http://$MY_IP/$(basename $WEB_OUT)"
     if [ -n $SLACK_CHANNEL ] ; then
-        di_info "Posting to slack.."
+        quilt_info "Posting to slack.."
         slack 1 0 $URL
     fi
     exit 1
@@ -151,17 +151,17 @@ function abort() {
 
 trap "cleanup" INT
 
-di_info "Booting di.."
+quilt_info "Booting Quilt.."
 SPEC="/config/config.spec"
 
-di_namespace "$SPEC" "tester-$$-$(echo $MY_IP | tr '.' '_')"
-di_set "$SPEC" 2 3
-di_verbose "---Start boot spec---"
-di_verbose ""
-di_verbose "$(cat "$SPEC")"
-di_verbose ""
-di_verbose "---End boot spec---"
-/bin/di -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | di-ssh-manager &
+quilt_namespace "$SPEC" "tester-$$-$(echo $MY_IP | tr '.' '_')"
+quilt_set "$SPEC" 2 3
+quilt_verbose "---Start boot spec---"
+quilt_verbose ""
+quilt_verbose "$(cat "$SPEC")"
+quilt_verbose ""
+quilt_verbose "---End boot spec---"
+/bin/quilt -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | quilt-ssh-manager &
 
 # Wait until the minion connects before we start running our tests
 endtime=$((`date +%s` + (15 * 60)))
@@ -174,14 +174,14 @@ done
 # XXX There should be a better way to do this
 sleep $BOOT_SLEEP
 
-di_info "Starting tests.."
+quilt_info "Starting tests.."
 
 num_failed=0
 num_passed=0
-for s in $(dictl ls | cut -d '|' -f3) ; do
+for s in $(quilt-ctl ls | cut -d '|' -f3) ; do
     for test in "$TEST_DIR"/* ; do
         test_name="$(basename $test)"
-        di_info ".. Running $test_name on $s"
+        quilt_info ".. Running $test_name on $s"
         test_res="$(run_test $s $test)"
         if [ $? -ne 0 ] ; then
             echo "$test_res" > "$WEB_OUT/failed/$test_name-$s.txt"
@@ -195,15 +195,15 @@ done
 
 URL="http://$MY_IP/$(basename $WEB_OUT)"
 if [ -n $SLACK_CHANNEL ] ; then
-    di_info "Posting to slack.."
+    quilt_info "Posting to slack.."
     slack $num_failed $num_passed $URL
 fi
 
-di_info "Cleaning up.."
-di_set "$SPEC" 0 0
+quilt_info "Cleaning up.."
+quilt_set "$SPEC" 0 0
 
 sleep 120
 
 cleanup
 
-di_info "Done."
+quilt_info "Done."

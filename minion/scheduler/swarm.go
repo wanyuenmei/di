@@ -5,9 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/dsl"
-	"github.com/NetSys/di/minion/docker"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/minion/docker"
 
 	log "github.com/Sirupsen/logrus"
 )

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/afero"
@@ -760,7 +760,7 @@ func TestLabel(t *testing.T) {
 
 	// Test getting label Hostname
 	code = `(define foo (label "bar" (docker "baz"))) (labelHost foo)`
-	exp = `(list) "bar.di"`
+	exp = `(list) "bar.q"`
 	parseTest(t, code, exp)
 
 	runtimeErr(t, `(label 1 2)`, "1: label must be a string, found: 1")

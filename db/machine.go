@@ -3,7 +3,7 @@ package db
 import (
 	"sort"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 )
 
 // Machine represents a physical or virtual machine operated by a cloud provider on which

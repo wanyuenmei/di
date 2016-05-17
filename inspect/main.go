@@ -6,10 +6,10 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/dsl"
 )
 
-const diPathKey = "DI_PATH"
+const quiltPath = "QUILT_PATH"
 
 func main() {
 	var configPath string
@@ -31,7 +31,7 @@ func main() {
 			Filename: configPath,
 		},
 	}
-	pathStr, _ := os.LookupEnv(diPathKey)
+	pathStr, _ := os.LookupEnv(quiltPath)
 	pathSlice := strings.Split(pathStr, ":")
 	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), pathSlice)
 	if err != nil {

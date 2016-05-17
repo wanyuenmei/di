@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 	dkc "github.com/fsouza/go-dockerclient"
@@ -18,7 +18,7 @@ import (
 
 const (
 	// The root namespace for all labels
-	labelBase = "di."
+	labelBase = "q."
 
 	// This is the namespace for user defined labels
 	userLabelPrefix = labelBase + "user.label."
@@ -34,7 +34,7 @@ const (
 	LabelTrueValue = "1"
 
 	// SchedulerLabelKey is the key, used by the scheduler.
-	SchedulerLabelKey = systemLabelPrefix + "DI"
+	SchedulerLabelKey = systemLabelPrefix + "Quilt"
 
 	// SchedulerLabelValue is the value, used by the scheduler.
 	SchedulerLabelValue = "Scheduler"
@@ -405,7 +405,7 @@ func UserLabel(label string) string {
 	return userLabelPrefix + label
 }
 
-// IsUserLabel returns whether the supplied label represents a DI user label.
+// IsUserLabel returns whether the supplied label represents a Quilt user label.
 func IsUserLabel(label string) bool {
 	return strings.HasPrefix(label, userLabelPrefix)
 }

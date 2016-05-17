@@ -7,8 +7,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/ovsdb"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/ovsdb"
 )
 
 var testSwitch = "testSwitch"

@@ -7,18 +7,18 @@ package network
 import (
 	"fmt"
 
-	"github.com/NetSys/di/db"
-	"github.com/NetSys/di/minion/consensus"
-	"github.com/NetSys/di/minion/docker"
-	"github.com/NetSys/di/ovsdb"
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/db"
+	"github.com/NetSys/quilt/minion/consensus"
+	"github.com/NetSys/quilt/minion/docker"
+	"github.com/NetSys/quilt/ovsdb"
+	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 const labelMac = "0a:00:00:00:00:00"
-const lSwitch = "di"
-const diBridge = "di-int"
+const lSwitch = "quilt"
+const quiltBridge = "quilt-int"
 const ovnBridge = "br-int"
 const gatewayIP = "10.0.0.1"
 const gatewayMAC = "02:00:0a:00:00:01"
@@ -38,7 +38,7 @@ func Run(conn db.Conn, store consensus.Store, dk docker.Client) {
 
 // The leader of the cluster is responsible for properly configuring OVN northd for
 // container networking.  This simply means creating a logical port for each container
-// and label.  The specialized OpenFlow rules DI requires are managed by the workers
+// and label.  The specialized OpenFlow rules Quilt requires are managed by the workers
 // individuallly.
 func runMaster(conn db.Conn) {
 	var etcds []db.Etcd
@@ -116,7 +116,7 @@ func runMaster(conn db.Conn) {
 			"name": util.ShortUUID(dbc.SchedID),
 			"IP":   dbc.IP,
 		}).Info("New logical port.")
-		err := ovsdb.CreatePort("di", dbc.SchedID, dbc.Mac, dbc.IP)
+		err := ovsdb.CreatePort("quilt", dbc.SchedID, dbc.Mac, dbc.IP)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,

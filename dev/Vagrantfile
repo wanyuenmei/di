@@ -61,10 +61,10 @@ Vagrant.configure(2) do |config|
 
     mkdir $HOME/work
 
-    # checkout the di repo
-    git clone https://github.com/NetSys/di.git $GOPATH/src/github.com/NetSys/di
-    echo "Installing di dependencies.. (this takes a couple minutes)"
-    go get github.com/NetSys/di/...
+    # checkout the quilt repo
+    git clone https://github.com/NetSys/quilt.git $GOPATH/src/github.com/NetSys/quilt
+    echo "Installing quilt dependencies.. (this takes a couple minutes)"
+    go get github.com/NetSys/quilt/...
 
     go get -u github.com/golang/protobuf/proto
     go get -u github.com/golang/protobuf/protoc-gen-go

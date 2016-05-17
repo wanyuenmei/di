@@ -5,10 +5,10 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/NetSys/di/dsl"
+	"github.com/NetSys/quilt/dsl"
 )
 
-// Write parsed DI graph to a graphviz dotfile.
+// Write parsed Quilt graph to a graphviz dotfile.
 
 func getImageNamesForLabel(containerLabels map[string][]*dsl.Container, label string) (imageNames string) {
 	containers := containerLabels[label]

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NetSys/di/util"
+	"github.com/NetSys/quilt/util"
 )
 
 // A Container row is created for each container specified by the policy.  Each row will
