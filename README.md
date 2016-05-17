@@ -37,7 +37,7 @@ As an example, to boot 3 docker containers with the latest Ubuntu image and a po
 
 After this you will have a simple network:
 
-<img src="./doc-images/diSimple.png">
+<img src="./doc-images/quiltSimple.png">
 
 We can easily expand our network to a basic deployment structure with the above database, a batch processing system and 5 Apache containers. As noted above, none of the containers can communicate by default, so we will furthermore open a few meaningful connections.
 
@@ -66,7 +66,7 @@ We can easily expand our network to a basic deployment structure with the above 
 
 After the above commands, our network looks a lot more interesting:
 
-<img src="./doc-images/diAbstractWebTierConnect.png">
+<img src="./doc-images/quiltAbstractWebTierConnect.png">
 
 With the config file in place, DI will now boot your system. If you modify the configuration after the system booted, DI will make the corresponding changes to your system in the least distruptive way possible.
 
