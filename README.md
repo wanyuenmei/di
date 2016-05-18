@@ -1,5 +1,4 @@
 [![Build Status](https://travis-ci.com/NetSys/quilt.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/quilt)
-[![Docker Repository on Quay](https://quay.io/repository/netsys/quilt/status?token=9793d07b-1924-469c-b23e-ef1aa0f14e7d "Docker Repository on Quay")](https://quay.io/repository/netsys/quilt)
 # Quilt
 
 Quilt is a simple system to deploy and network containers  across public
