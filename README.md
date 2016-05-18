@@ -1,91 +1,50 @@
 [![Build Status](https://travis-ci.com/NetSys/quilt.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/quilt)
 # Quilt
 
-Quilt is a simple system to deploy and network containers  across public
-clouds. Quilt enables one to create a complex distributed system of containers
-by working only with a simplified abstract view of your system and not worrying
-about the low-level implementation.
+Quilt aims to be the easiest way to deploy and network containers.
 
-As systems grow, they become increasingly difficult to build, configure, and
-maintain. For a distributed system to function well, it needs consistency among
-its individual components, as well as flexible and reliable composition to
-combine its individual components into a whole. Additionally, the system
-requires comprehensive configuration to control things like data flow,
-placement and access control.
+Traditional container orchestrators have a procedural API focused narrowly on
+compute.  The network, usually an afterthought, must be managed by a separate
+system with its own independent API.  This leaves operators with a complex
+task: write a deployment script that configures everything necessary to get
+their application up and running.
 
-Ensuring all of the above requirements is difficult, and in recognition of this
-fact, several companies and open source projects have made good contributions
-towards simpler system administration. However, even with these tools at hand,
-it still requires carefully executed API calls and detailed understanding of a
-system's underlying infrastructure to sucessfully build and maintain it.
+Quilt takes a different approach.  It relies on a new domain specific language,
+Stitch, to _specify_ distributed applications, independent of the specific
+infrastructure they run on.  Given a stitch, Quilt can automatically deploy in
+a variety of environments: Amazon EC2, Microsoft Azure, and Google Compute
+Engine, with more coming soon.  Furthermore it can do this with **no setup** --
+just point Quilt at a stitch and it will take care of the rest: booting virtual
+machines, starting containers on those VMs, and ensuring they can communicate.
 
-With Quilt, you can leave these low-level details aside and instead focus on the
-high-level structure and configuration of your system. For instance, for a
-simple web deployment, we might want a database, some number of web servers
-connected to the public internet, and some batch processing servers connected
-to the web servers and the database. Even though this overall structure seems
-simple, the actual implementation quickly becomes complicated.
+Quilt is currently in alpha and under heavy development. Please try it out!
+We are eager for feedback!
 
-Quilt enables you to bypass these complications and build your distributed system
-from the top down, maintaining only an abstract view of your infrastructure and
-a set of explicit policies it follows. You never have to worry about firewall
-configurations, server placement or other implicit security enforcements; your
-high-level view and explicit policies make it easy to monitor and verify the
-state of your system. Regardless of whether your application is hosted on a
-single or multiple cloud providers, Quilt ensures that your system is correctly
-booted and that it always follows your configuration.
+## Stitch
 
-## Stitch -- The Quilt Language
+Stitch is a domain specific language based on Scheme and has many of the tools
+one would expect: modules, functions, variables, arithmetic, etc.  In addition,
+it has some primitives for describing an application -- the collection of
+containers that should be running, and precisely which are _allowed_ to
+communicate.
 
-As described above, Quilt allows you to forget about low-level specifics and
-detailed API calls. With Quilt, you simply describe the desired state of your
-system, and Quilt then handles the rest. To describe your configuration, you will
-use two main building blocks: `atom`s and `label`s.
+## A Simple Stitch
 
-#### Atoms
-An `atom` is the smallest unit of the Quilt language. Each `atom` is either an
-administrative user, a public hostname or IP address, a container, or a virtual
-machine. Simply creating an atom in your Quilt config file is enough to boot and
-register the entity in your system. Similarly, if you want to shut down or
-unregister a component of your system, you just remove the corresponding atom
-in your config file.
-
-By default, `atom`s in Quilt cannot communicate with each other due to an implicit
-"deny all" firewall. Communication between `atom`s must therefore be explicitly
-permitted by the `connect` keyword. This setup makes it easy to monitor and
-manage data access in your system.
-
-#### Labels
-`label`s are logical groups of `atom`s and/or other `label`s. With `label`s you
-can create named logical units within your system that you can then connect and
-manage. For instance, after allowing connections from `label1` to `label2`, any
-container in `label1` can connect to `atom`s in `label2` by opening a socket to
-the hostname `label2.q`. If multiple atoms implement `label2`, Quilt will
-automatically load balance new connections across all available `atom`s.
-
-## Building a simple system
-
-Before you start Quilt, you must specify the structure and requirements for
-your distributed system in the config file. This file is written in the
-declarative Quilt domain-specific language (`dsl`) that allows you to describe
-your system in an clear and abstract manner. You might for instance specify the
-cloud provider(s), the number of VMs, how many containers you want, what kind
-of containers, logical groups (`label`s), as well as connections between
-`label`s and/or the public internet.
-
-As an example, to boot 3 docker containers with the latest Ubuntu image and a
-postgres database, you put the following commands in your config file.
+To declare 3 docker containers with the latest Ubuntu image and a postgres
+database, one would use the following stitch:
 
 <!-- BEGIN CODE -->
     (label "containers" (makeList 3 (docker "ubuntu")))
     (label "database" (docker "postgres"))
 <!-- END CODE -->
 
-After this you will have a simple network:
+This will produce a simple network:
 
 <img src="./doc-images/quiltSimple.png">
 
-We can easily expand our network to a basic deployment structure with the above database, a batch processing system and 5 Apache containers. As noted above, none of the containers can communicate by default, so we will furthermore open a few meaningful connections.
+Next, suppose we'd like to expand with a batch processing system and 5 Apache
+containers. By default containers can't communicate, so we will have to add
+some network connections.
 
 <!-- BEGIN CODE -->
     // Create 5 Apache containers, and label them "webTier"
@@ -110,11 +69,14 @@ We can easily expand our network to a basic deployment structure with the above 
     (connect (list 0 65535) "webTier" "webTier")
 <!-- END CODE -->
 
-After the above commands, our network looks a lot more interesting:
+After the above commands, our application looks a lot more interesting:
 
 <img src="./doc-images/quiltAbstractWebTierConnect.png">
 
-With the config file in place, Quilt will now boot your system. If you modify the configuration after the system booted, Quilt will make the corresponding changes to your system in the least distruptive way possible.
+With this stitch, Quilt can now boot the system. Furthermore, if the stitch is
+modified, Quilt will automatically adapt by adding or removing containers as
+necessary.
 
 ## Contributing
-If you are interested in contributing to Quilt, check out [dev.md](dev.md) for development instructions, details about the code structure, and more.
+If you are interested in contributing to Quilt, check out [dev.md](dev.md) for
+development instructions, details about the code structure, and more.
