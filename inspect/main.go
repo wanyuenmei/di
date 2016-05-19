@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 	"text/scanner"
@@ -11,14 +12,26 @@ import (
 
 const quiltPath = "QUILT_PATH"
 
+type argOption struct {
+	result interface{} // Optionally store result.
+}
+
+func usage() {
+	panic(
+		"Usage: inspect <path to spec file> [commands]\n" +
+			"Options\n" +
+			" - viz\n" +
+			" - check <path to invariants file>\n" +
+			" - query [must have check] <path to query file>")
+}
+
 func main() {
-	var configPath string
-	switch len(os.Args) {
-	case 2:
-		configPath = os.Args[1]
-	default:
-		panic("Usage: stitchinspect <path to spec file>")
+	if len(os.Args) < 3 {
+		fmt.Println("not enough arguments: ", len(os.Args))
+		usage()
 	}
+
+	configPath := os.Args[1]
 
 	f, err := os.Open(configPath)
 	if err != nil {
@@ -54,14 +67,54 @@ func main() {
 		graph.addConnection(conn.From, conn.To)
 	}
 
-	slug := ""
-	for i, ch := range configPath {
-		if !(ch == '.') {
-			slug = configPath[:i+1]
-		} else {
-			break
-		}
+	for _, pl := range spec.QueryPlacements() {
+		graph.addPlacementRule(pl)
 	}
 
-	graphviz(slug, graph, containerLabels)
+	ignoreNext := 0
+	foundFlags := map[string]argOption{}
+	func() {
+		args := os.Args[2:]
+		for i, arg := range args {
+			switch {
+			case ignoreNext > 0:
+				ignoreNext--
+			case arg == "viz":
+				foundFlags[arg] = argOption{}
+				viz(configPath, spec, graph)
+			case arg == "check":
+				invs, failer, err := check(graph, args[i+1])
+				if err != nil && failer == nil {
+					fmt.Printf("parsing invariants failed: %s", err)
+				} else if err != nil {
+					fmt.Println("invariant failed: ", failer.str)
+				} else {
+					fmt.Println("invariants passed")
+				}
+				foundFlags[arg] = argOption{result: invs}
+				ignoreNext = 1
+			case arg == "query":
+				foundFlags[arg] = argOption{}
+
+				defer func(i int) {
+					if checkOpt, ok := foundFlags["check"]; !ok {
+						fmt.Println("query without check")
+						usage()
+					} else {
+						invs := checkOpt.result.([]invariant)
+						_, _, err := ask(graph, invs, args[i+1])
+						if err != nil {
+							fmt.Println(err)
+						} else {
+							fmt.Println("query passed invariants")
+						}
+					}
+				}(i)
+				ignoreNext = 1
+			default:
+				fmt.Println("unknown arg", arg)
+				usage()
+			}
+		}
+	}()
 }

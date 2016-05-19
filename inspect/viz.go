@@ -8,6 +8,32 @@ import (
 	"github.com/NetSys/quilt/stitch"
 )
 
+func viz(configPath string, spec stitch.Stitch, graph graph) {
+	var slug string
+	for i, ch := range configPath {
+		if ch == '.' {
+			slug = configPath[:i]
+			break
+		}
+	}
+	if len(slug) == 0 {
+		panic("Could not find proper output file name")
+	}
+
+	containerLabels := map[string][]*stitch.Container{}
+	for _, container := range spec.QueryContainers() {
+		labels := container.Labels()
+		for _, label := range labels {
+			if _, ok := containerLabels[label]; !ok {
+				containerLabels[label] = make([]*stitch.Container, 0)
+			}
+			containerLabels[label] = append(containerLabels[label], container)
+		}
+	}
+
+	graphviz(slug, graph, containerLabels)
+}
+
 // Write parsed Quilt graph to a graphviz dotfile.
 
 func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
@@ -34,7 +60,7 @@ func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
 	return fmt.Sprintf("\" %s: [ %s]\"", label, images)
 }
 
-// graphviz generates a specification for the graphviz program that visualizes the
+// Graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
 func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Container) {
 	f, err := os.Create(slug + ".dot")
@@ -49,12 +75,16 @@ func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Con
 
 	dotfile := "strict digraph {\n"
 
-	for _, edge := range graph.connections {
+	for i, av := range graph.availability {
+		dotfile += subGraph(containerLabels, i, av.nodes()...)
+	}
+
+	for _, edge := range graph.getConnections() {
 		dotfile +=
 			fmt.Sprintf(
 				"    %s -> %s\n",
-				getImageNamesForLabel(containerLabels, string(edge.from.name)),
-				getImageNamesForLabel(containerLabels, string(edge.to.name)),
+				getImageNamesForLabel(containerLabels, edge.from),
+				getImageNamesForLabel(containerLabels, edge.to),
 			)
 	}
 
@@ -62,7 +92,21 @@ func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Con
 
 	f.Write([]byte(dotfile))
 
-	// run "dot" (part of graphviz) on the dotfile to output the image
+	// Run "dot" (part of graphviz) on the dotfile to output the image.
 	writepng := exec.Command("dot", "-Tpdf", "-o", slug+".pdf", slug+".dot")
 	writepng.Run()
+}
+
+func subGraph(
+	containerLabels map[string][]*stitch.Container,
+	i int,
+	labels ...string,
+) string {
+	subgraph := fmt.Sprintf("    subgraph cluster_%d {\n", i)
+	str := ""
+	for _, l := range labels {
+		str += getImageNamesForLabel(containerLabels, l) + "; "
+	}
+	subgraph += "        " + str + "\n    }\n"
+	return subgraph
 }

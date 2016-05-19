@@ -7,15 +7,13 @@ REPO = quilt
 DOCKER = docker
 SHELL := /bin/bash
 
-all:
+all: inspect
 	cd -P . && \
 	go build . && \
-	go build -o ./minion/minion ./minion && \
-	go build -o ./inspect/inspect ./inspect
+	go build -o ./minion/minion ./minion
 
 install:
 	cd -P . && go install . && \
-	go install ./inspect
 
 generate:
 	go generate $(PACKAGES)
@@ -44,6 +42,12 @@ lint: format
 			golint -min_confidence .25 $$package ; \
 		fi \
 	done
+
+inspect:
+	cd -P . && \
+	go build -o ./inspect/inspect ./inspect
+
+.PHONY: ./inspect
 
 COV_SKIP= /minion/consensus \
 	  /minion/docker \

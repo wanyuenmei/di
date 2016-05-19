@@ -1,0 +1,16 @@
+(label "a" (docker "ubuntu"))
+(label "b" (docker "ubuntu"))
+(label "c" (docker "ubuntu"))
+(label "d" (docker "ubuntu"))
+(label "e" (docker "ubuntu"))
+
+(connect 22 "a" "b")
+(connect 22 "a" "c")
+(connect 22 "b" "d")
+(connect 22 "c" "d")
+(connect 22 "d" "e")
+(connect 22 "c" "e")
+
+(place (labelRule "exclusive" "e") "b" "d")
+(place (labelRule "exclusive" "c") "b" "d" "e")
+(place (labelRule "exclusive" "a") "c" "d" "e")
