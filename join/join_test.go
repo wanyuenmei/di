@@ -36,6 +36,80 @@ func TestJoin(t *testing.T) {
 	}
 }
 
+type JoinList []interface{}
+
+func (jil JoinList) Len() int {
+	return len(jil)
+}
+
+func (jil JoinList) Get(ii int) interface{} {
+	return jil[ii]
+}
+
+type JoinInt int
+
+func (ji JoinInt) JoinKey() interface{} {
+	return ji
+}
+
+func TestHashJoin(t *testing.T) {
+	keyFunc := func(val interface{}) interface{} {
+		return val
+	}
+	pairs, left, right := HashJoin(JoinList{10, 11, 12},
+		JoinList{10, 11, 12}, keyFunc, keyFunc)
+	if len(left) > 0 {
+		t.Errorf("Unexpected lefts: %s", left)
+	}
+	if len(right) > 0 {
+		t.Errorf("Unexpected rights: %s", right)
+	}
+	if !eq(pairs, []Pair{{10, 10}, {11, 11}, {12, 12}}) {
+		t.Error(spew.Sprintf("Unexpected pairs: %s", pairs))
+	}
+
+	pairs, left, right = HashJoin(JoinList{10, 11, 12},
+		JoinList{13, 11, 2}, keyFunc, keyFunc)
+	if len(left) != 2 {
+		t.Error(spew.Sprintf("Unexpected left: %s", left))
+	}
+	if len(right) != 2 {
+		t.Error(spew.Sprintf("Unexpected right %s", right))
+	}
+	if !eq(pairs, []Pair{{11, 11}}) {
+		t.Error(spew.Sprintf("Unexpected pairs: %s", pairs))
+	}
+}
+
+func TestHashJoinNilKeyFunc(t *testing.T) {
+	keyFunc := func(val interface{}) interface{} {
+		return val
+	}
+	pairs, left, right := HashJoin(JoinList{10, 11, 12},
+		JoinList{10, 11, 12}, nil, keyFunc)
+	if len(left) > 0 {
+		t.Errorf("Unexpected lefts: %s", left)
+	}
+	if len(right) > 0 {
+		t.Errorf("Unexpected rights: %s", right)
+	}
+	if !eq(pairs, []Pair{{10, 10}, {11, 11}, {12, 12}}) {
+		t.Error(spew.Sprintf("Unexpected pairs: %s", pairs))
+	}
+
+	pairs, left, right = HashJoin(JoinList{10, 11, 12},
+		JoinList{13, 11, 2}, keyFunc, nil)
+	if len(left) != 2 {
+		t.Error(spew.Sprintf("Unexpected left: %s", left))
+	}
+	if len(right) != 2 {
+		t.Error(spew.Sprintf("Unexpected right %s", right))
+	}
+	if !eq(pairs, []Pair{{11, 11}}) {
+		t.Error(spew.Sprintf("Unexpected pairs: %s", pairs))
+	}
+}
+
 func ExampleJoin() {
 	lefts := []string{"a", "bc", "def"}
 	rights := []int{0, 2, 4}

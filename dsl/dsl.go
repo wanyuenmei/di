@@ -42,6 +42,9 @@ type Connection struct {
 	MaxPort int
 }
 
+// A ConnectionSlice allows for slices of Collections to be used in joins
+type ConnectionSlice []Connection
+
 // A Machine specifies the type of VM that should be booted.
 type Machine struct {
 	Provider string
@@ -327,4 +330,12 @@ func (err dslError) innermostError() error {
 	default:
 		return childErr
 	}
+}
+
+func (cs ConnectionSlice) Get(ii int) interface{} {
+	return cs[ii]
+}
+
+func (cs ConnectionSlice) Len() int {
+	return len(cs)
 }

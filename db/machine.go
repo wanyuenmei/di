@@ -105,3 +105,13 @@ func SortMachines(machines []Machine) []Machine {
 
 	return machines
 }
+
+type MachineSlice []Machine
+
+func (ms MachineSlice) Get(ii int) interface{} {
+	return ms[ii]
+}
+
+func (ms MachineSlice) Len() int {
+	return len(ms)
+}

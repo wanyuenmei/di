@@ -13,6 +13,8 @@ type Placement struct {
 	Rule        PlacementRule
 }
 
+type PlacementSlice []Placement
+
 // Returns true if this placement applies to the container c, and false if it doesn't.
 func (p Placement) Applies(c Container) bool {
 	for _, label := range c.Labels {
@@ -121,4 +123,12 @@ func (p Placement) getID() int {
 
 func (p Placement) equal(r row) bool {
 	return p == r.(Placement)
+}
+
+func (ps PlacementSlice) Get(ii int) interface{} {
+	return ps[ii]
+}
+
+func (ps PlacementSlice) Len() int {
+	return len(ps)
 }

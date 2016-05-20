@@ -37,7 +37,7 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 	}
 }
 
-func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
+func toDBPlacements(dslPlacements []dsl.Placement) db.PlacementSlice {
 	placementSet := make(map[db.Placement]struct{})
 	for _, dslP := range dslPlacements {
 		rule := dslP.Rule
@@ -67,15 +67,15 @@ func toDBPlacements(dslPlacements []dsl.Placement) []db.Placement {
 		}
 	}
 
-	var placements []db.Placement
+	var placements db.PlacementSlice
 	for p := range placementSet {
 		placements = append(placements, p)
 	}
 	return placements
 }
 
-func makeConnectionPlacements(conns []db.Connection) []db.Placement {
-	var dbPlacements []db.Placement
+func makeConnectionPlacements(conns []db.Connection) db.PlacementSlice {
+	var dbPlacements db.PlacementSlice
 	for _, conn := range conns {
 		if conn.From == dsl.PublicInternetLabel {
 			for p := conn.MinPort; p <= conn.MaxPort; p += 1 {
@@ -95,20 +95,16 @@ func makeConnectionPlacements(conns []db.Connection) []db.Placement {
 func updatePlacements(view db.Database, spec dsl.Dsl) {
 	dslPlacements := toDBPlacements(spec.QueryPlacements())
 	connPlacements := makeConnectionPlacements(view.SelectFromConnection(nil))
-
-	scoreFunc := func(left, right interface{}) int {
-		wantedPlacement := left.(db.Placement)
-		havePlacement := right.(db.Placement)
-
-		if wantedPlacement.TargetLabel == havePlacement.TargetLabel &&
-			wantedPlacement.Rule == havePlacement.Rule {
-			return 0
-		}
-		return -1
+	key := func(val interface{}) interface{} {
+		pVal := val.(db.Placement)
+		return struct {
+			tl   string
+			rule db.PlacementRule
+		}{pVal.TargetLabel, pVal.Rule}
 	}
 
-	_, addSet, removeSet := join.Join(append(dslPlacements, connPlacements...),
-		view.SelectFromPlacement(nil), scoreFunc)
+	_, addSet, removeSet := join.HashJoin(append(dslPlacements, connPlacements...),
+		db.PlacementSlice(view.SelectFromPlacement(nil)), key, key)
 
 	for _, toAddIntf := range addSet {
 		toAdd := toAddIntf.(db.Placement)
@@ -124,26 +120,41 @@ func updatePlacements(view db.Database, spec dsl.Dsl) {
 	}
 }
 
+func makeConnectionSlice(cm map[dsl.Connection]struct{}) dsl.ConnectionSlice {
+	slice := make([]dsl.Connection, 0, len(cm))
+	for k := range cm {
+		slice = append(slice, k)
+	}
+	return dsl.ConnectionSlice(slice)
+}
+
 func updateConnections(view db.Database, spec dsl.Dsl) {
-	dslcs := spec.QueryConnections()
-	for _, dbc := range view.SelectFromConnection(nil) {
-		key := dsl.Connection{
-			From:    dbc.From,
-			To:      dbc.To,
-			MinPort: dbc.MinPort,
-			MaxPort: dbc.MaxPort,
-		}
+	scs, vcs := makeConnectionSlice(spec.QueryConnections()), view.SelectFromConnection(nil)
 
-		if _, ok := dslcs[key]; ok {
-			delete(dslcs, key)
-			continue
+	dbcKey := func(val interface{}) interface{} {
+		c := val.(db.Connection)
+		return dsl.Connection{
+			From:    c.From,
+			To:      c.To,
+			MinPort: c.MinPort,
+			MaxPort: c.MaxPort,
 		}
-
-		view.Remove(dbc)
 	}
 
-	for dslc := range dslcs {
-		dbc := view.InsertConnection()
+	pairs, dsls, dbcs := join.HashJoin(scs, db.ConnectionSlice(vcs), nil, dbcKey)
+
+	for _, dbc := range dbcs {
+		view.Remove(dbc.(db.Connection))
+	}
+
+	for _, dslc := range dsls {
+		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertConnection()})
+	}
+
+	for _, pair := range pairs {
+		dslc := pair.L.(dsl.Connection)
+		dbc := pair.R.(db.Connection)
+
 		dbc.From = dslc.From
 		dbc.To = dslc.To
 		dbc.MinPort = dslc.MinPort

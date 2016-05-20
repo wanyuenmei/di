@@ -10,6 +10,8 @@ type Label struct {
 	MultiHost bool
 }
 
+type LabelSlice []Label
+
 // InsertLabel creates a new container row and inserts it into the database.
 func (db Database) InsertLabel() Label {
 	result := Label{ID: db.nextID()}
@@ -60,4 +62,12 @@ func (r Label) less(row row) bool {
 	default:
 		return r.ID < r2.ID
 	}
+}
+
+func (ls LabelSlice) Get(ii int) interface{} {
+	return ls[ii]
+}
+
+func (ls LabelSlice) Len() int {
+	return len(ls)
 }

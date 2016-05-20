@@ -207,14 +207,14 @@ func TestEngine(t *testing.T) {
 
 	// This function checks whether there is a one-to-one mapping for each machine
 	// in `slice` to a provider in `providers`.
-	providersInSlice := func(slice []db.Machine, providers []db.Provider) bool {
-		scoreFunc := func(left, right interface{}) int {
-			if left.(db.Machine).Provider == right.(db.Provider) {
-				return 0
-			}
-			return -1
+	providersInSlice := func(slice db.MachineSlice, providers db.ProviderSlice) bool {
+		lKey := func(left interface{}) interface{} {
+			return left.(db.Machine).Provider
 		}
-		_, l, r := join.Join(slice, providers, scoreFunc)
+		rKey := func(right interface{}) interface{} {
+			return right.(db.Provider)
+		}
+		_, l, r := join.HashJoin(slice, providers, lKey, rKey)
 		return len(l) == 0 && len(r) == 0
 	}
 
@@ -233,11 +233,11 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Worker
 		})
 
-		if !providersInSlice(masters, []db.Provider{db.Amazon, db.Vagrant}) {
+		if !providersInSlice(masters, db.ProviderSlice{db.Amazon, db.Vagrant}) {
 			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 
-		if !providersInSlice(workers, []db.Provider{db.Azure, db.Google}) {
+		if !providersInSlice(workers, db.ProviderSlice{db.Azure, db.Google}) {
 			return fmt.Errorf("bad workers: %s", spew.Sdump(workers))
 		}
 		return nil
@@ -258,7 +258,7 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Master
 		})
 
-		if !providersInSlice(masters, []db.Provider{db.Amazon, db.Azure}) {
+		if !providersInSlice(masters, db.ProviderSlice{db.Amazon, db.Azure}) {
 			return fmt.Errorf("bad masters: %s", spew.Sdump(masters))
 		}
 		return nil

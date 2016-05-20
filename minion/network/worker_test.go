@@ -175,7 +175,7 @@ func TestGenerateCurrentRoutes(t *testing.T) {
 	}
 	actual, _ := generateCurrentRoutes("")
 
-	exp := []route{
+	exp := routeSlice{
 		{
 			ip:        "10.0.2.0/24",
 			dev:       "eth0",
@@ -208,7 +208,7 @@ func TestGenerateCurrentNatRules(t *testing.T) {
 	}
 
 	actual, _ := generateCurrentNatRules()
-	exp := []ipRule{
+	exp := ipRuleSlice{
 		{
 			cmd:   "-P",
 			chain: "POSTROUTING",

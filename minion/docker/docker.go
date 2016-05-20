@@ -58,6 +58,8 @@ type Container struct {
 	Labels map[string]string
 }
 
+type ContainerSlice []Container
+
 // A Client to the local docker daemon.
 type Client interface {
 	Run(opts RunOptions) error
@@ -423,4 +425,12 @@ func SystemLabel(label string) string {
 // PortLabel returns the supplied label tagged with the port prefix.
 func PortLabel(port int) string {
 	return portLabelPrefix + strconv.Itoa(port)
+}
+
+func (cs ContainerSlice) Get(ii int) interface{} {
+	return cs[ii]
+}
+
+func (cs ContainerSlice) Len() int {
+	return len(cs)
 }

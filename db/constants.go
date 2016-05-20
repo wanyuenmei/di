@@ -101,3 +101,13 @@ func ParseRole(role string) (Role, error) {
 		return None, errors.New("unknown role")
 	}
 }
+
+type ProviderSlice []Provider
+
+func (ps ProviderSlice) Get(ii int) interface{} {
+	return ps[ii]
+}
+
+func (ps ProviderSlice) Len() int {
+	return len(ps)
+}

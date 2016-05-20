@@ -42,6 +42,8 @@ type nsInfo struct {
 	pid int
 }
 
+type nsInfoSlice []nsInfo
+
 // This represents a network device
 type netdev struct {
 	// These apply to all links
@@ -53,12 +55,16 @@ type netdev struct {
 	peerMTU int
 }
 
+type netdevSlice []netdev
+
 // This represents a route in the routing table
 type route struct {
 	ip        string
 	dev       string
 	isDefault bool
 }
+
+type routeSlice []route
 
 // This represents a OVS port and its default interface
 type ovsPort struct {
@@ -71,6 +77,8 @@ type ovsPort struct {
 	ifaceID     string
 }
 
+type ovsPortSlice []ovsPort
+
 // This represents a rule in the iptables
 type ipRule struct {
 	cmd   string
@@ -78,11 +86,15 @@ type ipRule struct {
 	opts  string // Must be sorted - see makeIPRule
 }
 
+type ipRuleSlice []ipRule
+
 type OFRule struct {
 	table   string
 	match   string
 	actions string
 }
+
+type OFRuleSlice []OFRule
 
 // Query the database for any running containers and for each container running on this
 // host, do the following:
@@ -171,7 +183,7 @@ func updateNamespaces(containers []db.Container) {
 	//
 	// We keep all our namespaces in /var/run/netns/
 
-	var targetNamespaces []nsInfo
+	var targetNamespaces nsInfoSlice
 	for _, dbc := range containers {
 		targetNamespaces = append(targetNamespaces,
 			nsInfo{ns: networkNS(dbc.SchedID), pid: dbc.Pid})
@@ -182,13 +194,11 @@ func updateNamespaces(containers []db.Container) {
 		return
 	}
 
-	_, lefts, rights := join.Join(currentNamespaces, targetNamespaces, func(
-		left, right interface{}) int {
-		if left.(nsInfo).ns == right.(nsInfo).ns {
-			return 0
-		}
-		return -1
-	})
+	key := func(val interface{}) interface{} {
+		return val.(nsInfo).ns
+	}
+
+	_, lefts, rights := join.HashJoin(currentNamespaces, targetNamespaces, key, key)
 
 	for _, l := range lefts {
 		if err := delNS(l.(nsInfo)); err != nil {
@@ -203,13 +213,13 @@ func updateNamespaces(containers []db.Container) {
 	}
 }
 
-func generateCurrentNamespaces() ([]nsInfo, error) {
+func generateCurrentNamespaces() (nsInfoSlice, error) {
 	files, err := ioutil.ReadDir(nsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var infos []nsInfo
+	var infos nsInfoSlice
 	for _, file := range files {
 		fi, err := os.Lstat(fmt.Sprintf("%s/%s", nsPath, file.Name()))
 		if err != nil {
@@ -272,13 +282,11 @@ func updateVeths(containers []db.Container) {
 		return
 	}
 
-	pairs, lefts, rights := join.Join(currentVeths, targetVeths, func(
-		left, right interface{}) int {
-		if left.(netdev).name == right.(netdev).name {
-			return 0
-		}
-		return -1
-	})
+	key := func(val interface{}) interface{} {
+		return val.(netdev).name
+	}
+
+	pairs, lefts, rights := join.HashJoin(currentVeths, targetVeths, key, key)
 
 	for _, l := range lefts {
 		if err := delVeth(l.(netdev)); err != nil {
@@ -300,8 +308,8 @@ func updateVeths(containers []db.Container) {
 	}
 }
 
-func generateTargetVeths(containers []db.Container) []netdev {
-	var configs []netdev
+func generateTargetVeths(containers []db.Container) netdevSlice {
+	var configs netdevSlice
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
 		cfg := netdev{
@@ -315,13 +323,13 @@ func generateTargetVeths(containers []db.Container) []netdev {
 	return configs
 }
 
-func generateCurrentVeths(containers []db.Container) ([]netdev, error) {
+func generateCurrentVeths(containers []db.Container) (netdevSlice, error) {
 	names, err := listVeths()
 	if err != nil {
 		return nil, err
 	}
 
-	var configs []netdev
+	var configs netdevSlice
 	for _, name := range names {
 		cfg := netdev{
 			name: name,
@@ -383,15 +391,7 @@ func updateNAT(containers []db.Container, connections []db.Connection) {
 		return
 	}
 
-	_, rulesToDel, rulesToAdd := join.Join(currRules, targetRules, func(
-		left, right interface{}) int {
-		if left.(ipRule).cmd == right.(ipRule).cmd &&
-			left.(ipRule).chain == right.(ipRule).chain &&
-			left.(ipRule).opts == right.(ipRule).opts {
-			return 0
-		}
-		return -1
-	})
+	_, rulesToDel, rulesToAdd := join.HashJoin(currRules, targetRules, nil, nil)
 
 	for _, rule := range rulesToDel {
 		if err := deleteNatRule(rule.(ipRule)); err != nil {
@@ -408,14 +408,14 @@ func updateNAT(containers []db.Container, connections []db.Connection) {
 	}
 }
 
-func generateCurrentNatRules() ([]ipRule, error) {
+func generateCurrentNatRules() (ipRuleSlice, error) {
 	stdout, _, err := shVerbose("iptables -t nat -S")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get IP tables: %s", err)
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(stdout))
-	var rules []ipRule
+	var rules ipRuleSlice
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -433,7 +433,7 @@ func generateCurrentNatRules() ([]ipRule, error) {
 	return rules, nil
 }
 
-func generateTargetNatRules(containers []db.Container, connections []db.Connection) []ipRule {
+func generateTargetNatRules(containers []db.Container, connections []db.Connection) ipRuleSlice {
 	strRules := []string{
 		"-P PREROUTING ACCEPT",
 		"-P INPUT ACCEPT",
@@ -480,7 +480,7 @@ func generateTargetNatRules(containers []db.Container, connections []db.Connecti
 		}
 	}
 
-	var rules []ipRule
+	var rules ipRuleSlice
 	for _, r := range strRules {
 		rule, err := makeIPRule(r)
 		if err != nil {
@@ -502,14 +502,16 @@ func updatePorts(odb ovsdb.Ovsdb, containers []db.Container) {
 		return
 	}
 
-	pairs, lefts, rights := join.Join(currentPorts, targetPorts, func(
-		left, right interface{}) int {
-		if left.(ovsPort).name == right.(ovsPort).name &&
-			left.(ovsPort).bridge == right.(ovsPort).bridge {
-			return 0
+	key := func(val interface{}) interface{} {
+		return struct {
+			name, bridge string
+		}{
+			name:   val.(ovsPort).name,
+			bridge: val.(ovsPort).bridge,
 		}
-		return -1
-	})
+	}
+
+	pairs, lefts, rights := join.HashJoin(currentPorts, targetPorts, key, key)
 
 	for _, l := range lefts {
 		if l.(ovsPort).name == l.(ovsPort).bridge {
@@ -535,8 +537,8 @@ func updatePorts(odb ovsdb.Ovsdb, containers []db.Container) {
 	}
 }
 
-func generateTargetPorts(containers []db.Container) []ovsPort {
-	var configs []ovsPort
+func generateTargetPorts(containers []db.Container) ovsPortSlice {
+	var configs ovsPortSlice
 	for _, dbc := range containers {
 		_, vethOut := veths(dbc.SchedID)
 		peerBr, peerQuilt := patchPorts(dbc.SchedID)
@@ -562,8 +564,8 @@ func generateTargetPorts(containers []db.Container) []ovsPort {
 	return configs
 }
 
-func generateCurrentPorts(odb ovsdb.Ovsdb) ([]ovsPort, error) {
-	var configs []ovsPort
+func generateCurrentPorts(odb ovsdb.Ovsdb) (ovsPortSlice, error) {
+	var configs ovsPortSlice
 	for _, bridge := range []string{quiltBridge, ovnBridge} {
 		ports, err := odb.ListOFPorts(bridge)
 		if err != nil {
@@ -709,13 +711,8 @@ func updateDefaultGw(odb ovsdb.Ovsdb) {
 }
 
 func updateIPs(namespace string, dev string, currIPs []string, targetIPs []string) error {
-	_, ipToDel, ipToAdd := join.Join(currIPs, targetIPs, func(
-		left, right interface{}) int {
-		if left.(string) == right.(string) {
-			return 0
-		}
-		return -1
-	})
+
+	_, ipToDel, ipToAdd := join.HashJoin(StringSlice(currIPs), StringSlice(targetIPs), nil, nil)
 
 	for _, ip := range ipToDel {
 		if err := delIP(namespace, ip.(string), dev); err != nil {
@@ -787,7 +784,7 @@ func updateContainerIPs(containers []db.Container, labels []db.Label) {
 }
 
 func updateRoutes(containers []db.Container) {
-	targetRoutes := []route{
+	targetRoutes := routeSlice{
 		{
 			ip:        "10.0.0.0/8",
 			dev:       innerVeth,
@@ -809,15 +806,7 @@ func updateRoutes(containers []db.Container) {
 			continue
 		}
 
-		_, routesDel, routesAdd := join.Join(currentRoutes, targetRoutes, func(
-			left, right interface{}) int {
-			if left.(route).ip == right.(route).ip &&
-				left.(route).dev == right.(route).dev &&
-				left.(route).isDefault == right.(route).isDefault {
-				return 0
-			}
-			return -1
-		})
+		_, routesDel, routesAdd := join.HashJoin(currentRoutes, targetRoutes, nil, nil)
 
 		for _, l := range routesDel {
 			if err := deleteRoute(ns, l.(route)); err != nil {
@@ -833,14 +822,14 @@ func updateRoutes(containers []db.Container) {
 	}
 }
 
-func generateCurrentRoutes(namespace string) ([]route, error) {
+func generateCurrentRoutes(namespace string) (routeSlice, error) {
 	stdout, _, err := ipExecVerbose(namespace, "route show")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get routes in %s: %s",
 			namespaceName(namespace), err)
 	}
 
-	var routes []route
+	var routes routeSlice
 	routeRE := regexp.MustCompile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\s(\\S+)")
 	gwRE := regexp.MustCompile("default via ((?:[0-9]{1,3}\\.){3}[0-9]{1,3}) dev (\\S+)")
 	for _, r := range routeRE.FindAllSubmatch(stdout, -1) {
@@ -889,15 +878,7 @@ func updateOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container
 		return
 	}
 
-	_, flowsToDel, flowsToAdd := join.Join(currentOF, targetOF, func(
-		left, right interface{}) int {
-		if left.(OFRule).table == right.(OFRule).table &&
-			left.(OFRule).match == right.(OFRule).match &&
-			left.(OFRule).actions == right.(OFRule).actions {
-			return 0
-		}
-		return -1
-	})
+	_, flowsToDel, flowsToAdd := join.HashJoin(currentOF, targetOF, nil, nil)
 
 	for _, f := range flowsToDel {
 		if err := deleteOFRule(dk, f.(OFRule)); err != nil {
@@ -912,7 +893,7 @@ func updateOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container
 	}
 }
 
-func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
+func generateCurrentOpenFlow(dk docker.Client) (OFRuleSlice, error) {
 	args := "ovs-ofctl dump-flows " + quiltBridge
 	stdout, _, err := dk.ExecVerbose(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
@@ -921,7 +902,7 @@ func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(stdout))
-	var flows []OFRule
+	var flows OFRuleSlice
 
 	// The first line isn't a flow, so skip it.
 	scanner.Scan()
@@ -950,7 +931,7 @@ func generateCurrentOpenFlow(dk docker.Client) ([]OFRule, error) {
 // dump-flows. To achieve this, we have some rather ugly hacks that handle
 // a few special cases.
 func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container,
-	labels []db.Label, connections []db.Connection) ([]OFRule, error) {
+	labels []db.Label, connections []db.Connection) (OFRuleSlice, error) {
 
 	dflGatewayMAC, err := getMac("", quiltBridge)
 	if err != nil {
@@ -1110,7 +1091,7 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 		}
 	}
 
-	var targetRules []OFRule
+	var targetRules OFRuleSlice
 	for _, r := range rules {
 		rule, err := makeOFRule(r)
 		if err != nil {
@@ -1503,4 +1484,52 @@ func makeOFRule(flowEntry string) (OFRule, error) {
 		actions: strings.Join(allMatches, ","),
 	}
 	return newRule, nil
+}
+
+func (nsis nsInfoSlice) Get(ii int) interface{} {
+	return nsis[ii]
+}
+
+func (nsis nsInfoSlice) Len() int {
+	return len(nsis)
+}
+
+func (nds netdevSlice) Get(ii int) interface{} {
+	return nds[ii]
+}
+
+func (nds netdevSlice) Len() int {
+	return len(nds)
+}
+
+func (iprs ipRuleSlice) Get(ii int) interface{} {
+	return iprs[ii]
+}
+
+func (iprs ipRuleSlice) Len() int {
+	return len(iprs)
+}
+
+func (ovsps ovsPortSlice) Get(ii int) interface{} {
+	return ovsps[ii]
+}
+
+func (ovsps ovsPortSlice) Len() int {
+	return len(ovsps)
+}
+
+func (rs routeSlice) Get(ii int) interface{} {
+	return rs[ii]
+}
+
+func (rs routeSlice) Len() int {
+	return len(rs)
+}
+
+func (ofrs OFRuleSlice) Get(ii int) interface{} {
+	return ofrs[ii]
+}
+
+func (ofrs OFRuleSlice) Len() int {
+	return len(ofrs)
 }

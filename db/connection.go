@@ -77,3 +77,13 @@ func (c Connection) less(r row) bool {
 		return c.ID < o.ID
 	}
 }
+
+type ConnectionSlice []Connection
+
+func (cs ConnectionSlice) Get(ii int) interface{} {
+	return cs[ii]
+}
+
+func (cs ConnectionSlice) Len() int {
+	return len(cs)
+}

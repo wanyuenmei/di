@@ -127,16 +127,15 @@ func (sv *supervisor) runAppTransact(view db.Database,
 
 	var tearDowns []string
 
-	score := func(left, right interface{}) int {
-		dbc := left.(db.Container)
-		dkc := right.(docker.Container)
-
-		if dbc.SchedID != dkc.ID {
-			return -1
-		}
-		return 0
+	dbKey := func(val interface{}) interface{} {
+		return val.(db.Container).SchedID
 	}
-	pairs, dbcs, dkcs := join.Join(view.SelectFromContainer(nil), dkcsArgs, score)
+	dkKey := func(val interface{}) interface{} {
+		return val.(docker.Container).ID
+	}
+
+	pairs, dbcs, dkcs := join.HashJoin(db.ContainerSlice(view.SelectFromContainer(nil)),
+		docker.ContainerSlice(dkcsArgs), dbKey, dkKey)
 
 	for _, iface := range dbcs {
 		dbc := iface.(db.Container)

@@ -110,13 +110,11 @@ func readContainerTransact(view db.Database, dir directory) {
 }
 
 func readLabelTransact(view db.Database, dir directory) {
-	pairs, dbls, dirKeys := join.Join(view.SelectFromLabel(nil), dir.keys(),
-		func(left, right interface{}) int {
-			if left.(db.Label).Label == right.(string) {
-				return 0
-			}
-			return 1
-		})
+	lKey := func(val interface{}) interface{} {
+		return val.(db.Label).Label
+	}
+	pairs, dbls, dirKeys := join.HashJoin(db.LabelSlice(view.SelectFromLabel(nil)),
+		StringSlice(dir.keys()), lKey, nil)
 
 	for _, dbl := range dbls {
 		view.Remove(dbl.(db.Label))
@@ -266,13 +264,8 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 }
 
 func syncDir(store consensus.Store, dir directory, path string, idsArg []string) {
-	_, dirKeys, ids := join.Join(dir.keys(), idsArg,
-		func(left, right interface{}) int {
-			if left.(string) != right.(string) {
-				return -1
-			}
-			return 0
-		})
+	_, dirKeys, ids := join.HashJoin(StringSlice(dir.keys()), StringSlice(idsArg), nil,
+		nil)
 
 	var etcdLog string
 	for _, dirKey := range dirKeys {
@@ -440,4 +433,14 @@ func (dir directory) keys() []string {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+type StringSlice []string
+
+func (ss StringSlice) Get(ii int) interface{} {
+	return ss[ii]
+}
+
+func (ss StringSlice) Len() int {
+	return len(ss)
 }

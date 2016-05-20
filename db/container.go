@@ -23,6 +23,8 @@ type Container struct {
 	Env     map[string]string
 }
 
+type ContainerSlice []Container
+
 // InsertContainer creates a new container row and inserts it into the database.
 func (db Database) InsertContainer() Container {
 	result := Container{ID: db.nextID()}
@@ -103,4 +105,12 @@ func (c Container) String() string {
 
 func (c Container) less(r row) bool {
 	return c.ID < r.(Container).ID
+}
+
+func (cs ContainerSlice) Get(ii int) interface{} {
+	return cs[ii]
+}
+
+func (cs ContainerSlice) Len() int {
+	return len(cs)
 }
