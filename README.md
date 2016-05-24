@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/NetSys/quilt.svg?token=QspQsur4HQKsDUg6Hynm&branch=master)](https://travis-ci.com/NetSys/quilt)
+[![Build Status](https://travis-ci.org/NetSys/quilt.svg?branch=master)](https://travis-ci.org/NetSys/quilt)
 # Quilt
 
 Quilt aims to be the easiest way to deploy and network containers.
