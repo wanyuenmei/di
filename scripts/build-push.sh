@@ -30,12 +30,14 @@ if [ "$TRAVIS_BRANCH" != "master" ]; then
     exit 0
 fi
 
-docker version
+# XXX: Automated pushing of docker containers is broken since we've moved to
+# official docker hub.
+#docker version
 
-status_line "Pushing containers..."
+#status_line "Pushing containers..."
 
-docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" docker.io
-status_line "Successfully logged into docker."
+#docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" docker.io
+#status_line "Successfully logged into docker."
 
-make docker-push-quilt docker-push-tester docker-push-minion
-status_line "Successfully pushed containers."
+#make docker-push-quilt docker-push-tester docker-push-minion
+#status_line "Successfully pushed containers."
