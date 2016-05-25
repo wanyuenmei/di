@@ -6,6 +6,7 @@ function status_line() {
 
 # Exit upon any error
 set -e
+set -x
 
 status_line "Begin build..."
 
