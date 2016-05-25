@@ -35,12 +35,14 @@ const (
 	QuiltTag = "quilt-tag"
 )
 
+const ovsImage = "quilt/ovs"
+
 var images = map[string]string{
 	Etcd:          "quay.io/coreos/etcd:v2.2.4",
-	Ovncontroller: "quilt/ovs:ovn-controller",
-	Ovnnorthd:     "quilt/ovs:ovn-northd",
-	Ovsdb:         "quilt/ovs:ovsdb",
-	Ovsvswitchd:   "quilt/ovs:vswitchd",
+	Ovncontroller: ovsImage,
+	Ovnnorthd:     ovsImage,
+	Ovsdb:         ovsImage,
+	Ovsvswitchd:   ovsImage,
 	Swarm:         "swarm:1.2.0",
 	QuiltTag:      "google/pause",
 }
@@ -163,7 +165,12 @@ func (sv *supervisor) runAppTransact(view db.Database,
 
 // Manage system infrstracture containers that support the application.
 func (sv *supervisor) runSystem() {
+	imageSet := map[string]struct{}{}
 	for _, image := range images {
+		imageSet[image] = struct{}{}
+	}
+
+	for image := range imageSet {
 		go sv.dk.Pull(image)
 	}
 
@@ -253,8 +260,8 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 		"--election-timeout="+etcdElectionTimeout,
 		"--proxy=on")
 
-	sv.run(Ovsdb)
-	sv.run(Ovsvswitchd)
+	sv.run(Ovsdb, "ovsdb-server")
+	sv.run(Ovsvswitchd, "ovs-vswitchd")
 
 	if leaderIP == "" || IP == "" {
 		return
@@ -283,7 +290,7 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 	/* The ovn controller doesn't support reconfiguring ovn-remote mid-run.
 	 * So, we need to restart the container when the leader changes. */
 	sv.Remove(Ovncontroller)
-	sv.run(Ovncontroller)
+	sv.run(Ovncontroller, "ovn-controller")
 
 	sv.tagWorker(minion.Provider, minion.Region, minion.Size)
 }
@@ -310,7 +317,7 @@ func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
 		"--heartbeat-interval="+etcdHeartbeatInterval,
 		"--initial-cluster-state=new",
 		"--election-timeout="+etcdElectionTimeout)
-	sv.run(Ovsdb)
+	sv.run(Ovsdb, "ovsdb-server")
 
 	swarmAddr := IP + ":2377"
 	sv.run(Swarm, "manage", "--replication", "--addr="+swarmAddr,
@@ -320,7 +327,7 @@ func (sv *supervisor) updateMaster(IP string, etcdIPs []string, leader bool) {
 		/* XXX: If we fail to boot ovn-northd, we should give up
 		* our leadership somehow.  This ties into the general
 		* problem of monitoring health. */
-		sv.run(Ovnnorthd)
+		sv.run(Ovnnorthd, "ovn-northd")
 	} else {
 		sv.Remove(Ovnnorthd)
 	}
@@ -346,15 +353,11 @@ func (sv *supervisor) run(name string, args ...string) {
 	switch name {
 	case Ovsvswitchd:
 		ro.Privileged = true
-		fallthrough
+		ro.VolumesFrom = []string{Ovsdb}
 	case Ovnnorthd:
-		fallthrough
+		ro.VolumesFrom = []string{Ovsdb}
 	case Ovncontroller:
 		ro.VolumesFrom = []string{Ovsdb}
-	case Etcd:
-		fallthrough
-	case Ovsdb:
-		ro.Binds = []string{"/usr/share/ca-certificates:/etc/ssl/certs"}
 	}
 
 	if err := sv.dk.Run(ro); err != nil {

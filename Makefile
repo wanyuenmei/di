@@ -40,7 +40,7 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 	rm $@.out
 
 # BUILD
-docker-build-all: docker-build-quilt docker-build-tester docker-build-minion
+docker-build-all: docker-build-quilt docker-build-tester docker-build-minion docker-build-ovs
 
 docker-build-quilt:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
@@ -53,9 +53,14 @@ docker-build-minion:
 	cd -P minion && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build . \
 	 && ${DOCKER} build -t ${REPO}/minion .
 
+docker-build-ovs:
+	cd -P ovs && docker build -t ${REPO}/ovs .
+
 # PUSH
 #
 docker-push-all: docker-push-quilt docker-push-tester docker-push-minion
+	# We do not push the OVS container as it's built by the automated
+	# docker hub system.
 
 docker-push-quilt:
 	${DOCKER} push ${REPO}/quilt
@@ -65,6 +70,9 @@ docker-push-tester:
 
 docker-push-minion:
 	${DOCKER} push ${REPO}/minion
+
+docker-push-ovs:
+	${DOCKER} push ${REPO}/ovs
 
 # Include all .mk files so you can have your own local configurations
 include $(wildcard *.mk)
