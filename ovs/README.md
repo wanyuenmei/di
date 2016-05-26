@@ -1,6 +1,6 @@
-# Quilt Open vSwitch
+# Open vSwitch
 Containerized versions of Open vSwitch built originally for use by
-[Quilt](quilt.io).  Despite their original intent, there is nothing Quilt
+[Quilt](http://quilt.io).  Despite their original intent, there is nothing Quilt
 specific about them, thus they should be generally useful.
 
 ## Using
