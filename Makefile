@@ -40,6 +40,8 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 	rm $@.out
 
 # BUILD
+docker-build-all: docker-build-quilt docker-build-tester docker-build-minion
+
 docker-build-quilt:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
 	${DOCKER} build -t ${REPO}/quilt .
@@ -52,6 +54,8 @@ docker-build-minion:
 	 && ${DOCKER} build -t ${REPO}/minion .
 
 # PUSH
+#
+docker-push-all: docker-push-quilt docker-push-tester docker-push-minion
 
 docker-push-quilt:
 	${DOCKER} push ${REPO}/quilt
