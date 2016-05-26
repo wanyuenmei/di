@@ -1,12 +1,7 @@
-sudo: required
-
 language: go
 
 go:
 - 1.6
-
-services:
-  - docker
 
 install: go get github.com/davecgh/go-spew/spew github.com/golang/lint/golint
 
