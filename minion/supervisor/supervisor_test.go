@@ -62,7 +62,7 @@ func TestMaster(t *testing.T) {
 
 	exp := map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -92,9 +92,9 @@ func TestMaster(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:      etcdArgsMaster(ip, etcdIPs),
-		Ovsdb:     nil,
+		Ovsdb:     []string{"ovsdb-server"},
 		Swarm:     swarmArgsMaster(ip),
-		Ovnnorthd: nil,
+		Ovnnorthd: []string{"ovn-northd"},
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -115,7 +115,7 @@ func TestMaster(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -145,8 +145,8 @@ func TestWorker(t *testing.T) {
 
 	exp := map[string][]string{
 		Etcd:        etcdArgsWorker(etcdIPs),
-		Ovsdb:       nil,
-		Ovsvswitchd: nil,
+		Ovsdb:       []string{"ovsdb-server"},
+		Ovsvswitchd: []string{"ovs-vswitchd"},
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
 		t.Errorf("fd.running = %s\n\nwant %s", spew.Sdump(ctx.fd.running),
@@ -172,9 +172,9 @@ func TestWorker(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:          etcdArgsWorker(etcdIPs),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
+		Ovsdb:         []string{"ovsdb-server"},
+		Ovncontroller: []string{"ovn-controller"},
+		Ovsvswitchd:   []string{"ovs-vswitchd"},
 		Swarm:         swarmArgsWorker(ip),
 		QuiltTag:      nil,
 	}
@@ -217,9 +217,9 @@ func TestChange(t *testing.T) {
 
 	exp := map[string][]string{
 		Etcd:          etcdArgsWorker(etcdIPs),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
+		Ovsdb:         []string{"ovsdb-server"},
+		Ovncontroller: []string{"ovn-controller"},
+		Ovsvswitchd:   []string{"ovs-vswitchd"},
 		Swarm:         swarmArgsWorker(ip),
 		QuiltTag:      nil,
 	}
@@ -252,7 +252,7 @@ func TestChange(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -273,9 +273,9 @@ func TestChange(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:          etcdArgsWorker(etcdIPs),
-		Ovsdb:         nil,
-		Ovncontroller: nil,
-		Ovsvswitchd:   nil,
+		Ovsdb:         []string{"ovsdb-server"},
+		Ovncontroller: []string{"ovn-controller"},
+		Ovsvswitchd:   []string{"ovs-vswitchd"},
 		Swarm:         swarmArgsWorker(ip),
 		QuiltTag:      nil,
 	}
@@ -310,7 +310,7 @@ func TestEtcdAdd(t *testing.T) {
 
 	exp := map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -333,7 +333,7 @@ func TestEtcdAdd(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -360,7 +360,7 @@ func TestEtcdRemove(t *testing.T) {
 
 	exp := map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
@@ -383,7 +383,7 @@ func TestEtcdRemove(t *testing.T) {
 
 	exp = map[string][]string{
 		Etcd:  etcdArgsMaster(ip, etcdIPs),
-		Ovsdb: nil,
+		Ovsdb: []string{"ovsdb-server"},
 		Swarm: swarmArgsMaster(ip),
 	}
 	if !reflect.DeepEqual(ctx.fd.running, exp) {
