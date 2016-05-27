@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	minionImage = "quilt/minion:latest"
+	quiltImage = "quilt/quilt:latest"
 )
 
 func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {
@@ -69,7 +69,8 @@ initialize_minion() {
 	ExecStartPre=/usr/bin/docker pull %[1]s
 	ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
 	-v /var/run/docker.sock:/var/run/docker.sock \
-	-v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw %[1]s
+	-v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw %[1]s \
+	/minion
 
 	[Install]
 	WantedBy=multi-user.target
@@ -133,7 +134,7 @@ systemctl restart {ovs,docker,minion}.service
 echo -n "Completed Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
     `
-	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, strings.Join(keys, "\n"), ubuntuVersion)
+	cloudConfig = fmt.Sprintf(cloudConfig, quiltImage, strings.Join(keys, "\n"), ubuntuVersion)
 
 	return cloudConfig
 }
@@ -178,10 +179,11 @@ coreos:
             ExecStartPre=/usr/bin/docker pull %s
             ExecStart=/usr/bin/docker run --net=host --name=minion --privileged \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw
+            -v /proc:/hostproc:ro -v /var/run/netns:/var/run/netns:rw \
+	    /minion
 
 `
-	cloudConfig = fmt.Sprintf(cloudConfig, minionImage, minionImage)
+	cloudConfig = fmt.Sprintf(cloudConfig, quiltImage, quiltImage)
 
 	if len(keys) > 0 {
 		cloudConfig += "ssh_authorized_keys:\n"
