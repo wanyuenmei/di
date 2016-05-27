@@ -42,10 +42,6 @@ coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov m
 # BUILD
 docker-build-all: docker-build-quilt docker-build-tester docker-build-minion docker-build-ovs
 
-docker-build-quilt:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .
-	${DOCKER} build -t ${REPO}/quilt .
-
 docker-build-tester:
 	cd -P quilt-tester && ${DOCKER} build -t ${REPO}/tester .
 
@@ -61,9 +57,6 @@ docker-build-ovs:
 docker-push-all: docker-push-quilt docker-push-tester docker-push-minion
 	# We do not push the OVS container as it's built by the automated
 	# docker hub system.
-
-docker-push-quilt:
-	${DOCKER} push ${REPO}/quilt
 
 docker-push-tester:
 	${DOCKER} push ${REPO}/tester
