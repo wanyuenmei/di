@@ -40,7 +40,7 @@ func TestConfigs(t *testing.T) {
 	}
 	testConfig("./config.spec", []string{"specs/stdlib"})
 	testConfig("quilt-tester/config/config.spec", []string{"specs/stdlib"})
-	testConfig("specs/spark/main.spec",
+	testConfig("specs/spark/spark.spec",
 		[]string{"specs/stdlib", "specs/spark", "specs/zookeeper"})
 	testConfig("specs/wordpress/main.spec",
 		[]string{
