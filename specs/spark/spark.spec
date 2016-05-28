@@ -1,7 +1,7 @@
 (import "labels")
 (import "strings")
 
-(define image "quay.io/netsys/spark")
+(define image "quilt/spark")
 
 (define (parseMasters sparkMasters)
   (strings.Join (map labels.Hostname sparkMasters) ","))
