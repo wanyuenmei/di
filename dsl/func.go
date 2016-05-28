@@ -92,6 +92,7 @@ func init() {
 		"setEnv":           {setEnvImpl, 3, false},
 		"size":             {sizeImpl, 1, false},
 		"sprintf":          {sprintfImpl, 1, false},
+		"set":              {setImpl, 1, true},
 	}
 }
 
@@ -818,6 +819,25 @@ func defineImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	ctx.binds[ident] = value
+
+	return astList{}, nil
+}
+
+func setImpl(ctx *evalCtx, args []ast) (ast, error) {
+	ident, ok := args[0].(astIdent)
+	if !ok {
+		return nil, fmt.Errorf("set applies to variables")
+	}
+
+	if _, ok := ctx.binds[ident]; !ok {
+		return nil, fmt.Errorf("undefined varaible: %s", ident)
+	}
+
+	var err error
+	ctx.binds[ident], err = args[1].eval(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return astList{}, nil
 }

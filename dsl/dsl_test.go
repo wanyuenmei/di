@@ -97,6 +97,12 @@ func TestLet(t *testing.T) {
 	parseTest(t, "(let ((a 1)))", "(list)")
 }
 
+func TestSet(t *testing.T) {
+	parseTest(t, "(progn (define a 3) (set a 4) a)", "4")
+
+	runtimeErr(t, "(set a 4)", "1: undefined varaible: a")
+}
+
 func TestApply(t *testing.T) {
 	parseTest(t, "(apply + (list 3 5))", "8")
 	parseTest(t,
