@@ -6,6 +6,8 @@ RUN VER=1.6.2 \
 && export PATH=$PATH:$GOROOT/bin \
 && apk update \
 && apk add --no-cache ca-certificates git --virtual .build_deps \
+&& apk add --no-cache iproute2 \
+&& mkdir -p /var/run/netns \
 # Alpine uses musl instead of glibc which confuses go.
 # They're compatable, so just symlink
 && mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2 \
