@@ -6,7 +6,7 @@
   (list "haproxy" "-f" "/usr/local/etc/haproxy/haproxy.cfg"))
 
 (define (hostStr labels)
-  (let ((hosts (map labels.Hostname labels)))
+  (let ((hosts (map labelHost labels)))
     (strings.Join hosts ",")))
 
 (define (createHAProxyNodes prefix nodeCount hosts)

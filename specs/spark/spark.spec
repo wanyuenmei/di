@@ -1,16 +1,15 @@
-(import "labels")
 (import "strings")
 
 (define image "quilt/spark")
 
 (define (parseMasters sparkMasters)
-  (strings.Join (map labels.Hostname sparkMasters) ","))
+  (strings.Join (map labelHost sparkMasters) ","))
 
 (define (parseZookeeper zookeeper)
   (if zookeeper
     (list
       "--zoo"
-      (strings.Join (map labels.Hostname zookeeper) ","))))
+      (strings.Join (map labelHost zookeeper) ","))))
 
 (define (createMasters prefix n zookeeper)
   (let ((labelNames (strings.Range (sprintf "%s-ms" prefix) n))

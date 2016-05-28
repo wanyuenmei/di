@@ -10,7 +10,7 @@
 (define (mysqlSlaveArgs masterLabel id)
   (list mysqlSource
         "--slave"
-        (labels.Hostname masterLabel)
+        (labelHost masterLabel)
         (strings.Itoa id)
         mysqlDefaultArgs))
 
