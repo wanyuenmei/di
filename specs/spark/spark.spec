@@ -2,27 +2,22 @@
 
 (define image "quilt/spark")
 
-(define (parseMasters sparkMasters)
-  (strings.Join (map labelHost sparkMasters) ","))
-
-(define (parseZookeeper zookeeper)
-  (if zookeeper
-    (list
-      "--zoo"
-      (strings.Join (map labelHost zookeeper) ","))))
+(define (commaSepHosts labels)
+  (strings.Join (map labelHost labels) ","))
 
 (define (createMasters prefix n zookeeper)
   (let ((labelNames (strings.Range (sprintf "%s-ms" prefix) n))
-        (zooArgs (parseZookeeper zookeeper))
-        (sparkDockers
-          (makeList n (docker image "di-start-master.sh" zooArgs))))
+        (zooHosts (commaSepHosts zookeeper))
+        (sparkDockers (makeList n (docker image "run" "master"))))
+    (if zookeeper
+      (setEnv sparkDockers "ZOO" zooHosts))
     (map label labelNames sparkDockers)))
 
 (define (createWorkers prefix n masters)
   (let ((labelNames (strings.Range (sprintf "%s-wk" prefix) n))
-        (masterArgs (parseMasters masters))
-        (sparkDockers
-          (makeList n (docker image "di-start-worker.sh" masterArgs))))
+        (masterHosts (commaSepHosts masters))
+        (sparkDockers (makeList n (docker image "run" "worker"))))
+    (setEnv sparkDockers "MASTERS" masterHosts)
     (map label labelNames sparkDockers)))
 
 (define (link masters workers zookeeper)
@@ -41,3 +36,16 @@
         (link masters workers zookeeper)
         (hmap ("master" masters)
               ("worker" workers))))))
+
+(define (Job sparkMap command)
+  (setEnv (hmapGet sparkMap "master") "JOB" command))
+
+(define (Exclusive sparkMap)
+  (let ((exfn (lambda (x) (labelRule "exclusive" x)))
+	(rules (map exfn (hmapValues sparkMap)))
+	(plfn (lambda (x) (place x (hmapValues sparkMap)))))
+    (map plfn rules)))
+
+(define (Public sparkMap)
+  (connect 8080 "public" (hmapGet sparkMap "master"))
+  (connect 8081 "public" (hmapGet sparkMap "worker")))

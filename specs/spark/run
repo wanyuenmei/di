@@ -1,0 +1,74 @@
+#!/usr/bin/python
+
+import argparse
+import os
+import socket
+import subprocess
+import time
+import sys
+
+def wait():
+    while True:
+        try:
+            socket.gethostbyname(socket.gethostname())
+        except socket.gaierror:
+            continue
+
+        return
+
+def grepFile(filename, substr):
+    try:
+        with open(filename, "r") as f:
+            return substr in f.read()
+    except IOError:
+        return False
+
+def master():
+    wait()
+
+    if "ZOO" in os.environ:
+        servers = [s + ":2181" for s in os.environ["ZOO"].split(",")]
+        os.environ["SPARK_DAEMON_JAVA_OPTS"] = \
+                "-Dspark.deploy.recoveryMode=ZOOKEEPER" \
+                + " -Dspark.deploy.zookeeper.url=" + ",".join(servers)
+
+    p = subprocess.Popen(["/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master"])
+
+    while not grepFile("/spark/logs/spark.log", "Master: Registering worker"):
+        time.sleep(1)
+    time.sleep(5)
+
+    if "JOB" in os.environ:
+        subprocess.call(os.environ["JOB"], shell=True)
+
+    p.communicate()
+
+def worker():
+    wait()
+
+    if "MASTERS" not in os.environ:
+        print "Workers require MASTERS environment variable."
+        sys.exit(1)
+
+    masters = [s + ":7077" for s in os.environ["MASTERS"].split(",")]
+    masters = ",".join(masters)
+
+    subprocess.check_call(["/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker", "spark://" + masters])
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Quilt Spark Init Script')
+    parser.add_argument("role", choices=["master", "worker"])
+    args = parser.parse_args()
+
+    if args.role == "master":
+        master()
+    elif args.role == "worker":
+        worker()
+
+try:
+    main()
+except KeyboardInterrupt:
+    pass

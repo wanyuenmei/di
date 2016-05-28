@@ -3,6 +3,7 @@ Maintainer Ethan J. Jackson
 
 RUN apt-get update && apt-get install -y \
         default-jre-headless \
+        python-minimal \
         wget \
 && wget -qO- http://www-us.apache.org/dist/spark/spark-1.6.1/spark-1.6.1-bin-hadoop2.6.tgz | tar -xzf - \
 && mv /spark* /spark \
@@ -14,7 +15,5 @@ RUN apt-get update && apt-get install -y \
 
 ENV PATH /spark/sbin:/spark/bin:$PATH
 
-Copy *.sh /bin/
-
-COPY docker-entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+Copy run /bin/
+Copy log4j.properties /spark/conf
