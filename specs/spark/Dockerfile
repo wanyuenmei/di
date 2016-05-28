@@ -1,4 +1,4 @@
-From ubuntu:14.04
+From ubuntu
 Maintainer Ethan J. Jackson
 
 RUN apt-get update && apt-get install -y \
