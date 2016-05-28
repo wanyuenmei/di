@@ -161,7 +161,7 @@ quilt_verbose ""
 quilt_verbose "$(cat "$SPEC")"
 quilt_verbose ""
 quilt_verbose "---End boot spec---"
-/bin/quilt -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | quilt-ssh-manager &
+/quilt -c $SPEC |& tee -a $LOG_FILE | tee $RUN_OUT | quilt-ssh-manager &
 
 # Wait until the minion connects before we start running our tests
 endtime=$((`date +%s` + (15 * 60)))
