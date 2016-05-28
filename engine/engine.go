@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 
 	"github.com/NetSys/quilt/db"
@@ -96,13 +95,9 @@ func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		acls = append(acls, m.PublicIP+"/32")
 	}
 
-	// Only commit the ACLs if they change. Otherwise, the db will repeatedly
-	// log the ACLs.
 	sort.Strings(acls)
-	if !reflect.DeepEqual(cluster.ACLs, acls) {
-		cluster.ACLs = acls
-		view.Commit(cluster)
-	}
+	cluster.ACLs = acls
+	view.Commit(cluster)
 
 	return nil
 }
