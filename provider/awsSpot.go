@@ -391,7 +391,9 @@ OuterLoop:
 }
 
 func (clst *amazonCluster) SetACLs(acls []string) error {
-	for _, session := range clst.sessions {
+	for region := range amis {
+		session := clst.getSession(region)
+
 		resp, err := session.DescribeSecurityGroups(
 			&ec2.DescribeSecurityGroupsInput{
 				Filters: []*ec2.Filter{
