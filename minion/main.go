@@ -34,11 +34,12 @@ func main() {
 
 	for range conn.Trigger(db.MinionTable).C {
 		conn.Transact(func(view db.Database) error {
-			minions := view.SelectFromMinion(nil)
-			if len(minions) != 1 {
-				return nil
+			minion, err := view.MinionSelf()
+			if err != nil {
+				return err
 			}
-			updatePolicy(view, minions[0].Role, minions[0].Spec)
+
+			updatePolicy(view, minion.Role, minion.Spec)
 			return nil
 		})
 	}

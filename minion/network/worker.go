@@ -133,8 +133,8 @@ type OFRuleSlice []OFRule
 //    - ACLS should be installed to guarantee only sanctioned communication.
 
 func runWorker(conn db.Conn, dk docker.Client) {
-	minions := conn.SelectFromMinion(nil)
-	if len(minions) != 1 || minions[0].Role != db.Worker {
+	minion, err := conn.MinionSelf()
+	if err != nil || minion.Role != db.Worker {
 		return
 	}
 

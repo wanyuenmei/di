@@ -40,26 +40,18 @@ func minionServerRun(conn db.Conn) {
 
 func (s server) GetMinionConfig(cts context.Context,
 	_ *pb.Request) (*pb.MinionConfig, error) {
-	var minionRows []db.Minion
-	s.Transact(func(view db.Database) error {
-		minionRows = view.SelectFromMinion(nil)
-		return nil
-	})
 
 	var cfg pb.MinionConfig
-	switch len(minionRows) {
-	case 0:
-		cfg.Role = pb.MinionConfig_Role(db.None)
-	case 1:
-		m := minionRows[0]
+
+	if m, err := s.MinionSelf(); err != nil {
 		cfg.Role = pb.MinionConfig_Role(m.Role)
 		cfg.PrivateIP = m.PrivateIP
 		cfg.Spec = m.Spec
 		cfg.Provider = m.Provider
 		cfg.Size = m.Size
 		cfg.Region = m.Region
-	default:
-		panic("Not Reached")
+	} else {
+		cfg.Role = pb.MinionConfig_Role(db.None)
 	}
 
 	return &cfg, nil
@@ -68,16 +60,10 @@ func (s server) GetMinionConfig(cts context.Context,
 func (s server) SetMinionConfig(ctx context.Context,
 	msg *pb.MinionConfig) (*pb.Reply, error) {
 	go s.Transact(func(view db.Database) error {
-		minionSlice := view.SelectFromMinion(nil)
-		var minion db.Minion
-		switch len(minionSlice) {
-		case 0:
+		minion, err := view.MinionSelf()
+		if err != nil {
 			log.Info("Received initial configuation.")
 			minion = view.InsertMinion()
-		case 1:
-			minion = minionSlice[0]
-		default:
-			panic("Not Reached")
 		}
 
 		minion.Role = db.Role(msg.Role)
@@ -86,6 +72,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 		minion.Provider = msg.Provider
 		minion.Size = msg.Size
 		minion.Region = msg.Region
+		minion.Self = true
 		view.Commit(minion)
 
 		return nil

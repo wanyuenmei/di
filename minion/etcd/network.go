@@ -86,8 +86,8 @@ func runNetworkWorker(conn db.Conn, store Store) {
 }
 
 func readContainerTransact(view db.Database, dir directory) {
-	minions := view.SelectFromMinion(nil)
-	worker := len(minions) == 1 && minions[0].Role == db.Worker
+	minion, err := view.MinionSelf()
+	worker := err == nil && minion.Role == db.Worker
 
 	for _, container := range view.SelectFromContainer(nil) {
 		container.IP = ""

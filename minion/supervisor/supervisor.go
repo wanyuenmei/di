@@ -74,8 +74,8 @@ func Run(conn db.Conn, dk docker.Client) {
 // Synchronize locally running "application" containers with the database.
 func (sv *supervisor) runApp() {
 	for range sv.conn.TriggerTick(10, db.MinionTable, db.ContainerTable).C {
-		minions := sv.conn.SelectFromMinion(nil)
-		if len(minions) != 1 || minions[0].Role != db.Worker {
+		minion, err := sv.conn.MinionSelf()
+		if err != nil || minion.Role != db.Worker {
 			continue
 		}
 
@@ -180,14 +180,13 @@ func (sv *supervisor) runSystem() {
 }
 
 func (sv *supervisor) runSystemOnce() {
-	var minion db.Minion
-	var etcdRow db.Etcd
-	minions := sv.conn.SelectFromMinion(nil)
-	etcdRows := sv.conn.SelectFromEtcd(nil)
-	if len(minions) == 1 {
-		minion = minions[0]
+	minion, err := sv.conn.MinionSelf()
+	if err != nil {
+		return
 	}
-	if len(etcdRows) == 1 {
+
+	var etcdRow db.Etcd
+	if etcdRows := sv.conn.SelectFromEtcd(nil); len(etcdRows) == 1 {
 		etcdRow = etcdRows[0]
 	}
 
@@ -269,13 +268,12 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 
 	sv.run(Swarm, "join", fmt.Sprintf("--addr=%s:2375", IP), "etcd://127.0.0.1:2379")
 
-	minions := sv.conn.SelectFromMinion(nil)
-	if len(minions) != 1 {
+	minion, err := sv.conn.MinionSelf()
+	if err != nil {
 		return
 	}
-	minion := minions[0]
 
-	err := sv.dk.Exec(Ovsvswitchd, "ovs-vsctl", "set", "Open_vSwitch", ".",
+	err = sv.dk.Exec(Ovsvswitchd, "ovs-vsctl", "set", "Open_vSwitch", ".",
 		fmt.Sprintf("external_ids:ovn-remote=\"tcp:%s:6640\"", leaderIP),
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",

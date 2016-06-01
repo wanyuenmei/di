@@ -56,10 +56,10 @@ func campaign(conn db.Conn, store Store) {
 		case <-trigg.C:
 		}
 
-		minions := conn.SelectFromMinion(nil)
 		etcdRows := conn.SelectFromEtcd(nil)
-		master := len(minions) == 1 && len(etcdRows) == 1 &&
-			minions[0].Role == db.Master
+
+		minion, err := conn.MinionSelf()
+		master := err == nil && minion.Role == db.Master && len(etcdRows) == 1
 
 		if !master {
 			if oldMaster {
@@ -68,14 +68,13 @@ func campaign(conn db.Conn, store Store) {
 			continue
 		}
 
-		IP := minions[0].PrivateIP
+		IP := minion.PrivateIP
 		if IP == "" {
 			continue
 		}
 
 		ttl := electionTTL * time.Second
 
-		var err error
 		if etcdRows[0].Leader {
 			err = store.Update(leaderKey, IP, ttl)
 		} else {

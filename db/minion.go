@@ -1,5 +1,7 @@
 package db
 
+import "errors"
+
 // The Minion table is instantiated on the minions with one row.  That row contains the
 // configuration that minion needs to operate, including its ID, Role, and IP address
 type Minion struct {
@@ -8,6 +10,7 @@ type Minion struct {
 	Role      Role
 	PrivateIP string
 	Spec      string
+	Self      bool
 
 	Provider string
 	Size     string
@@ -30,6 +33,38 @@ func (db Database) SelectFromMinion(check func(Minion) bool) []Minion {
 		}
 	}
 	return result
+}
+
+// MinionSelf returns the Minion Row corresponding to the currently running minion, or an
+// error if no such row exists.
+func (db Database) MinionSelf() (Minion, error) {
+	minions := db.SelectFromMinion(func(m Minion) bool {
+		return m.Self
+	})
+
+	if len(minions) > 1 {
+		panic("multiple minions labeled Self")
+	}
+
+	if len(minions) == 0 {
+		return Minion{}, errors.New("no self minion")
+	}
+
+	return minions[0], nil
+}
+
+// MinionSelf returns the Minion Row corresponding to the currently running minion, or an
+// error if no such row exists.
+func (conn Conn) MinionSelf() (Minion, error) {
+	var m Minion
+	var err error
+
+	conn.Transact(func(view Database) error {
+		m, err = view.MinionSelf()
+		return nil
+	})
+
+	return m, err
 }
 
 // SelectFromMinion gets all minions in the database that satisfy the 'check'.

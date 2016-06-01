@@ -24,7 +24,7 @@ func TestNone(t *testing.T) {
 	}
 
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.PrivateIP = "1.2.3.4"
 		e.Leader = false
@@ -49,7 +49,7 @@ func TestMaster(t *testing.T) {
 	ip := "1.2.3.4"
 	etcdIPs := []string{""}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -78,7 +78,7 @@ func TestMaster(t *testing.T) {
 	ip = "8.8.8.8"
 	etcdIPs = []string{"8.8.8.8"}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -132,7 +132,7 @@ func TestWorker(t *testing.T) {
 	ip := "1.2.3.4"
 	etcdIPs := []string{ip}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -158,7 +158,7 @@ func TestWorker(t *testing.T) {
 
 	leaderIP := "5.6.7.8"
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -198,7 +198,7 @@ func TestChange(t *testing.T) {
 	leaderIP := "5.6.7.8"
 	etcdIPs := []string{ip, leaderIP}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Worker
 		m.PrivateIP = ip
@@ -233,7 +233,7 @@ func TestChange(t *testing.T) {
 
 	delete(ctx.fd.exec, Ovsvswitchd)
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		m.Role = db.Master
 		view.Commit(m)
 		return nil
@@ -254,7 +254,7 @@ func TestChange(t *testing.T) {
 	}
 
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		m.Role = db.Worker
 		view.Commit(m)
 		return nil
@@ -288,7 +288,7 @@ func TestEtcdAdd(t *testing.T) {
 	ip := "1.2.3.4"
 	etcdIPs := []string{ip, "5.6.7.8"}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -312,7 +312,7 @@ func TestEtcdAdd(t *testing.T) {
 	// Add a new master
 	etcdIPs = append(etcdIPs, "9.10.11.12")
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		e.EtcdIPs = etcdIPs
@@ -338,7 +338,7 @@ func TestEtcdRemove(t *testing.T) {
 	ip := "1.2.3.4"
 	etcdIPs := []string{ip, "5.6.7.8"}
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		m.PrivateIP = ip
@@ -362,7 +362,7 @@ func TestEtcdRemove(t *testing.T) {
 	// Remove a master
 	etcdIPs = etcdIPs[1:]
 	ctx.conn.Transact(func(view db.Database) error {
-		m := view.SelectFromMinion(nil)[0]
+		m, _ := view.MinionSelf()
 		e := view.SelectFromEtcd(nil)[0]
 		m.Role = db.Master
 		e.EtcdIPs = etcdIPs
@@ -451,6 +451,7 @@ func initTest() testCtx {
 
 	ctx.conn.Transact(func(view db.Database) error {
 		m := view.InsertMinion()
+		m.Self = true
 		view.Commit(m)
 		e := view.InsertEtcd()
 		view.Commit(e)

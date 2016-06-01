@@ -21,6 +21,7 @@ func TestReadContainerTransact(t *testing.T) {
 func testReadContainerTransact(t *testing.T, view db.Database) {
 	minion := view.InsertMinion()
 	minion.Role = db.Worker
+	minion.Self = true
 	view.Commit(minion)
 
 	for _, id := range []string{"a", "b"} {

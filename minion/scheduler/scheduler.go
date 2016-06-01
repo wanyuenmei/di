@@ -25,15 +25,15 @@ func Run(conn db.Conn) {
 	var sched scheduler
 	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable,
 		db.PlacementTable).C {
-		minions := conn.SelectFromMinion(nil)
-		if !conn.EtcdLeader() || len(minions) != 1 ||
-			minions[0].Role != db.Master || minions[0].PrivateIP == "" {
+		minion, err := conn.MinionSelf()
+		if err != nil || !conn.EtcdLeader() || minion.Role != db.Master ||
+			minion.PrivateIP == "" {
 			sched = nil
 			continue
 		}
 
 		if sched == nil {
-			ip := minions[0].PrivateIP
+			ip := minion.PrivateIP
 			sched = newSwarm(docker.New(fmt.Sprintf("tcp://%s:2377", ip)))
 			time.Sleep(60 * time.Second)
 		}
