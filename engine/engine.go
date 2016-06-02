@@ -149,26 +149,32 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 	return dbMachines
 }
 
-// Quilt can only boot if there is at least one master and one worker.
-func canBoot(machines []db.Machine) bool {
-	hasMaster := false
-	hasWorker := false
-	for _, machine := range machines {
-		hasMaster = hasMaster || machine.Role == db.Master
-		hasWorker = hasWorker || machine.Role == db.Worker
-	}
-	return hasMaster && hasWorker
-}
-
 func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	// XXX: How best to deal with machines that don't specify enough information?
 	dslMachinesRaw := dsl.QueryMachines()
 	maxPrice, _ := dsl.QueryFloat("MaxPrice")
 
 	var dslMachines = toDBMachine(dslMachinesRaw, maxPrice)
+	hasMaster := false
+	hasWorker := false
 
-	if !canBoot(dslMachines) {
+	for _, machine := range dslMachines {
+		hasMaster = hasMaster || machine.Role == db.Master
+		hasWorker = hasWorker || machine.Role == db.Worker
+	}
+
+	if !hasMaster || !hasWorker {
 		dslMachines = []db.Machine{}
+
+		if hasMaster != hasWorker {
+
+			if hasMaster {
+				log.Warning("A master machine was specified but worker machines were not.")
+			} else {
+				log.Warning("Worker machine(s) were specified but a master machine was not.")
+			}
+
+		}
 	}
 
 	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {
