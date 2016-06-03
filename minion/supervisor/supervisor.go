@@ -279,7 +279,7 @@ func (sv *supervisor) updateWorker(IP string, leaderIP string, etcdIPs []string)
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", IP),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leaderIP),
-		fmt.Sprintf("external_ids:system-id=\"quilt\""),
+		fmt.Sprintf("external_ids:system-id=\"%s\"", IP),
 		"--", "add-br", "quilt-int",
 		"--", "set", "bridge", "quilt-int", "fail_mode=secure")
 	if err != nil {
