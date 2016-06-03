@@ -576,7 +576,7 @@ func ovsExecArgs(ip, leader string) []string {
 		fmt.Sprintf("external_ids:ovn-encap-ip=%s", ip),
 		"external_ids:ovn-encap-type=\"geneve\"",
 		fmt.Sprintf("external_ids:api_server=\"http://%s:9000\"", leader),
-		fmt.Sprintf("external_ids:system-id=\"quilt\""),
+		fmt.Sprintf("external_ids:system-id=\"%s\"", ip),
 		"--", "add-br", "quilt-int",
 		"--", "set", "bridge", "quilt-int", "fail_mode=secure",
 	}
