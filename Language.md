@@ -158,7 +158,7 @@ Multiple paths are separated by colons, so you may do `QUILT_PATH="specs:specs/s
 
 You can invoke `quilt` with the path in one line:
 ```
-QUILT_PATH="specs" ./quilt -c config.spec
+QUILT_PATH="specs" ./quilt config.spec
 ```
 
 or `export` it into your environment.

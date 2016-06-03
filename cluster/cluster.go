@@ -72,6 +72,8 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 		err := inst.Connect(namespace)
 		if err == nil {
 			clst.providers[p] = inst
+		} else {
+			log.Debug("Failed to connect to provider %s: %s", p, err)
 		}
 	}
 	go func() {
