@@ -43,15 +43,15 @@ func (s server) GetMinionConfig(cts context.Context,
 
 	var cfg pb.MinionConfig
 
-	if m, err := s.MinionSelf(); err != nil {
-		cfg.Role = pb.MinionConfig_Role(m.Role)
+	if m, err := s.MinionSelf(); err == nil {
+		cfg.Role = db.RoleToPB(m.Role)
 		cfg.PrivateIP = m.PrivateIP
 		cfg.Spec = m.Spec
 		cfg.Provider = m.Provider
 		cfg.Size = m.Size
 		cfg.Region = m.Region
 	} else {
-		cfg.Role = pb.MinionConfig_Role(db.None)
+		cfg.Role = db.RoleToPB(db.None)
 	}
 
 	return &cfg, nil
@@ -66,7 +66,7 @@ func (s server) SetMinionConfig(ctx context.Context,
 			minion = view.InsertMinion()
 		}
 
-		minion.Role = db.Role(msg.Role)
+		minion.Role = db.PBToRole(msg.Role)
 		minion.PrivateIP = msg.PrivateIP
 		minion.Spec = msg.Spec
 		minion.Provider = msg.Provider

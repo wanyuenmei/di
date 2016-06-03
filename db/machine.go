@@ -76,7 +76,7 @@ func (m Machine) less(arg row) bool {
 
 	switch {
 	case l.Role != r.Role:
-		return l.Role > r.Role
+		return l.Role == "Master" || r.Role == ""
 	case upl != upr:
 		return upl
 	case downl != downr:

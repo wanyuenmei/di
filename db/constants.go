@@ -8,31 +8,18 @@ import (
 )
 
 // The Role a machine may take on within the cluster.
-type Role int
+type Role string
 
 const (
 	// None is for workers who haven't been assigned a role yet.
-	None Role = iota
+	None Role = ""
 
 	// Worker minions run application containers.
-	Worker
+	Worker = "Worker"
 
 	// Master containers provide services for the Worker containers.
-	Master
+	Master = "Master"
 )
-
-func (r Role) String() string {
-	switch r {
-	case None:
-		return ""
-	case Worker:
-		return "Worker"
-	case Master:
-		return "Master"
-	default:
-		panic("Not Reached")
-	}
-}
 
 // RoleToPB converts db.Role to a protobuf role.
 func RoleToPB(r Role) pb.MinionConfig_Role {
