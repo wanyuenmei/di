@@ -35,12 +35,11 @@ func main() {
 		"    debug, info, warn, error, fatal or panic."
 
 	flag.Usage = func() {
-		fmt.Println("Usage: quilt [-c=configpath] [-log-level=level | -l=level]")
+		fmt.Println("Usage: quilt stitch  [-log-level=level | -l=level]")
 		flag.PrintDefaults()
 		fmt.Println(validLevels)
 	}
 
-	var configPath = flag.String("c", "config.spec", "path to config file")
 	var logLevel = flag.String("log-level", "info", "level to set logger to")
 	flag.StringVar(logLevel, "l", "info", "level to set logger to")
 	flag.Parse()
@@ -48,16 +47,20 @@ func main() {
 	level, err := parseLogLevel(*logLevel)
 	if err != nil {
 		fmt.Println(err)
-		flag.Usage()
-		os.Exit(1)
+		usage()
 	}
 	log.SetLevel(level)
+
+	stitchPath := flag.Arg(0)
+	if stitchPath == "" {
+		usage()
+	}
 
 	conn := db.New()
 	go func() {
 		tick := time.Tick(5 * time.Second)
 		for {
-			if err := updateConfig(conn, *configPath); err != nil {
+			if err := updateConfig(conn, stitchPath); err != nil {
 				log.WithError(err).Warn(
 					"Failed to update configuration.")
 			}
@@ -69,6 +72,11 @@ func main() {
 	}()
 
 	cluster.Run(conn)
+}
+
+func usage() {
+	flag.Usage()
+	os.Exit(1)
 }
 
 const quiltPath = "QUILT_PATH"
