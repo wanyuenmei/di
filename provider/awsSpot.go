@@ -436,7 +436,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 		for i, p := range ingress {
 			if (i > 0 || p.FromPort != nil || p.ToPort != nil ||
 				*p.IpProtocol != "-1") && p.UserIdGroupPairs == nil {
-				log.Info("Revoke ingress security group: ", *p)
+				log.Debug("Amazon: Revoke ingress security group: ", *p)
 				_, err = session.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
 						GroupName:     aws.String(clst.namespace),
@@ -451,7 +451,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			for _, ipr := range p.IpRanges {
 				ip := *ipr.CidrIp
 				if !permMap[ip] {
-					log.Info("Revoke ingress security group: ", ip)
+					log.Debug("Amazon: Revoke ingress security group: ", ip)
 					_, err = session.RevokeSecurityGroupIngress(
 						&ec2.RevokeSecurityGroupIngressInput{
 							GroupName:  aws.String(clst.namespace),
@@ -470,7 +470,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			if len(groups) > 0 {
 				for _, grp := range p.UserIdGroupPairs {
 					if *grp.GroupId != *groups[0].GroupId {
-						log.Info("Revoke ingress security group GroupID: ",
+						log.Debug("Amazon: Revoke ingress security group GroupID: ",
 							*grp.GroupId)
 						_, err = session.RevokeSecurityGroupIngress(
 							&ec2.RevokeSecurityGroupIngressInput{
@@ -487,7 +487,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 		}
 
 		if !groupIngressExists {
-			log.Info("Add intragroup ACL")
+			log.Debug("Amazon: Add intragroup ACL")
 			_, err = session.AuthorizeSecurityGroupIngress(
 				&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupName:               aws.String(clst.namespace),
@@ -499,7 +499,7 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 				continue
 			}
 
-			log.Info("Add ACL: ", perm)
+			log.Debug("Amazon: Add ACL: ", perm)
 			_, err = session.AuthorizeSecurityGroupIngress(
 				&ec2.AuthorizeSecurityGroupIngressInput{
 					CidrIp:     aws.String(perm),
