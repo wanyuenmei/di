@@ -414,10 +414,14 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			return errors.New("Multiple Security Groups with the same name: " +
 				clst.namespace)
 		} else if len(groups) == 0 {
-			session.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-				Description: aws.String("Quilt Group"),
-				GroupName:   aws.String(clst.namespace),
-			})
+			_, err := session.CreateSecurityGroup(
+				&ec2.CreateSecurityGroupInput{
+					Description: aws.String("Quilt Group"),
+					GroupName:   aws.String(clst.namespace),
+				})
+			if err != nil {
+				return err
+			}
 		} else {
 			/* XXX: Deal with egress rules. */
 			ingress = groups[0].IpPermissions
