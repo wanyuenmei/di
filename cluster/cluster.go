@@ -145,9 +145,14 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 
 func (clst cluster) sync() {
 	var acls []string
+	var machines []db.Machine
 	clst.conn.Transact(func(view db.Database) error {
 		clusters := view.SelectFromCluster(func(c db.Cluster) bool {
 			return c.ID == clst.id
+		})
+
+		machines = view.SelectFromMachine(func(m db.Machine) bool {
+			return m.ClusterID == clst.id
 		})
 
 		if len(clusters) == 0 {
@@ -161,12 +166,7 @@ func (clst cluster) sync() {
 		return nil
 	})
 
-	for providerName, provider := range clst.providers {
-		if err := provider.SetACLs(acls); err != nil {
-			log.WithError(err).Warnf("Could not update ACLs on %s.",
-				providerName)
-		}
-	}
+	clst.syncACLs(acls, machines)
 
 	/* Each iteration of this loop does the following:
 	 *
@@ -222,6 +222,27 @@ func (clst cluster) sync() {
 		clst.updateCloud(bootSet, true)
 		clst.updateCloud(terminateSet, false)
 		sleep(5 * time.Second)
+	}
+}
+
+func (clst cluster) syncACLs(acls []string, machines []db.Machine) {
+	// Providers with at least one machine.
+	prvdrSet := map[db.Provider]struct{}{}
+	for _, m := range machines {
+		prvdrSet[m.Provider] = struct{}{}
+	}
+
+	for name, provider := range clst.providers {
+		// For this providers with no specified machines, we remove all ACLs.
+		// Otherwise we set acls to what's specified.
+		var setACLs []string
+		if _, ok := prvdrSet[name]; ok {
+			setACLs = acls
+		}
+
+		if err := provider.SetACLs(setACLs); err != nil {
+			log.WithError(err).Warnf("Could not update ACLs on %s.", name)
+		}
 	}
 }
 
