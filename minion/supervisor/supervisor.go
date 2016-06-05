@@ -43,7 +43,7 @@ var images = map[string]string{
 	Ovnnorthd:     ovsImage,
 	Ovsdb:         ovsImage,
 	Ovsvswitchd:   ovsImage,
-	Swarm:         "swarm:1.2.0",
+	Swarm:         "swarm:1.2.3",
 	QuiltTag:      "google/pause",
 }
 
