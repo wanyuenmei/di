@@ -69,6 +69,7 @@ var (
 		http2.ErrCodeInternal:           codes.Internal,
 		http2.ErrCodeFlowControl:        codes.ResourceExhausted,
 		http2.ErrCodeSettingsTimeout:    codes.Internal,
+		http2.ErrCodeStreamClosed:       codes.Internal,
 		http2.ErrCodeFrameSize:          codes.Internal,
 		http2.ErrCodeRefusedStream:      codes.Unavailable,
 		http2.ErrCodeCancel:             codes.Canceled,
@@ -126,6 +127,17 @@ func isReservedHeader(hdr string) bool {
 	}
 }
 
+// isWhitelistedPseudoHeader checks whether hdr belongs to HTTP2 pseudoheaders
+// that should be propagated into metadata visible to users.
+func isWhitelistedPseudoHeader(hdr string) bool {
+	switch hdr {
+	case ":authority":
+		return true
+	default:
+		return false
+	}
+}
+
 func (d *decodeState) setErr(err error) {
 	if d.err == nil {
 		d.err = err
@@ -161,7 +173,7 @@ func (d *decodeState) processHeaderField(f hpack.HeaderField) {
 	case ":path":
 		d.method = f.Value
 	default:
-		if !isReservedHeader(f.Name) {
+		if !isReservedHeader(f.Name) || isWhitelistedPseudoHeader(f.Name) {
 			if f.Name == "user-agent" {
 				i := strings.LastIndex(f.Value, " ")
 				if i == -1 {
@@ -403,4 +415,8 @@ func (f *framer) flushWrite() error {
 
 func (f *framer) readFrame() (http2.Frame, error) {
 	return f.fr.ReadFrame()
+}
+
+func (f *framer) errorDetail() error {
+	return f.fr.ErrorDetail()
 }

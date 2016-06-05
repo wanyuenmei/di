@@ -96,7 +96,7 @@ func newCondition(column, function string, value interface{}) condition {
 			return ovs.NewCondition(column, function, value)
 		case string:
 			return ovs.NewCondition(column, function,
-				ovs.UUID{GoUuid: value.(string)})
+				ovs.UUID{GoUUID: value.(string)})
 		default:
 			log.WithFields(log.Fields{
 				"value": value,
@@ -229,12 +229,12 @@ func ovsUUIDSetToSlice(oSet interface{}) []ovs.UUID {
 	if t, ok := oSet.([]interface{}); ok && t[0] == "set" {
 		for _, v := range t[1].([]interface{}) {
 			ret = append(ret, ovs.UUID{
-				GoUuid: v.([]interface{})[1].(string),
+				GoUUID: v.([]interface{})[1].(string),
 			})
 		}
 	} else {
 		ret = append(ret, ovs.UUID{
-			GoUuid: oSet.([]interface{})[1].(string),
+			GoUUID: oSet.([]interface{})[1].(string),
 		})
 	}
 	return ret
@@ -333,7 +333,7 @@ func (ovsdb OvsdbClient) ListPorts(lswitch string) ([]LPort, error) {
 	ports := ovsUUIDSetToSlice(results[0]["ports"])
 	for _, result := range ports {
 		results, err = ovsdb.selectRows("OVN_Northbound", "Logical_Port",
-			newCondition("_uuid", "==", result.GoUuid))
+			newCondition("_uuid", "==", result.GoUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -383,7 +383,7 @@ func (ovsdb OvsdbClient) CreatePort(lswitch, name, mac, ip string) error {
 		Op:    "mutate",
 		Table: "Logical_Switch",
 		Mutations: []interface{}{
-			newMutation("ports", "insert", ovs.UUID{GoUuid: "dilportadd"}),
+			newMutation("ports", "insert", ovs.UUID{GoUUID: "dilportadd"}),
 		},
 		Where: []interface{}{newCondition("name", "==", lswitch)},
 	}
@@ -405,7 +405,7 @@ func (ovsdb OvsdbClient) DeletePort(lswitch, name string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	uuid := ovs.UUID{GoUuid: rows[0]["_uuid"].([]interface{})[1].(string)}
+	uuid := ovs.UUID{GoUUID: rows[0]["_uuid"].([]interface{})[1].(string)}
 
 	deleteOp := ovs.Operation{
 		Op:    "delete",
@@ -440,7 +440,7 @@ func (ovsdb OvsdbClient) ListACLs(lswitch string) ([]Acl, error) {
 	}
 	aids := ovsUUIDSetToSlice(results[0]["acls"])
 	for _, aid := range aids {
-		aid := aid.GoUuid
+		aid := aid.GoUUID
 		results, err := ovsdb.selectRows("OVN_Northbound", "ACL",
 			newCondition("_uuid", "==", aid))
 		if err != nil {
@@ -448,7 +448,7 @@ func (ovsdb OvsdbClient) ListACLs(lswitch string) ([]Acl, error) {
 		}
 		for _, result := range results {
 			acl := Acl{
-				uuid: ovs.UUID{GoUuid: result["_uuid"].([]interface{})[1].(string)},
+				uuid: ovs.UUID{GoUUID: result["_uuid"].([]interface{})[1].(string)},
 				Core: AclCore{
 					Priority:  int(result["priority"].(float64)),
 					Direction: result["direction"].(string),
@@ -508,7 +508,7 @@ func (ovsdb OvsdbClient) CreateACL(lswitch string, dir string, priority int, mat
 		Op:    "mutate",
 		Table: "Logical_Switch",
 		Mutations: []interface{}{
-			newMutation("acls", "insert", ovs.UUID{GoUuid: "diacladd"}),
+			newMutation("acls", "insert", ovs.UUID{GoUUID: "diacladd"}),
 		},
 		Where: []interface{}{newCondition("name", "==", lswitch)},
 	}
@@ -597,7 +597,7 @@ func (ovsdb OvsdbClient) DeleteOFPort(bridge, name string) error {
 		Where: []interface{}{newCondition("name", "==", name)},
 	}
 
-	uuid := ovs.UUID{GoUuid: rows[0]["_uuid"].([]interface{})[1].(string)}
+	uuid := ovs.UUID{GoUUID: rows[0]["_uuid"].([]interface{})[1].(string)}
 	mutateOp := ovs.Operation{
 		Op:        "mutate",
 		Table:     "Bridge",
@@ -647,7 +647,7 @@ func (ovsdb OvsdbClient) CreateOFPort(bridge, name string) error {
 		UUIDName: "diifaceadd",
 	})
 
-	ifaces, err := ovs.NewOvsSet([]ovs.UUID{{GoUuid: "diifaceadd"}})
+	ifaces, err := ovs.NewOvsSet([]ovs.UUID{{GoUUID: "diifaceadd"}})
 	if err != nil {
 		return err
 	}
@@ -663,7 +663,7 @@ func (ovsdb OvsdbClient) CreateOFPort(bridge, name string) error {
 		Op:    "mutate",
 		Table: "Bridge",
 		Mutations: []interface{}{
-			newMutation("ports", "insert", ovs.UUID{GoUuid: "diportadd"}),
+			newMutation("ports", "insert", ovs.UUID{GoUUID: "diportadd"}),
 		},
 		Where: []interface{}{newCondition("name", "==", bridge)},
 	})
@@ -695,7 +695,7 @@ func (ovsdb OvsdbClient) ListOFPorts(bridge string) ([]string, error) {
 	portUUIDs := ovsUUIDSetToSlice(results[0]["ports"])
 	for _, uuid := range portUUIDs {
 		results, err = ovsdb.selectRows("Open_vSwitch", "Port",
-			newCondition("_uuid", "==", uuid.GoUuid))
+			newCondition("_uuid", "==", uuid.GoUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -718,7 +718,7 @@ func (ovsdb OvsdbClient) GetDefaultOFInterface(port string) (Row, error) {
 	ifaceUUIDs := ovsUUIDSetToSlice(results[0]["interfaces"])
 	for _, uuid := range ifaceUUIDs {
 		results, err = ovsdb.selectRows("Open_vSwitch", "Interface",
-			newCondition("_uuid", "==", uuid.GoUuid))
+			newCondition("_uuid", "==", uuid.GoUUID))
 		if err != nil {
 			return nil, err
 		}

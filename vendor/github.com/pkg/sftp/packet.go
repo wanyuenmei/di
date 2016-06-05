@@ -2,11 +2,12 @@ package sftp
 
 import (
 	"encoding"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -114,7 +115,7 @@ func unmarshalStringSafe(b []byte) (string, []byte, error) {
 func sendPacket(w io.Writer, m encoding.BinaryMarshaler) error {
 	bb, err := m.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("marshal2(%#v): binary marshaller failed", err)
+		return errors.Wrap(err, "binary marshaller failed")
 	}
 	if debugDumpTxPacketBytes {
 		debug("send packet: %s %d bytes %x", fxp(bb[0]), len(bb), bb[1:])
@@ -129,13 +130,6 @@ func sendPacket(w io.Writer, m encoding.BinaryMarshaler) error {
 	}
 	_, err = w.Write(bb)
 	return err
-}
-
-func (svr *Server) sendPacket(m encoding.BinaryMarshaler) error {
-	// any responder can call sendPacket(); actual socket access must be serialized
-	svr.outMutex.Lock()
-	defer svr.outMutex.Unlock()
-	return sendPacket(svr.out, m)
 }
 
 func recvPacket(r io.Reader) (uint8, []byte, error) {
@@ -318,7 +312,7 @@ type sshFxpStatPacket struct {
 func (p sshFxpStatPacket) id() uint32 { return p.ID }
 
 func (p sshFxpStatPacket) MarshalBinary() ([]byte, error) {
-	return marshalIDString(ssh_FXP_LSTAT, p.ID, p.Path)
+	return marshalIDString(ssh_FXP_STAT, p.ID, p.Path)
 }
 
 func (p *sshFxpStatPacket) UnmarshalBinary(b []byte) error {
