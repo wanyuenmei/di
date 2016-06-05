@@ -2,6 +2,9 @@
 	"ImportPath": "github.com/NetSys/quilt",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v62",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Azure/azure-sdk-for-go/core/http",
@@ -154,6 +157,38 @@
 			"Rev": "1608a1f6ffe7f327007d2aca50ebf1d26c285ef2"
 		},
 		{
+			"ImportPath": "github.com/cenk/hub",
+			"Comment": "v1.0.0-19-g11382a9",
+			"Rev": "11382a9960d39b0ecda16fd01c424c11ff765a34"
+		},
+		{
+			"ImportPath": "github.com/cenk/rpc2",
+			"Rev": "7ab76d2e88c77ca1a715756036d8264b2886acd2"
+		},
+		{
+			"ImportPath": "github.com/cenk/rpc2/jsonrpc",
+			"Rev": "7ab76d2e88c77ca1a715756036d8264b2886acd2"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/client",
+			"Comment": "v3.0.0-beta.0-344-g2baca91",
+			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
+			"Comment": "v3.0.0-beta.0-344-g2baca91",
+			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v3.0.0-beta.0-344-g2baca91",
+			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/opts",
 			"Comment": "v1.4.1-12527-gc764234",
 			"Rev": "c764234c3b4490a7b6cd6239607996c502d9ce22"
@@ -271,6 +306,11 @@
 			"Rev": "f9ab0dce87d815821e221626b772e3475a0d2749"
 		},
 		{
+			"ImportPath": "github.com/socketplane/libovsdb",
+			"Comment": "v0.1-9-gd4b9e7a",
+			"Rev": "d4b9e7a53548bcfc6e97132bbc977e13c026084d"
+		},
+		{
 			"ImportPath": "github.com/spf13/afero",
 			"Rev": "e7c8609bb02fc74f69832076b562f026cfc2b640"
 		},
@@ -281,6 +321,10 @@
 		{
 			"ImportPath": "github.com/spf13/afero/sftp",
 			"Rev": "e7c8609bb02fc74f69832076b562f026cfc2b640"
+		},
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "b94837a2404ab90efe9289e77a70694c355739cb"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
