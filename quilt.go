@@ -65,9 +65,7 @@ func main() {
 					"Failed to update configuration.")
 			}
 
-			select {
-			case <-tick:
-			}
+			<-tick
 		}
 	}()
 
