@@ -89,7 +89,7 @@ func makeLabels(dbc db.Container, connections []db.Connection) map[string]string
 		// Add labels for doing placement based on ports
 		for _, conn := range connections {
 			if conn.From == dsl.PublicInternetLabel && conn.To == lb {
-				for p := conn.MinPort; p <= conn.MaxPort; p += 1 {
+				for p := conn.MinPort; p <= conn.MaxPort; p++ {
 					labels[docker.PortLabel(p)] = docker.LabelTrueValue
 				}
 			}

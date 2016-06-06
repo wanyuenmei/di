@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -120,5 +119,5 @@ func parseLogLevel(logLevel string) (log.Level, error) {
 	case "panic":
 		return log.PanicLevel, nil
 	}
-	return log.InfoLevel, errors.New(fmt.Sprintf("bad log level: '%v'", logLevel))
+	return log.InfoLevel, fmt.Errorf("bad log level: '%v'", logLevel)
 }

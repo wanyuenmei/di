@@ -102,13 +102,16 @@ func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 	sexp := metaSexp.sexp
 	if len(sexp) == 0 {
-		return nil, dslError{metaSexp.pos, fmt.Errorf("S-expressions must start with a function call: %s", metaSexp)}
+		err := fmt.Errorf("s-expressions must start with a function call: %s",
+			metaSexp)
+		return nil, dslError{metaSexp.pos, err}
 	}
 
 	first, err := sexp[0].eval(ctx)
 	if err != nil {
 		if _, ok := sexp[0].(astIdent); ok {
-			return nil, dslError{metaSexp.pos, fmt.Errorf("unknown function: %s", sexp[0])}
+			return nil, dslError{metaSexp.pos,
+				fmt.Errorf("unknown function: %s", sexp[0])}
 		}
 		return nil, err
 	}
@@ -138,7 +141,9 @@ func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 		}
 		res, err = evalLambda(fn, args)
 	default:
-		return nil, dslError{metaSexp.pos, fmt.Errorf("S-expressions must start with a function call: %s", first)}
+		return nil, dslError{metaSexp.pos,
+			fmt.Errorf("s-expressions must start with a function call: %s",
+				first)}
 	}
 
 	if err != nil {

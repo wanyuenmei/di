@@ -307,12 +307,12 @@ func TestACL(t *testing.T) {
 
 type ACLList []ovsdb.Acl
 
-func (l ACLList) Len() int {
-	return len(l)
+func (lst ACLList) Len() int {
+	return len(lst)
 }
 
-func (l ACLList) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
+func (lst ACLList) Swap(i, j int) {
+	lst[i], lst[j] = lst[j], lst[i]
 }
 
 func (lst ACLList) Less(i, j int) bool {
@@ -352,7 +352,7 @@ func (odb *fakeOvsdb) CreateACL(lswitch string, dir string, priority int,
 }
 
 func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int, match string) error {
-	for i := 0; i < len(odb.acls); i += 1 {
+	for i := 0; i < len(odb.acls); i++ {
 		acl := odb.acls[i]
 		if dir != "*" && acl.Core.Direction != dir {
 			continue
@@ -366,7 +366,7 @@ func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int, match 
 		odb.acls = append(odb.acls[:i], odb.acls[i+1:]...)
 		// Because deleting an element shifts the i+1th element into the ith spot,
 		// we need to stay at the same index to not skip the next element.
-		i -= 1
+		i--
 	}
 	return nil
 }

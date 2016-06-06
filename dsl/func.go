@@ -512,12 +512,14 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 				to.ident == PublicInternetLabel) &&
 				(min != max) {
 				return nil, fmt.Errorf(
-					"Public Internet cannot connect on port ranges")
+					"public internet cannot connect on port ranges")
 			}
 
 			if from.ident == PublicInternetLabel &&
 				to.ident == PublicInternetLabel {
-				return nil, fmt.Errorf("cannot connect Public Internet to itself")
+				err := fmt.Errorf(
+					"cannot connect public internet to itself")
+				return nil, err
 			}
 
 			cn := Connection{

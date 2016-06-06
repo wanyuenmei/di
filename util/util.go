@@ -59,6 +59,7 @@ func MyIP() (string, error) {
 	return httpRequest("http://checkip.amazonaws.com/")
 }
 
+// ShortUUID truncates a uuid string to 12 characters.
 func ShortUUID(uuid string) string {
 	if len(uuid) < 12 {
 		return uuid
@@ -87,13 +88,16 @@ func EditDistance(a, b []string) int {
 	return ed
 }
 
-// Stored in a variable so that we can replace it with in-memory filesystems for unit tests.
-var AppFs afero.Fs = afero.NewOsFs()
+// AppFs is an aero filesystem.  It is stored in a variable so that we can replace it
+// with in-memory filesystems for unit tests.
+var AppFs = afero.NewOsFs()
 
+// Open opens a new aero file.
 func Open(path string) (afero.File, error) {
 	return AppFs.Open(path)
 }
 
+// WriteFile writes 'data' to the file 'filename' with the given permissions.
 func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	a := afero.Afero{
 		Fs: AppFs,
@@ -101,6 +105,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return a.WriteFile(filename, data, perm)
 }
 
+// StrSliceEqual returns true of the string slices 'x' and 'y' are identical.
 func StrSliceEqual(x, y []string) bool {
 	if len(x) != len(y) {
 		return false
@@ -113,6 +118,7 @@ func StrSliceEqual(x, y []string) bool {
 	return true
 }
 
+// StrStrMapEqual returns true of the string->string maps 'x' and 'y' are equal.
 func StrStrMapEqual(x, y map[string]string) bool {
 	if len(x) != len(y) {
 		return false

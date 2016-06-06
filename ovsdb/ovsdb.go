@@ -12,6 +12,8 @@ import (
 	ovs "github.com/socketplane/libovsdb"
 )
 
+// The Ovsdb interface allows interaction with a locally running instance of the Open
+// vSwitchd database.
 type Ovsdb interface {
 	Close()
 	ListSwitches() ([]string, error)
@@ -39,8 +41,8 @@ type Ovsdb interface {
 	SetBridgeMac(lswitch, mac string) error
 }
 
-// OvsdbClientis a connection to the ovsdb-server database.
-type OvsdbClient struct {
+// Client is a connection to the ovsdb-server database.
+type Client struct {
 	*ovs.OvsdbClient
 }
 
@@ -57,6 +59,8 @@ type Acl struct {
 	Log  bool
 }
 
+// AclCore is the actual ACL rule that will be matched, without various OVSDB metadata
+// found in Acl.
 type AclCore struct {
 	Priority  int
 	Direction string
@@ -79,11 +83,11 @@ type mutation interface{}
 // It's stored in a variable so we can mock it out for the unit tests.
 var Open = func() (Ovsdb, error) {
 	client, err := ovs.Connect("127.0.0.1", 6640)
-	return OvsdbClient{client}, err
+	return Client{client}, err
 }
 
 // Close destroys an Ovsdb connection created by Open.
-func (ovsdb OvsdbClient) Close() {
+func (ovsdb Client) Close() {
 	ovsdb.Disconnect()
 }
 
@@ -138,7 +142,7 @@ func newMutation(column, mutator string, value interface{}) mutation {
 	}
 }
 
-func (ovsdb OvsdbClient) selectRows(db string, table string,
+func (ovsdb Client) selectRows(db string, table string,
 	conds ...condition) ([]Row, error) {
 	var anonymousConds []interface{}
 	for _, c := range conds {
@@ -160,7 +164,7 @@ func (ovsdb OvsdbClient) selectRows(db string, table string,
 	return typedRows, nil
 }
 
-func (ovsdb OvsdbClient) getFromMapInRow(row Row, column, key string) (
+func (ovsdb Client) getFromMapInRow(row Row, column, key string) (
 	interface{}, error) {
 	val, ok := row[column]
 	if !ok {
@@ -259,7 +263,7 @@ func errorCheck(results []ovs.OperationResult, expectedResponses int,
 }
 
 // ListSwitches queries the database for the logical switches in OVN.
-func (ovsdb OvsdbClient) ListSwitches() ([]string, error) {
+func (ovsdb Client) ListSwitches() ([]string, error) {
 	var switches []string
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
 		newCondition("_uuid", "!=", "_"))
@@ -275,7 +279,7 @@ func (ovsdb OvsdbClient) ListSwitches() ([]string, error) {
 }
 
 // CreateSwitch creates a new logical switch in OVN.
-func (ovsdb OvsdbClient) CreateSwitch(lswitch string) error {
+func (ovsdb Client) CreateSwitch(lswitch string) error {
 	check, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
 		newCondition("name", "==", lswitch))
 	if err != nil {
@@ -304,7 +308,7 @@ func (ovsdb OvsdbClient) CreateSwitch(lswitch string) error {
 }
 
 // DeleteSwitch removes a logical switch from OVN.
-func (ovsdb OvsdbClient) DeleteSwitch(lswitch string) error {
+func (ovsdb Client) DeleteSwitch(lswitch string) error {
 	deleteOp := ovs.Operation{
 		Op:    "delete",
 		Table: "Logical_Switch",
@@ -320,7 +324,7 @@ func (ovsdb OvsdbClient) DeleteSwitch(lswitch string) error {
 }
 
 // ListPorts lists the logical ports in OVN.
-func (ovsdb OvsdbClient) ListPorts(lswitch string) ([]LPort, error) {
+func (ovsdb Client) ListPorts(lswitch string) ([]LPort, error) {
 	var lports []LPort
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
 		newCondition("name", "==", lswitch))
@@ -351,7 +355,7 @@ func (ovsdb OvsdbClient) ListPorts(lswitch string) ([]LPort, error) {
 }
 
 // CreatePort creates a new logical port in OVN.
-func (ovsdb OvsdbClient) CreatePort(lswitch, name, mac, ip string) error {
+func (ovsdb Client) CreatePort(lswitch, name, mac, ip string) error {
 	// OVN Uses name an index into the Logical_Port table so, we need to check
 	// no port called name already exists. This isn't strictly necessary, but it
 	// makes our lives easier.
@@ -396,7 +400,7 @@ func (ovsdb OvsdbClient) CreatePort(lswitch, name, mac, ip string) error {
 }
 
 // DeletePort removes a logical port from OVN.
-func (ovsdb OvsdbClient) DeletePort(lswitch, name string) error {
+func (ovsdb Client) DeletePort(lswitch, name string) error {
 	rows, err := ovsdb.selectRows("OVN_Northbound", "Logical_Port",
 		newCondition("name", "==", name))
 	if err != nil {
@@ -428,7 +432,7 @@ func (ovsdb OvsdbClient) DeletePort(lswitch, name string) error {
 }
 
 // ListACLs lists the access control rules in OVN.
-func (ovsdb OvsdbClient) ListACLs(lswitch string) ([]Acl, error) {
+func (ovsdb Client) ListACLs(lswitch string) ([]Acl, error) {
 	var acls []Acl
 	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
 		newCondition("name", "==", lswitch))
@@ -484,7 +488,7 @@ func (ovsdb OvsdbClient) ListACLs(lswitch string) ([]Acl, error) {
 //
 // dir and match may be wildcarded by passing the value "*". priority may also
 // be wildcarded by passing a value less than 0
-func (ovsdb OvsdbClient) CreateACL(lswitch string, dir string, priority int, match string,
+func (ovsdb Client) CreateACL(lswitch string, dir string, priority int, match string,
 	action string, doLog bool) error {
 	acl := make(map[string]interface{})
 	if dir != "*" {
@@ -521,7 +525,7 @@ func (ovsdb OvsdbClient) CreateACL(lswitch string, dir string, priority int, mat
 }
 
 // DeleteACL removes an access control rule from OVN.
-func (ovsdb OvsdbClient) DeleteACL(lswitch string, dir string, priority int, match string) error {
+func (ovsdb Client) DeleteACL(lswitch string, dir string, priority int, match string) error {
 	acls, err := ovsdb.ListACLs(lswitch)
 	if err != nil {
 		return err
@@ -564,7 +568,7 @@ func (ovsdb OvsdbClient) DeleteACL(lswitch string, dir string, priority int, mat
 	return nil
 }
 
-func (ovsdb OvsdbClient) getOFGeneric(table, name string) ([]Row, error) {
+func (ovsdb Client) getOFGeneric(table, name string) ([]Row, error) {
 	results, err := ovsdb.selectRows("Open_vSwitch", table,
 		newCondition("name", "==", name))
 	if err != nil {
@@ -581,7 +585,7 @@ func (ovsdb OvsdbClient) getOFGeneric(table, name string) ([]Row, error) {
 
 // DeleteOFPort deletes an openflow port with the corresponding bridge and
 // port names.
-func (ovsdb OvsdbClient) DeleteOFPort(bridge, name string) error {
+func (ovsdb Client) DeleteOFPort(bridge, name string) error {
 	rows, err := ovsdb.selectRows("Open_vSwitch", "Port",
 		newCondition("name", "==", name))
 	if err != nil {
@@ -615,7 +619,7 @@ func (ovsdb OvsdbClient) DeleteOFPort(bridge, name string) error {
 // GetOFPortNo retrieves the OpenFlow port number of 'name' from OVS.
 //
 // Returns an error of type *ExistError if the port does not exist
-func (ovsdb OvsdbClient) GetOFPortNo(name string) (int, error) {
+func (ovsdb Client) GetOFPortNo(name string) (int, error) {
 	// It takes some time for the OF port to get up, so we give
 	// it a few chances, before we return an error.
 	for i := 0; i < 3; i++ {
@@ -637,7 +641,7 @@ func (ovsdb OvsdbClient) GetOFPortNo(name string) (int, error) {
 //
 // A port cannot be created without an interface, that is why the "default"
 // interface (one with the same name as the port) is created along with it.
-func (ovsdb OvsdbClient) CreateOFPort(bridge, name string) error {
+func (ovsdb Client) CreateOFPort(bridge, name string) error {
 	var ops []ovs.Operation
 
 	ops = append(ops, ovs.Operation{
@@ -682,7 +686,7 @@ func (ovsdb OvsdbClient) CreateOFPort(bridge, name string) error {
 }
 
 // ListOFPorts lists all openflow ports on specified bridge
-func (ovsdb OvsdbClient) ListOFPorts(bridge string) ([]string, error) {
+func (ovsdb Client) ListOFPorts(bridge string) ([]string, error) {
 	var ports []string
 	results, err := ovsdb.selectRows("Open_vSwitch", "Bridge",
 		newCondition("name", "==", bridge))
@@ -706,7 +710,7 @@ func (ovsdb OvsdbClient) ListOFPorts(bridge string) ([]string, error) {
 
 // GetDefaultOFInterface gets the default interface of the specified port,
 // which is the interface with the same name
-func (ovsdb OvsdbClient) GetDefaultOFInterface(port string) (Row, error) {
+func (ovsdb Client) GetDefaultOFInterface(port string) (Row, error) {
 	results, err := ovsdb.selectRows("Open_vSwitch", "Port",
 		newCondition("name", "==", port))
 	if err != nil {
@@ -733,7 +737,7 @@ func (ovsdb OvsdbClient) GetDefaultOFInterface(port string) (Row, error) {
 }
 
 // GetOFInterfaceType gets the type of the interface given a Row
-func (ovsdb OvsdbClient) GetOFInterfaceType(iface Row) (string, error) {
+func (ovsdb Client) GetOFInterfaceType(iface Row) (string, error) {
 	val, ok := iface["type"]
 	if !ok {
 		return "", &ExistError{"column type not found in interface row"}
@@ -742,7 +746,7 @@ func (ovsdb OvsdbClient) GetOFInterfaceType(iface Row) (string, error) {
 }
 
 // GetOFInterfacePeer gets the peer of the interface given a Row
-func (ovsdb OvsdbClient) GetOFInterfacePeer(iface Row) (string, error) {
+func (ovsdb Client) GetOFInterfacePeer(iface Row) (string, error) {
 	val, err := ovsdb.getFromMapInRow(iface, "options", "peer")
 	if err != nil {
 		return "", err
@@ -751,7 +755,7 @@ func (ovsdb OvsdbClient) GetOFInterfacePeer(iface Row) (string, error) {
 }
 
 // GetOFInterfaceAttachedMAC gets the attached-mac of the interface given a Row
-func (ovsdb OvsdbClient) GetOFInterfaceAttachedMAC(iface Row) (string, error) {
+func (ovsdb Client) GetOFInterfaceAttachedMAC(iface Row) (string, error) {
 	val, err := ovsdb.getFromMapInRow(iface, "external_ids", "attached-mac")
 	if err != nil {
 		return "", err
@@ -760,7 +764,7 @@ func (ovsdb OvsdbClient) GetOFInterfaceAttachedMAC(iface Row) (string, error) {
 }
 
 // GetOFInterfaceIfaceID gets the iface-id of the interface given a Row
-func (ovsdb OvsdbClient) GetOFInterfaceIfaceID(iface Row) (string, error) {
+func (ovsdb Client) GetOFInterfaceIfaceID(iface Row) (string, error) {
 	val, err := ovsdb.getFromMapInRow(iface, "external_ids", "iface-id")
 	if err != nil {
 		return "", err
@@ -768,7 +772,7 @@ func (ovsdb OvsdbClient) GetOFInterfaceIfaceID(iface Row) (string, error) {
 	return val.(string), nil
 }
 
-func (ovsdb OvsdbClient) addToOFInterface(name string, mut mutation) error {
+func (ovsdb Client) addToOFInterface(name string, mut mutation) error {
 	mutateOp := ovs.Operation{
 		Op:        "mutate",
 		Table:     "Interface",
@@ -784,7 +788,7 @@ func (ovsdb OvsdbClient) addToOFInterface(name string, mut mutation) error {
 	return errorCheck(results, 1, 1)
 }
 
-func (ovsdb OvsdbClient) updateOFInterface(name string, update Row) error {
+func (ovsdb Client) updateOFInterface(name string, update Row) error {
 	updateOp := ovs.Operation{
 		Op:    "update",
 		Table: "Interface",
@@ -801,7 +805,7 @@ func (ovsdb OvsdbClient) updateOFInterface(name string, update Row) error {
 }
 
 // SetOFInterfacePeer sets the peer of the interface
-func (ovsdb OvsdbClient) SetOFInterfacePeer(name, peer string) error {
+func (ovsdb Client) SetOFInterfacePeer(name, peer string) error {
 	mut := newMutation("options", "insert", map[string]string{"peer": peer})
 	if err := ovsdb.addToOFInterface(name, mut); err != nil {
 		return fmt.Errorf("error setting interface %s to peer %s: %s",
@@ -811,7 +815,7 @@ func (ovsdb OvsdbClient) SetOFInterfacePeer(name, peer string) error {
 }
 
 // SetBridgeMac sets the MAC address of the bridge
-func (ovsdb OvsdbClient) SetBridgeMac(lswitch, mac string) error {
+func (ovsdb Client) SetBridgeMac(lswitch, mac string) error {
 	mut := newMutation("other_config", "insert", map[string]string{"hwaddr": mac})
 	mutateOp := ovs.Operation{
 		Op:        "mutate",
@@ -829,7 +833,7 @@ func (ovsdb OvsdbClient) SetBridgeMac(lswitch, mac string) error {
 }
 
 // SetOFInterfaceAttachedMAC sets the attached-mac of the interface
-func (ovsdb OvsdbClient) SetOFInterfaceAttachedMAC(name, mac string) error {
+func (ovsdb Client) SetOFInterfaceAttachedMAC(name, mac string) error {
 	mut := newMutation("external_ids", "insert",
 		map[string]string{"attached-mac": mac})
 	if err := ovsdb.addToOFInterface(name, mut); err != nil {
@@ -840,7 +844,7 @@ func (ovsdb OvsdbClient) SetOFInterfaceAttachedMAC(name, mac string) error {
 }
 
 // SetOFInterfaceIfaceID sets the iface-id of the interface
-func (ovsdb OvsdbClient) SetOFInterfaceIfaceID(name, ifaceID string) error {
+func (ovsdb Client) SetOFInterfaceIfaceID(name, ifaceID string) error {
 	mut := newMutation("external_ids", "insert",
 		map[string]string{"iface-id": ifaceID})
 	if err := ovsdb.addToOFInterface(name, mut); err != nil {
@@ -851,7 +855,7 @@ func (ovsdb OvsdbClient) SetOFInterfaceIfaceID(name, ifaceID string) error {
 }
 
 // SetOFInterfaceType sets the type of the interface
-func (ovsdb OvsdbClient) SetOFInterfaceType(name, ifaceType string) error {
+func (ovsdb Client) SetOFInterfaceType(name, ifaceType string) error {
 	if err := ovsdb.updateOFInterface(name, Row{"type": ifaceType}); err != nil {
 		return fmt.Errorf("error setting interface %s to type %s: %s",
 			name, ifaceType, err)

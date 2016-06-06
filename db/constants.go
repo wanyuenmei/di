@@ -89,6 +89,7 @@ func ParseProvider(name string) (Provider, error) {
 	}
 }
 
+// ParseRole returns the Role represented by the string 'role', or an error.
 func ParseRole(role string) (Role, error) {
 	switch role {
 	case "Master":

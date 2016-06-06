@@ -1,14 +1,13 @@
 package network
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
 
 func TestListIP(t *testing.T) {
-	oldIpExecVerbose := ipExecVerbose
-	defer func() { ipExecVerbose = oldIpExecVerbose }()
+	oldIPExecVerbose := ipExecVerbose
+	defer func() { ipExecVerbose = oldIPExecVerbose }()
 	ipExecVerbose = func(namespace, format string, args ...interface{}) (
 		stdout, stderr []byte, err error) {
 		return []byte(ips()), nil, nil
@@ -16,14 +15,14 @@ func TestListIP(t *testing.T) {
 	actual, _ := listIP("", innerVeth)
 	exp := []string{"10.0.2.15/24", "fe80::a00:27ff:fe9b:594e/64"}
 	if !reflect.DeepEqual(actual, exp) {
-		t.Error(fmt.Sprintf("Generated wrong IPs."+
-			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
+		t.Errorf("Generated wrong IPs.\nExpected:\n%s\n\nGot:\n%s\n",
+			exp, actual)
 	}
 }
 
 func TestLinkIsUp(t *testing.T) {
-	oldIpExecVerbose := ipExecVerbose
-	defer func() { ipExecVerbose = oldIpExecVerbose }()
+	oldIPExecVerbose := ipExecVerbose
+	defer func() { ipExecVerbose = oldIPExecVerbose }()
 	ipExecVerbose = func(namespace, format string, args ...interface{}) (
 		stdout, stderr []byte, err error) {
 		return []byte(ips()), nil, nil
@@ -32,15 +31,15 @@ func TestLinkIsUp(t *testing.T) {
 	exp := true
 	isUp, _ := linkIsUp("", "eth0")
 	if exp != isUp {
-		t.Error(fmt.Sprintf("Got wrong link state."+
-			"\nExpected:\n%t\n\nGot:\n%t\n", exp, isUp))
+		t.Errorf("Got wrong link state.\nExpected:\n%t\n\nGot:\n%t\n",
+			exp, isUp)
 	}
 
 	exp = false
 	isUp, _ = linkIsUp("", "eth1")
 	if exp != isUp {
-		t.Error(fmt.Sprintf("Got wrong link state."+
-			"\nExpected:\n%t\n\nGot:\n%t\n", exp, isUp))
+		t.Errorf("Got wrong link state.\nExpected:\n%t\n\nGot:\n%t\n", exp,
+			isUp)
 	}
 }
 

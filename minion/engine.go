@@ -78,7 +78,7 @@ func makeConnectionPlacements(conns []db.Connection) db.PlacementSlice {
 	var dbPlacements db.PlacementSlice
 	for _, conn := range conns {
 		if conn.From == dsl.PublicInternetLabel {
-			for p := conn.MinPort; p <= conn.MaxPort; p += 1 {
+			for p := conn.MinPort; p <= conn.MaxPort; p++ {
 				dbPlacements = append(dbPlacements, db.Placement{
 					TargetLabel: conn.To,
 					Rule: db.PortRule{

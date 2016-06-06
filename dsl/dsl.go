@@ -13,15 +13,18 @@ type Dsl struct {
 	ctx  evalCtx
 }
 
+// A Placement constraint guides where containers may be scheduled, either relative to
+// the labels of other containers, or the machine the container will run on.
+type Placement struct {
+	TargetLabel string
+	Rule        Rule
+}
+
+// A Rule specifies the specific constraint used in a Placement.
 type Rule struct {
 	Exclusive         bool
 	OtherLabels       []string
 	MachineAttributes map[string]string
-}
-
-type Placement struct {
-	TargetLabel string
-	Rule        Rule
 }
 
 // A Container may be instantiated in the dsl and queried by users.
@@ -65,6 +68,8 @@ type Range struct {
 	Max float64
 }
 
+// PublicInternetLabel is a magic label that allows connections to or from the public
+// network.
 const PublicInternetLabel = "public"
 
 // Accepts returns true if `x` is within the range specified by `dslr` (include),
@@ -310,21 +315,21 @@ func (dslErr dslError) Error() string {
 }
 
 // innermostPos returns the most nested position that is non-zero.
-func (err dslError) innermostPos() scanner.Position {
-	childErr, ok := err.err.(dslError)
+func (dslErr dslError) innermostPos() scanner.Position {
+	childErr, ok := dslErr.err.(dslError)
 	if !ok {
-		return err.pos
+		return dslErr.pos
 	}
 
 	innerPos := childErr.innermostPos()
 	if innerPos.Line == 0 {
-		return err.pos
+		return dslErr.pos
 	}
 	return innerPos
 }
 
-func (err dslError) innermostError() error {
-	switch childErr := err.err.(type) {
+func (dslErr dslError) innermostError() error {
+	switch childErr := dslErr.err.(type) {
 	case dslError:
 		return childErr.innermostError()
 	default:

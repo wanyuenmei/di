@@ -19,20 +19,21 @@ type profiler interface {
 	TimedRun(time.Duration) error
 }
 
-type prof struct {
+// The Prof handle represents a profiling job.
+type Prof struct {
 	fname string
 	fd    *os.File
 }
 
-// Only one profiler can run at a time.
-func New(name string) prof {
-	return prof{
+// New returns a profiler. Only one profiler may run at a time.
+func New(name string) Prof {
+	return Prof{
 		fname: fmt.Sprintf("/%s.prof", name),
 	}
 }
 
 // Start a new run of the profiler.
-func (pro *prof) Start() error {
+func (pro *Prof) Start() error {
 	fd, err := os.Create(pro.fname + ".tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create tmp file: %s", err)
@@ -42,8 +43,8 @@ func (pro *prof) Start() error {
 	return nil
 }
 
-// Stop profiling and output results to a file
-func (pro *prof) Stop() error {
+// Stop profiling and output results to a file.
+func (pro *Prof) Stop() error {
 	pprof.StopCPUProfile()
 	pro.fd.Close()
 	if err := os.Rename(pro.fname+".tmp", pro.fname); err != nil {
@@ -52,8 +53,8 @@ func (pro *prof) Stop() error {
 	return nil
 }
 
-// A convenience function that starts and then stops after a given duration
-func (pro *prof) TimedRun(duration time.Duration) error {
+// TimedRun is a convenience function that starts and then stops after a given duration.
+func (pro *Prof) TimedRun(duration time.Duration) error {
 	timer := time.NewTimer(duration)
 	if err := pro.Start(); err != nil {
 		return err

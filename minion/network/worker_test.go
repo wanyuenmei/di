@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -21,8 +20,8 @@ func TestNoConnections(t *testing.T) {
 	exp := "1.1.1.1         abcdefghijkl" + localhosts()
 
 	if exp != actual {
-		t.Error(fmt.Sprintf("Generated wrong basic /etc/hosts."+
-			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
+		t.Errorf("Generated wrong basic /etc/hosts."+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual)
 	}
 }
 
@@ -41,8 +40,8 @@ func TestImplementsSingleLabel(t *testing.T) {
 10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
-		t.Error(fmt.Sprintf("Generated wrong single label /etc/hosts."+
-			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
+		t.Errorf("Generated wrong single label /etc/hosts."+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual)
 	}
 }
 
@@ -62,8 +61,8 @@ func TestImplementsMultipleLabels(t *testing.T) {
 10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
-		t.Error(fmt.Sprintf("Generated wrong multi-label /etc/hosts"+
-			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
+		t.Errorf("Generated wrong multi-label /etc/hosts"+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual)
 	}
 }
 
@@ -86,9 +85,8 @@ func TestDuplicateConnections(t *testing.T) {
 10.0.0.3        green.q` + localhosts()
 
 	if exp != actual {
-		t.Error(fmt.Sprintf(
-			"Generated wrong /etc/hosts for duplicate connections."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual))
+		t.Errorf("Generated wrong /etc/hosts for duplicate connections."+
+			"\nExpected:\n%s\n\nGot:\n%s\n", exp, actual)
 	}
 }
 
@@ -100,21 +98,18 @@ func TestMakeIPRule(t *testing.T) {
 	expOpts := "-p tcp -i eth0 -m multiport --dports 465,110,995 -j ACCEPT"
 
 	if rule.cmd != expCmd {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule command."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expCmd, rule.cmd))
+		t.Errorf("Bad ipRule command.\nExpected:\n%s\n\nGot:\n%s\n",
+			expCmd, rule.cmd)
 	}
 
 	if rule.chain != expChain {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule chain."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expChain, rule.chain))
+		t.Errorf("Bad ipRule chain.\nExpected:\n%s\n\nGot:\n%s\n",
+			expChain, rule.chain)
 	}
 
 	if rule.opts != expOpts {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule options."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expOpts, rule.opts))
+		t.Errorf("Bad ipRule options.\nExpected:\n%s\n\nGot:\n%s\n",
+			expOpts, rule.opts)
 	}
 
 	inp = "-A POSTROUTING -s 10.0.3.0/24 ! -d 10.0.3.0/24 -j MASQUERADE"
@@ -124,21 +119,18 @@ func TestMakeIPRule(t *testing.T) {
 	expOpts = "-s 10.0.3.0/24 ! -d 10.0.3.0/24 -j MASQUERADE"
 
 	if rule.cmd != expCmd {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule command."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expCmd, rule.cmd))
+		t.Errorf("Bad ipRule command.\nExpected:\n%s\n\nGot:\n%s\n",
+			expCmd, rule.cmd)
 	}
 
 	if rule.chain != expChain {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule chain."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expChain, rule.chain))
+		t.Errorf("Bad ipRule chain.\nExpected:\n%s\n\nGot:\n%s\n",
+			expChain, rule.chain)
 	}
 
 	if rule.opts != expOpts {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule options."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expOpts, rule.opts))
+		t.Errorf("Bad ipRule options.\nExpected:\n%s\n\nGot:\n%s\n",
+			expOpts, rule.opts)
 	}
 
 	inp = "-A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination 10.31.0.23:80"
@@ -148,27 +140,24 @@ func TestMakeIPRule(t *testing.T) {
 	expOpts = "-i eth0 -p tcp --dport 80 -j DNAT --to-destination 10.31.0.23:80"
 
 	if rule.cmd != expCmd {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule command."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expCmd, rule.cmd))
+		t.Errorf("Bad ipRule command.\nExpected:\n%s\n\nGot:\n%s\n",
+			expCmd, rule.cmd)
 	}
 
 	if rule.chain != expChain {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule chain."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expChain, rule.chain))
+		t.Errorf("Bad ipRule chain.\nExpected:\n%s\n\nGot:\n%s\n",
+			expChain, rule.chain)
 	}
 
 	if rule.opts != expOpts {
-		t.Error(fmt.Sprintf(
-			"Bad ipRule options."+
-				"\nExpected:\n%s\n\nGot:\n%s\n", expOpts, rule.opts))
+		t.Errorf("Bad ipRule options.\nExpected:\n%s\n\nGot:\n%s\n",
+			expOpts, rule.opts)
 	}
 }
 
 func TestGenerateCurrentRoutes(t *testing.T) {
-	oldIpExecVerbose := ipExecVerbose
-	defer func() { ipExecVerbose = oldIpExecVerbose }()
+	oldIPExecVerbose := ipExecVerbose
+	defer func() { ipExecVerbose = oldIPExecVerbose }()
 	ipExecVerbose = func(namespace, format string, args ...interface{}) (
 		stdout, stderr []byte, err error) {
 		return []byte(routes()), nil, nil
@@ -194,8 +183,8 @@ func TestGenerateCurrentRoutes(t *testing.T) {
 	}
 
 	if !(reflect.DeepEqual(actual, exp)) {
-		t.Error(fmt.Sprintf("Generated wrong routes."+
-			"\nExpected:\n%+v\n\nGot:\n%+v\n", exp, actual))
+		t.Errorf("Generated wrong routes.\nExpected:\n%+v\n\nGot:\n%+v\n",
+			exp, actual)
 	}
 }
 
@@ -231,8 +220,8 @@ func TestGenerateCurrentNatRules(t *testing.T) {
 	}
 
 	if !(reflect.DeepEqual(actual, exp)) {
-		t.Error(fmt.Sprintf("Generated wrong routes."+
-			"\nExpected:\n%+v\n\nGot:\n%+v\n", exp, actual))
+		t.Errorf("Generated wrong routes.\nExpected:\n%+v\n\nGot:\n%+v\n",
+			exp, actual)
 	}
 }
 
@@ -261,7 +250,7 @@ func TestMakeOFRule(t *testing.T) {
 
 		rule, err := makeOFRule(f)
 		if err != nil {
-			t.Error(fmt.Sprintf("failed to make OpenFlow rule: %s", err))
+			t.Errorf("failed to make OpenFlow rule: %s", err)
 		}
 		actual = append(actual, rule)
 	}
@@ -305,8 +294,8 @@ func TestMakeOFRule(t *testing.T) {
 	}
 
 	if !(reflect.DeepEqual(actual, exp)) {
-		t.Error(fmt.Sprintf("generated wrong OFRules."+
-			"\nExpected:\n%+v\n\nGot:\n%+v\n", exp, actual))
+		t.Errorf("generated wrong OFRules.\nExpected:\n%+v\n\nGot:\n%+v\n",
+			exp, actual)
 	}
 }
 

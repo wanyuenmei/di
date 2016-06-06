@@ -28,8 +28,10 @@ check:
 
 lint: format
 	cd -P . && go vet $(PACKAGES)
-	for package in `echo $(PACKAGES) | grep -v minion/pb`; do \
-		golint -min_confidence .25 $$package ; \
+	for package in $(PACKAGES) ; do \
+		if echo $$package | grep -v minion/pb ; then \
+			golint -min_confidence .25 $$package ; \
+		fi \
 	done
 
 coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov

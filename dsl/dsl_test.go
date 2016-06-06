@@ -1145,14 +1145,14 @@ func TestRuntimeErrors(t *testing.T) {
 
 	runtimeErr(t, `(label a a)`, "1: unassigned variable: a")
 
-	runtimeErr(t, "(1 2 3)", "1: S-expressions must start with a function call: 1")
+	runtimeErr(t, "(1 2 3)", "1: s-expressions must start with a function call: 1")
 
 	args := "1: not enough arguments: +"
 	runtimeErr(t, "(+)", args)
 	runtimeErr(t, "(+ 5)", args)
 	runtimeErr(t, "(+ 5 (+ 6))", args)
 
-	runtimeErr(t, "()", "1: S-expressions must start with a function call: ()")
+	runtimeErr(t, "()", "1: s-expressions must start with a function call: ()")
 	runtimeErr(t, "(let)", "1: not enough arguments: let")
 	runtimeErr(t, "(let 3 a)", "1: let binds must be defined in an S-expression")
 	runtimeErr(t, "(let (a) a)", "1: binds must be exactly 2 arguments: a")

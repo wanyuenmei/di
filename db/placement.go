@@ -6,6 +6,9 @@ import (
 	"github.com/NetSys/quilt/minion/docker"
 )
 
+// Placement represents a declaration about how containers should be placed.  These
+// directives can be made either relative to labels of other containers, or Machines
+// those containers run on.
 type Placement struct {
 	ID int
 
@@ -16,7 +19,7 @@ type Placement struct {
 // PlacementSlice is an alias for []Placement to allow for joins
 type PlacementSlice []Placement
 
-// Returns true if this placement applies to the container c, and false if it doesn't.
+// Applies returns true if this placement applies to the container c, false otherwise.
 func (p Placement) Applies(c Container) bool {
 	for _, label := range c.Labels {
 		if label == p.TargetLabel {
@@ -27,6 +30,7 @@ func (p Placement) Applies(c Container) bool {
 	return false
 }
 
+// A PlacementRule represents a declaration constraining container placement.
 type PlacementRule interface {
 	// Return the affinity string that represents this rule
 	AffinityStr() string
@@ -34,41 +38,51 @@ type PlacementRule interface {
 	fmt.Stringer
 }
 
+// A LabelRule constrains placement relative to other container labels.
 type LabelRule struct {
 	OtherLabel string
 	Exclusive  bool
 }
 
+// AffinityStr is passed to Docker Swarm to implement the LabelRule.
 func (lr LabelRule) AffinityStr() string {
 	return toAffinity(docker.UserLabel(lr.OtherLabel), !lr.Exclusive, docker.LabelTrueValue)
 }
 
+// String returns the AffinityStr of this label.
 func (lr LabelRule) String() string {
 	return lr.AffinityStr()
 }
 
+// A MachineRule constrains container placement relative to the machine it runs on.
 type MachineRule struct {
 	Attribute string
 	Value     string
 	Exclusive bool
 }
 
+// AffinityStr is passed to Docker Swarm to implement the MachineRule.
 func (mr MachineRule) AffinityStr() string {
 	return toAffinity(docker.SystemLabel(mr.Attribute), !mr.Exclusive, mr.Value)
 }
 
+// String returns the AffinityStr of 'mr'.
 func (mr MachineRule) String() string {
 	return mr.AffinityStr()
 }
 
+// A PortRule constrains container placement relative to public network ports they will
+// need.
 type PortRule struct {
 	Port int
 }
 
+// AffinityStr is passed to Docker Swarm to implement the PortRule.
 func (pr PortRule) AffinityStr() string {
 	return toAffinity(docker.PortLabel(pr.Port), false, docker.LabelTrueValue)
 }
 
+// String returns the AffinityStr of 'pr'.
 func (pr PortRule) String() string {
 	return pr.AffinityStr()
 }

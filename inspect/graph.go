@@ -1,15 +1,19 @@
 package main
 
+// A Node in the communiction Graph.
 type Node struct {
 	Name        Label
 	Connections map[string]*Node
 }
 
+// A Connection is an edge in the communication Graph.
 type Connection struct {
 	From *Node
 	To   *Node
 }
 
+// A Graph represents permission to communicate across a series of Nodes.  Each Node is a
+// container and each edge is permissions to initiate a connection.
 type Graph struct {
 	Nodes       map[string]Node
 	Connections []Connection
@@ -60,7 +64,7 @@ func (n *Node) dfs() []Label {
 	}
 	explore(n)
 
-	reachable := make([]Label, 0)
+	var reachable []Label
 	for l := range reached {
 		reachable = append(reachable, Label(l))
 	}
@@ -75,8 +79,7 @@ func paths(start *Node, end *Node) ([]Path, bool) {
 		return nil, false
 	}
 
-	paths := make([]Path, 0)
-
+	var paths []Path
 	var explore func(t *Node, p Path)
 	explore = func(t *Node, p Path) {
 		if t.Name == end.Name {

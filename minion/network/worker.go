@@ -88,6 +88,7 @@ type ipRule struct {
 
 type ipRuleSlice []ipRule
 
+// OFRule is an OpenFlow rule for Open vSwitch's OpenFlow table.
 type OFRule struct {
 	table   string
 	match   string
@@ -903,7 +904,8 @@ func generateCurrentOpenFlow(dk docker.Client) (OFRuleSlice, error) {
 	stdout, _, err := dk.ExecVerbose(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list OpenFlow flows: %s", string(stdout))
+		return nil, fmt.Errorf("failed to list OpenFlow flows: %s",
+			string(stdout))
 	}
 
 	scanner := bufio.NewScanner(bytes.NewReader(stdout))
@@ -1240,7 +1242,6 @@ func namespaceExists(namespace string) (bool, error) {
 			nsFullPath, err)
 	} else if dst == fmt.Sprintf("/hostproc/%s/ns/net", namespace) {
 		return true, nil
-	} else {
 	}
 	return false, nil
 }
@@ -1373,7 +1374,7 @@ func addNatRule(rule ipRule) error {
 	cmd := fmt.Sprintf("iptables -t nat -A %s", args)
 	err := sh(cmd)
 	if err != nil {
-		return fmt.Errorf("Failed to add NAT rule %s: %s", cmd, err)
+		return fmt.Errorf("failed to add NAT rule %s: %s", cmd, err)
 	}
 	return nil
 }
