@@ -537,12 +537,12 @@ func TestMachines(t *testing.T) {
 	code = `(machine (provider "Amazon") (size "m4.large"))`
 	checkMachines(code, code, expMachine)
 
-	// Test heterogenous sizes
+	// Test heterogeneous sizes
 	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Amazon") (size "m4.xlarge"))`
 	expMachine2 := Machine{Provider: "Amazon", Size: "m4.xlarge"}
 	checkMachines(code, code, expMachine, expMachine2)
 
-	// Test heterogenous providers
+	// Test heterogeneous providers
 	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Vagrant"))`
 	expMachine2 = Machine{Provider: "Vagrant"}
 	checkMachines(code, code, expMachine, expMachine2)

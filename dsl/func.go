@@ -14,7 +14,7 @@ import (
 type funcImpl struct {
 	do      func(*evalCtx, []ast) (ast, error)
 	minArgs int
-	lazy    bool // True if arguments shoudl not be evaluated automatically.
+	lazy    bool // True if arguments should not be evaluated automatically.
 }
 
 var funcImplMap map[astIdent]funcImpl

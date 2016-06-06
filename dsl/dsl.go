@@ -93,7 +93,7 @@ func New(sc scanner.Scanner, path []string) (Dsl, error) {
 	return Dsl{astRoot(parsed).String(), ctx}, nil
 }
 
-// QueryContainers retreives all containers declared in dsl.
+// QueryContainers retrieves all containers declared in dsl.
 func (dsl Dsl) QueryContainers() []*Container {
 	var containers []*Container
 	for _, c := range *dsl.ctx.containers {

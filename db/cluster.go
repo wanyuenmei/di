@@ -13,7 +13,7 @@ type Cluster struct {
 	Namespace string // Cloud Provider Namespace
 	Spec      string
 
-	/* XXX: These belong in a separate Adminstration table of some sort. */
+	/* XXX: These belong in a separate administration table of some sort. */
 	ACLs []string
 }
 
