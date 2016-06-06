@@ -703,8 +703,12 @@ func updateDefaultGw(odb ovsdb.Ovsdb) {
 	}
 
 	currIPs, err := listIP("", quiltBridge)
-	targetIPs := []string{gatewayIP + "/8"}
+	if err != nil {
+		log.WithError(err).Errorf("failed to list IPs")
+		return
+	}
 
+	targetIPs := []string{gatewayIP + "/8"}
 	if err := updateIPs("", quiltBridge, currIPs, targetIPs); err != nil {
 		log.WithError(err).Errorf("failed to update IPs")
 	}
