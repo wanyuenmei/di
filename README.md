@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/NetSys/quilt.svg?branch=master)](https://travis-ci.org/NetSys/quilt)
+[![Go Report Card](https://goreportcard.com/badge/github.com/NetSys/quilt)](https://goreportcard.com/report/github.com/NetSys/quilt)
 # Quilt
 
 Quilt aims to be the easiest way to deploy and network containers.
