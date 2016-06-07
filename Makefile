@@ -29,7 +29,7 @@ check:
 lint: format
 	cd -P . && go vet $(PACKAGES)
 	for package in $(PACKAGES) ; do \
-		if echo $$package | grep -v minion/pb ; then \
+		if [[ $$package != *minion/pb*  ]] ; then \
 			golint -min_confidence .25 $$package ; \
 		fi \
 	done
