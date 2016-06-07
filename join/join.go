@@ -74,7 +74,7 @@ func sliceDel(slice []interface{}, i int) []interface{} {
 	return slice[:l-1]
 }
 
-// `List` simply requires implementing types to allow access to their contained values by
+// List simply requires implementing types to allow access to their contained values by
 // integer index.
 type List interface {
 	Len() int

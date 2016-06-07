@@ -102,12 +102,15 @@ func ParseRole(role string) (Role, error) {
 	}
 }
 
+// ProviderSlice is an alias for []Provider to allow for joins
 type ProviderSlice []Provider
 
+// Get returns the value contained at the given index
 func (ps ProviderSlice) Get(ii int) interface{} {
 	return ps[ii]
 }
 
+// Len returns the number of items in the slice
 func (ps ProviderSlice) Len() int {
 	return len(ps)
 }

@@ -106,12 +106,15 @@ func SortMachines(machines []Machine) []Machine {
 	return machines
 }
 
+// MachineSlice is an alias for []Machine to allow for joins
 type MachineSlice []Machine
 
+// Get returns the value contained at the given index
 func (ms MachineSlice) Get(ii int) interface{} {
 	return ms[ii]
 }
 
+// Len returns the number of items in the slice
 func (ms MachineSlice) Len() int {
 	return len(ms)
 }

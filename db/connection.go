@@ -78,12 +78,15 @@ func (c Connection) less(r row) bool {
 	}
 }
 
+// ConnectionSlice is an alias for []Connection to allow for joins
 type ConnectionSlice []Connection
 
+// Get returns the value contained at the given index
 func (cs ConnectionSlice) Get(ii int) interface{} {
 	return cs[ii]
 }
 
+// Len returns the number of items in the slice.
 func (cs ConnectionSlice) Len() int {
 	return len(cs)
 }

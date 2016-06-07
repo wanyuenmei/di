@@ -332,10 +332,12 @@ func (err dslError) innermostError() error {
 	}
 }
 
+// Get returns the value contained at the given index
 func (cs ConnectionSlice) Get(ii int) interface{} {
 	return cs[ii]
 }
 
+// Len returns the number of items in the slice
 func (cs ConnectionSlice) Len() int {
 	return len(cs)
 }

@@ -435,12 +435,15 @@ func (dir directory) keys() []string {
 	return keys
 }
 
+// StringSlice is an alias for []string to allow for joins
 type StringSlice []string
 
+// Get returns the value contained at the given index
 func (ss StringSlice) Get(ii int) interface{} {
 	return ss[ii]
 }
 
+// Len returns the number of items in the slice
 func (ss StringSlice) Len() int {
 	return len(ss)
 }

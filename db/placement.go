@@ -13,6 +13,7 @@ type Placement struct {
 	Rule        PlacementRule
 }
 
+// PlacementSlice is an alias for []Placement to allow for joins
 type PlacementSlice []Placement
 
 // Returns true if this placement applies to the container c, and false if it doesn't.
@@ -125,10 +126,12 @@ func (p Placement) equal(r row) bool {
 	return p == r.(Placement)
 }
 
+// Get returns the value contained at the given index
 func (ps PlacementSlice) Get(ii int) interface{} {
 	return ps[ii]
 }
 
+// Len returns the numebr of items in the slice
 func (ps PlacementSlice) Len() int {
 	return len(ps)
 }

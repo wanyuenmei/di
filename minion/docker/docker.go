@@ -58,6 +58,7 @@ type Container struct {
 	Labels map[string]string
 }
 
+// ContainerSlice is an alias for []Container to allow for joins
 type ContainerSlice []Container
 
 // A Client to the local docker daemon.
@@ -427,10 +428,12 @@ func PortLabel(port int) string {
 	return portLabelPrefix + strconv.Itoa(port)
 }
 
+// Get returns the value contained at the given index
 func (cs ContainerSlice) Get(ii int) interface{} {
 	return cs[ii]
 }
 
+// Len returns the number of items in the slice
 func (cs ContainerSlice) Len() int {
 	return len(cs)
 }

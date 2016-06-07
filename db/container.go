@@ -23,6 +23,7 @@ type Container struct {
 	Env     map[string]string
 }
 
+// ContainerSlice is an alias for []Container to allow for joins
 type ContainerSlice []Container
 
 // InsertContainer creates a new container row and inserts it into the database.
@@ -107,10 +108,12 @@ func (c Container) less(r row) bool {
 	return c.ID < r.(Container).ID
 }
 
+// Get returns the value contained at the given index
 func (cs ContainerSlice) Get(ii int) interface{} {
 	return cs[ii]
 }
 
+// Len returns the number of items in the slice
 func (cs ContainerSlice) Len() int {
 	return len(cs)
 }

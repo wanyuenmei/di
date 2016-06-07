@@ -94,6 +94,7 @@ type OFRule struct {
 	actions string
 }
 
+// OFRuleSlice is an alias for []OFRule to allow for joins
 type OFRuleSlice []OFRule
 
 // Query the database for any running containers and for each container running on this
@@ -1530,10 +1531,12 @@ func (rs routeSlice) Len() int {
 	return len(rs)
 }
 
+// Get returns the value contained at the given index
 func (ofrs OFRuleSlice) Get(ii int) interface{} {
 	return ofrs[ii]
 }
 
+// Len returns the number of items in the slice
 func (ofrs OFRuleSlice) Len() int {
 	return len(ofrs)
 }

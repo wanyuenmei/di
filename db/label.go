@@ -10,6 +10,7 @@ type Label struct {
 	MultiHost bool
 }
 
+// LabelSlice is an alias for []Label to allow for joins
 type LabelSlice []Label
 
 // InsertLabel creates a new container row and inserts it into the database.
@@ -64,10 +65,12 @@ func (r Label) less(row row) bool {
 	}
 }
 
+// Get returns the value contained at the given index
 func (ls LabelSlice) Get(ii int) interface{} {
 	return ls[ii]
 }
 
+// Len returns the number of items in the slice
 func (ls LabelSlice) Len() int {
 	return len(ls)
 }
