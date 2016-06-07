@@ -3,6 +3,7 @@ PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
 REPO = quilt
 DOCKER = docker
+SHELL := /bin/bash
 
 all:
 	cd -P . && \
@@ -29,7 +30,7 @@ check:
 lint: format
 	cd -P . && go vet $(PACKAGES)
 	for package in $(PACKAGES) ; do \
-		if [[ $$package != *minion/pb*  ]] ; then \
+		if [[ $$package != *minion/pb* ]] ; then \
 			golint -min_confidence .25 $$package ; \
 		fi \
 	done
