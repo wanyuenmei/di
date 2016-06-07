@@ -1,98 +1,99 @@
 package main
 
-// A Node in the communiction Graph.
-type Node struct {
-	Name        Label
-	Connections map[string]*Node
+// A node in the communiction graph.
+type node struct {
+	name        string
+	connections map[string]node
 }
 
-// A Connection is an edge in the communication Graph.
-type Connection struct {
-	From *Node
-	To   *Node
+// A connection is an edge in the communication graph.
+type connection struct {
+	from node
+	to   node
 }
 
-// A Graph represents permission to communicate across a series of Nodes.  Each Node is
-// a container and each edge is permissions to initiate a connection.
-type Graph struct {
-	Nodes       map[string]Node
-	Connections []Connection
+// A graph represents permission to communicate across a series of nodes.
+// Each node is a container and each edge is permissions to
+// initiate a connection.
+type graph struct {
+	nodes       map[string]node
+	connections []connection
 }
 
-func makeGraph() Graph {
-	return Graph{
-		Nodes:       make(map[string]Node),
-		Connections: make([]Connection, 0),
+func makeGraph() graph {
+	return graph{
+		nodes:       map[string]node{},
+		connections: []connection{},
 	}
 }
 
-func (g Graph) getNode(label string) *Node {
-	node, have := g.Nodes[label]
-	if !have {
-		node = Node{
-			Name:        Label(label),
-			Connections: make(map[string]*Node),
+func (g *graph) getAddNode(label string) node {
+	foundNode, ok := g.nodes[label]
+	if !ok {
+		n := node{
+			name:        label,
+			connections: map[string]node{},
 		}
-		g.Nodes[label] = node
+		g.nodes[label] = n
+		foundNode = n
 	}
 
-	return &node
+	return foundNode
 }
 
-func (g *Graph) addConnection(from string, to string) {
-	fromNode := g.getNode(from)
-	toNode := g.getNode(to)
-	fromNode.Connections[to] = toNode
-	g.Connections = append(g.Connections, Connection{From: fromNode, To: toNode})
+func (g *graph) addConnection(from string, to string) {
+	fromNode := g.getAddNode(from)
+	toNode := g.getAddNode(to)
+	fromNode.connections[to] = toNode
+	g.connections = append(g.connections, connection{from: fromNode, to: toNode})
 }
 
 // find all nodes reachable from the given node
-func (n *Node) dfs() []Label {
-	reached := make(map[string]struct{})
+func (n node) dfs() []string {
+	reached := map[string]struct{}{}
 
-	var explore func(t *Node)
-	explore = func(t *Node) {
-		for label, node := range t.Connections {
-			if Label(label) != n.Name {
-				_, explored := reached[label]
-				if !explored {
-					reached[label] = struct{}{}
-					explore(node)
-				}
+	var explore func(t node)
+	explore = func(t node) {
+		for label, node := range t.connections {
+			_, explored := reached[label]
+			if !explored {
+				reached[label] = struct{}{}
+				explore(node)
 			}
 		}
 	}
 	explore(n)
 
-	var reachable []Label
+	var reachable []string
 	for l := range reached {
-		reachable = append(reachable, Label(l))
+		reachable = append(reachable, string(l))
 	}
 
 	return reachable
 }
 
 // compute all the paths between two nodes
-func paths(start *Node, end *Node) ([]Path, bool) {
+func paths(start node, end node) ([][]string, bool) {
 	reach := start.dfs()
-	if !contains(reach, end.Name) {
+	if !contains(reach, end.name) {
 		return nil, false
 	}
 
-	var paths []Path
-	var explore func(t *Node, p Path)
-	explore = func(t *Node, p Path) {
-		if t.Name == end.Name {
+	var paths [][]string
+
+	var explore func(t node, p []string)
+	explore = func(t node, p []string) {
+		if t.name == end.name {
 			paths = append(paths, p)
 			return
 		}
 
-		for label, node := range t.Connections {
-			if !contains(p, Label(label)) { // no loops
-				explore(node, append(p, Label(label)))
+		for label, node := range t.connections {
+			if !contains(p, label) { // no loops
+				explore(node, append(p, label))
 			}
 		}
 	}
-	explore(start, Path{start.Name})
+	explore(start, []string{start.name})
 	return paths, true
 }

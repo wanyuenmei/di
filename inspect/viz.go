@@ -34,10 +34,9 @@ func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
 	return fmt.Sprintf("\" %s: [ %s]\"", label, images)
 }
 
-// Graphviz generates a specification for the graphviz program that visualizes the
+// graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
-func Graphviz(slug string, graph Graph,
-	containerLabels map[string][]*stitch.Container) {
+func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Container) {
 	f, err := os.Create(slug + ".dot")
 	if err != nil {
 		panic(err)
@@ -50,12 +49,12 @@ func Graphviz(slug string, graph Graph,
 
 	dotfile := "strict digraph {\n"
 
-	for _, edge := range graph.Connections {
+	for _, edge := range graph.connections {
 		dotfile +=
 			fmt.Sprintf(
 				"    %s -> %s\n",
-				getImageNamesForLabel(containerLabels, string(edge.From.Name)),
-				getImageNamesForLabel(containerLabels, string(edge.To.Name)),
+				getImageNamesForLabel(containerLabels, string(edge.from.name)),
+				getImageNamesForLabel(containerLabels, string(edge.to.name)),
 			)
 	}
 

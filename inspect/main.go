@@ -43,7 +43,7 @@ func main() {
 		labels := container.Labels()
 		for _, label := range labels {
 			if _, have := containerLabels[label]; !have {
-				containerLabels[label] = make([]*stitch.Container, 0)
+				containerLabels[label] = []*stitch.Container{}
 			}
 			containerLabels[label] = append(containerLabels[label], container)
 		}
@@ -63,5 +63,5 @@ func main() {
 		}
 	}
 
-	Graphviz(slug, graph, containerLabels)
+	graphviz(slug, graph, containerLabels)
 }
