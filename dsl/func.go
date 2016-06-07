@@ -465,34 +465,38 @@ func rangeTypeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
 	}
 }
 
-func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
-	var min, max int
-	switch t := args[0].(type) {
+func parseRange(rng ast) (min, max int, err error) {
+	switch t := rng.(type) {
 	case astInt:
 		min, max = int(t), int(t)
 	case astList:
 		if len(t) != 2 {
-			return nil, fmt.Errorf("port range must have two ints: %s", t)
+			return 0, 0, fmt.Errorf("port range must have two ints: %s", t)
 		}
 
 		minAst, minOK := t[0].(astInt)
 		maxAst, maxOK := t[1].(astInt)
 		if !minOK || !maxOK {
-			return nil, fmt.Errorf("port range must have two ints: %s", t)
+			return 0, 0, fmt.Errorf("port range must have two ints: %s", t)
 		}
 
 		min, max = int(minAst), int(maxAst)
 	default:
-		return nil, fmt.Errorf("port range must be an int or a list of ints:"+
-			" %s", args[0])
+		return 0, 0, fmt.Errorf("port range must be an int or a list of ints:"+
+			" %s", rng)
 	}
 
-	if min < 0 || max > 65535 {
-		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
+	if min < 0 || max > 65535 || min > max {
+		return 0, 0, fmt.Errorf("invalid port range: [%d, %d]", min, max)
 	}
 
-	if min > max {
-		return nil, fmt.Errorf("invalid port range: [%d, %d]", min, max)
+	return min, max, nil
+}
+
+func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
+	min, max, err := parseRange(args[0])
+	if err != nil {
+		return nil, err
 	}
 
 	fromLabels, err := ctx.flattenLabel([]ast{args[1]})
