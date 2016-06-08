@@ -38,7 +38,7 @@ func TestConfigs(t *testing.T) {
 			t.Errorf("%s failed validation: %s", configPath, err.Error())
 		}
 	}
-	testConfig("./config.spec", []string{"specs/stdlib"})
+	testConfig("./example.spec", []string{"specs/stdlib"})
 	testConfig("quilt-tester/config/config.spec", []string{"specs/stdlib"})
 	testConfig("specs/spark/sparkPI.spec",
 		[]string{"specs/stdlib", "specs/spark", "specs/zookeeper"})
