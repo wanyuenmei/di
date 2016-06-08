@@ -108,6 +108,7 @@ func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 // on RAM and CPU constraints), and the provider.
 // Additionally, it skips machines with invalid roles, sizes or providers.
 func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
+	var hasMaster, hasWorker bool
 	var dbMachines []db.Machine
 	for _, dslm := range machines {
 		var m db.Machine
@@ -118,6 +119,9 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 			continue
 		}
 		m.Role = role
+
+		hasMaster = hasMaster || role == db.Master
+		hasWorker = hasWorker || role == db.Worker
 
 		p, err := db.ParseProvider(dslm.Provider)
 		if err != nil {
@@ -146,36 +150,22 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 		m.Region = dslm.Region
 		dbMachines = append(dbMachines, m)
 	}
+
+	if !hasMaster && hasWorker {
+		log.Warning("A Master was specified but no workers.")
+		return nil
+	} else if hasMaster && !hasWorker {
+		log.Warning("A Worker was specified but no masters.")
+		return nil
+	}
+
 	return dbMachines
 }
 
 func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	// XXX: How best to deal with machines that don't specify enough information?
-	dslMachinesRaw := dsl.QueryMachines()
 	maxPrice, _ := dsl.QueryFloat("MaxPrice")
-
-	var dslMachines = toDBMachine(dslMachinesRaw, maxPrice)
-	hasMaster := false
-	hasWorker := false
-
-	for _, machine := range dslMachines {
-		hasMaster = hasMaster || machine.Role == db.Master
-		hasWorker = hasWorker || machine.Role == db.Worker
-	}
-
-	if !hasMaster || !hasWorker {
-		dslMachines = []db.Machine{}
-
-		if hasMaster != hasWorker {
-
-			if hasMaster {
-				log.Warning("A master machine was specified but worker machines were not.")
-			} else {
-				log.Warning("Worker machine(s) were specified but a master machine was not.")
-			}
-
-		}
-	}
+	dslMachines := toDBMachine(dsl.QueryMachines(), maxPrice)
 
 	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == clusterID
