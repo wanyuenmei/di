@@ -21,6 +21,9 @@ machines, starting containers on those VMs, and ensuring they can communicate.
 Quilt is currently in alpha and under heavy development. Please try it out!
 We are eager for feedback!
 
+You can find setup instructions and a quick tutorial at
+[gettingStarted.md](gettingStarted.md).
+
 ## Stitch
 
 Stitch is a domain specific language based on Scheme and has many of the tools
