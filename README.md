@@ -84,3 +84,10 @@ necessary.
 ## Contributing
 If you are interested in contributing to Quilt, check out [dev.md](dev.md) for
 development instructions, details about the code structure, and more.
+
+## Contact
+Quilt is lead by [Ethan J. Jackson](http://ejj.github.io/), a PhD student at
+the UC Berkeley NetSys lab.  Feel free to direct questions, comments, and
+inquiries to his email at
+[ejj@eecs.berkeley.edu](mailto:ejj@eecs.berkeley.edu), or numerous other
+contact methods found [here](http://ejj.github.io/contact.html).
