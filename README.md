@@ -79,7 +79,7 @@ After the above commands, our application looks a lot more interesting:
 
 With this stitch, Quilt can now boot the system. Furthermore, if the stitch is
 modified, Quilt will automatically adapt by adding or removing containers as
-necessary.
+necessary. You can learn the specifics of the Stitch language by reading [Language.md](Language.md).
 
 ## Contributing
 If you are interested in contributing to Quilt, check out [dev.md](dev.md) for

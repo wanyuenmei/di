@@ -17,8 +17,8 @@ your terminal to set up your GOPATH.
 export GOPATH=~/gowork
 export PATH=$PATH:$GOPATH/bin
 ```
-It would be a good idea to add these commands to your `.bashrc` so that they do not
-have to be run again.
+It would be a good idea to add these commands to your `.bashrc` so that they do
+not have to be run again.
 
 ## Download and Install Quilt
 `go get github.com/NetSys/quilt`
@@ -126,6 +126,9 @@ and isolated from one another.
 The final line of `example.spec` opens port 80 on the Nginx container to the
 outside world.
 
-From your browser via `http://<WORKER_PUBLIC_IP>, or on the command-line via
+From your browser via `http://<WORKER_PUBLIC_IP>`, or on the command-line via
 `curl <WORKER_PUBLIC_IP>`, you can load the Nginx welcome page served by your
 Quilt cluster.
+
+## Next Steps: Starting Spark
+A starter Spark example to explore is [SparkPI](specs/spark/).
