@@ -7,7 +7,7 @@ Quilt supports Go version 1.5 or later.
 
 Find Go using your package manager or on the [Golang website] (https://golang.org/doc/install).
 
-## Setup $GOPATH
+### Setup $GOPATH
 We recommend reading the overview to Go workplaces [here](https://golang.org/doc/code.html).
 
 Before installing Quilt, you'll need to set up your GOPATH. Assuming the root of
@@ -21,9 +21,6 @@ It would be a good idea to add these commands to your `.bashrc` so that they do
 not have to be run again.
 
 ## Download and Install Quilt
-`go get github.com/NetSys/quilt`
-
-## Install Quilt
 Clone the repository into your Go workspace: `go get github.com/NetSys/quilt`.
 
 This command also automatically installs Quilt. If the installation was
