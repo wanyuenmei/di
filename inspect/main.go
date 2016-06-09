@@ -50,7 +50,7 @@ func main() {
 	}
 
 	graph := makeGraph()
-	for conn := range spec.QueryConnections() {
+	for _, conn := range spec.QueryConnections() {
 		graph.addConnection(conn.From, conn.To)
 	}
 

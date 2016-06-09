@@ -119,16 +119,8 @@ func updatePlacements(view db.Database, spec stitch.Stitch) {
 	}
 }
 
-func makeConnectionSlice(cm map[stitch.Connection]struct{}) stitch.ConnectionSlice {
-	slice := make([]stitch.Connection, 0, len(cm))
-	for k := range cm {
-		slice = append(slice, k)
-	}
-	return stitch.ConnectionSlice(slice)
-}
-
 func updateConnections(view db.Database, spec stitch.Stitch) {
-	scs, vcs := makeConnectionSlice(spec.QueryConnections()),
+	scs, vcs := stitch.ConnectionSlice(spec.QueryConnections()),
 		view.SelectFromConnection(nil)
 
 	dbcKey := func(val interface{}) interface{} {

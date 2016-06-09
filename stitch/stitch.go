@@ -191,12 +191,12 @@ func (stitch Stitch) QueryMachines() []Machine {
 }
 
 // QueryConnections returns the connections declared in the stitch.
-func (stitch Stitch) QueryConnections() map[Connection]struct{} {
-	copy := map[Connection]struct{}{}
+func (stitch Stitch) QueryConnections() []Connection {
+	var connections []Connection
 	for c := range stitch.ctx.connections {
-		copy[c] = struct{}{}
+		connections = append(connections, c)
 	}
-	return copy
+	return connections
 }
 
 // QueryPlacements returns the placements declared in the stitch.

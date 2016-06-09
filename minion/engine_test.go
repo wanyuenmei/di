@@ -238,7 +238,7 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 	}
 
 	exp := compiled.QueryConnections()
-	for e := range exp {
+	for _, e := range exp {
 		found := false
 		for i, c := range connections {
 			if e.From == c.From && e.To == c.To && e.MinPort == c.MinPort &&
