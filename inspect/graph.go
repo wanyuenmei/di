@@ -21,6 +21,7 @@ type graph struct {
 	availability []availabilitySet
 	// Constraints on which containers can be placed together.
 	placement map[string][]string
+	machines  []machine
 }
 
 func makeGraph() graph {
@@ -29,6 +30,7 @@ func makeGraph() graph {
 		// One global availability set by default.
 		availability: []availabilitySet{{}},
 		placement:    map[string][]string{},
+		machines:     []machine{},
 	}
 }
 

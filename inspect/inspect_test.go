@@ -42,6 +42,10 @@ func initSpec(configPath string) graph {
 		graph.addPlacementRule(pl)
 	}
 
+	for _, m := range spec.QueryMachines() {
+		graph.machines = append(graph.machines, getMachine(m))
+	}
+
 	return graph
 }
 
@@ -82,6 +86,15 @@ func TestPlacement(t *testing.T) {
 	expectedFailure := "between true a e d"
 	if failer, err := runInvTest(specPath, invariantPath); err == nil ||
 		failer != expectedFailure {
+		t.Errorf("%s %s", err, failer)
+	}
+}
+
+func TestEnough(t *testing.T) {
+	specPath := "./test/placement.spec"
+	invariantPath := "./test/enough.inv"
+	// correct result: all invariants pass
+	if failer, err := runInvTest(specPath, invariantPath); err != nil || failer != "" {
 		t.Errorf("%s %s", err, failer)
 	}
 }

@@ -11,6 +11,12 @@
 (connect 22 "d" "e")
 (connect 22 "c" "e")
 
+(let ((cfg (list (provider "Amazon")
+                 (region "us-west-1")
+                 (size "m4.2xlarge")
+                 (diskSize 32))))
+    (makeList 4 (machine (role "test") cfg)))
+
 (place (labelRule "exclusive" "e") "b" "d")
 (place (labelRule "exclusive" "c") "b" "d" "e")
 (place (labelRule "exclusive" "a") "c" "d" "e")

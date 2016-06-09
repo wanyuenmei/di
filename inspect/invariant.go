@@ -12,6 +12,8 @@ const (
 	reachInvariant = iota
 	// On-pathness (between): three arguments, <from> <to> <between>
 	betweenInvariant
+	// Schedulability (enough): zero arguments
+	schedulabilityInvariant
 )
 
 type invariant struct {
@@ -28,11 +30,13 @@ func init() {
 	formKeywords = map[string]invariantType{
 		"reach":   reachInvariant,
 		"between": betweenInvariant,
+		"enough":  schedulabilityInvariant,
 	}
 
 	formImpls = map[invariantType]func(graph graph, inv invariant) bool{
-		reachInvariant:   reachImpl,
-		betweenInvariant: betweenImpl,
+		reachInvariant:          reachImpl,
+		betweenInvariant:        betweenImpl,
+		schedulabilityInvariant: schedulabilityImpl,
 	}
 }
 
@@ -57,36 +61,54 @@ func checkInvariants(graph graph, invs []invariant) ([]invariant, *invariant, er
 
 func parseLine(graph graph, line string) (invariant, error) {
 	sp := strings.Split(line, " ")
+	var nodes []string
 
 	// Validate target argument.
 	target := true
-	switch sp[1] {
-	case "true":
-		target = true
-	case "false":
-		target = false
-	default:
-		return invariant{}, fmt.Errorf(
-			"malformed assertion (second argument must be one of \"true\",\"false\"): %s",
-			line,
-		)
-	}
-
-	// Validate label arguments.
-	var nodes []string
-	for _, n := range sp[2:] {
-		if _, ok := graph.nodes[n]; !ok {
-			return invariant{}, fmt.Errorf("malformed assertion (unknown label): %s", n)
+	switch {
+	case len(sp) == 0:
+		return invariant{}, fmt.Errorf("split string returned zero length list")
+	case len(sp) == 1:
+		return invariant{
+			form:   formKeywords[sp[0]],
+			target: true,
+			nodes:  nodes,
+			str:    line,
+		}, nil
+	case len(sp) >= 2:
+		switch sp[1] {
+		case "true":
+			target = true
+		case "false":
+			target = false
+		default:
+			return invariant{}, fmt.Errorf(
+				"malformed assertion"+
+					" (second argument must be one of "+
+					"\"true\",\"false\"): %s",
+				line,
+			)
 		}
-		nodes = append(nodes, n)
-	}
 
-	return invariant{
-		form:   formKeywords[sp[0]],
-		target: target,
-		nodes:  nodes,
-		str:    line,
-	}, nil
+		// Validate label arguments.
+		for _, n := range sp[2:] {
+			if _, ok := graph.nodes[n]; !ok {
+				return invariant{}, fmt.Errorf(
+					"malformed assertion (unknown label): %s",
+					n,
+				)
+			}
+			nodes = append(nodes, n)
+		}
+
+		return invariant{
+			form:   formKeywords[sp[0]],
+			target: target,
+			nodes:  nodes,
+			str:    line,
+		}, nil
+	}
+	return invariant{}, fmt.Errorf("could not parse invariant")
 }
 
 // Invariant format: <form> <target value ("true"/"false")> <node labels...>
@@ -152,4 +174,13 @@ func betweenImpl(graph graph, inv invariant) bool {
 		}
 	}
 	return false
+}
+
+func schedulabilityImpl(graph graph, inv invariant) bool {
+	machines := graph.machines
+	avSets := graph.availability
+	if _, ok := graph.nodes["public"]; ok {
+		return len(machines) >= (len(avSets) - 1)
+	}
+	return len(machines) >= len(avSets)
 }

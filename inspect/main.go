@@ -82,6 +82,10 @@ func main() {
 		graph.addPlacementRule(pl)
 	}
 
+	for _, m := range spec.QueryMachines() {
+		graph.machines = append(graph.machines, getMachine(m))
+	}
+
 	ignoreNext := 0
 	foundFlags := map[string]argOption{}
 	func() {
