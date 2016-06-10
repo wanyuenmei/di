@@ -35,12 +35,22 @@ lint: format
 		fi \
 	done
 
-coverage: db.cov dsl.cov engine.cov cluster.cov join.cov minion/supervisor.cov minion/network.cov minion.cov provider.cov
+COV_SKIP= /minion/consensus \
+	  /minion/docker \
+	  /minion/elector \
+	  /minion/ovsdb \
+	  /minion/pb \
+	  /minion/pprofile \
+	  /quilt \
+	  /inspect
+
+COV_PKG = $(subst github.com/NetSys/quilt,,$(PACKAGES))
+coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))
+	gover
 
 %.cov:
-	go test -coverprofile=$@.out ./$*
-	go tool cover -html=$@.out -o $@.html
-	rm $@.out
+	go test -coverprofile=.$@.coverprofile .$*
+	go tool cover -html=.$@.coverprofile -o .$@.html
 
 # BUILD
 docker-build-all: docker-build-quilt docker-build-tester docker-build-minion docker-build-ovs

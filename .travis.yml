@@ -3,9 +3,17 @@ language: go
 go:
 - 1.6
 
-install: go get github.com/davecgh/go-spew/spew github.com/golang/lint/golint
+install:
+    - go get github.com/davecgh/go-spew/spew
+    - go get github.com/golang/lint/golint
+    - go get github.com/mattn/goveralls
+    - go get github.com/modocache/gover
 
 script: ./scripts/build-push.sh
+
+after_success:
+    - make coverage
+    - goveralls -coverprofile=./gover.coverprofile
 
 notifications:
   slack:
