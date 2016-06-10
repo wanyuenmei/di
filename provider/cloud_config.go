@@ -39,6 +39,9 @@ initialize_docker() {
 
 	mkdir -p /etc/systemd/system/docker.service.d
 
+	echo "docker -H tcp://${PRIVATE_IPv4}:2377 \$@" > /usr/bin/swarm
+	chmod 755 /usr/bin/swarm
+
 	cat <<- EOF > /etc/systemd/system/docker.service.d/override.conf
 	[Unit]
 	Description=docker
