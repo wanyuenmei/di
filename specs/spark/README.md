@@ -19,7 +19,7 @@ dotfile) so that they don't have to be run again.
 The example SparkPi program distributes the computationally-intensive task of
 calculating Pi over several machines in a computer cluster.
 
-Our [sparkPI.spec](specs/spark/sparkPI.spec) Stitch specification simplifies the
+Our [sparkPI.spec](sparkPI.spec) Stitch specification simplifies the
 task of setting up the infrastructure required to run this Spark job.
 
 ### Configure SSH authentication
