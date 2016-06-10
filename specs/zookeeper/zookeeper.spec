@@ -2,8 +2,7 @@
 (import "strings")
 (import "log")
 
-(define image "quay.io/netsys/zookeeper")
-
+(define image "quilt/zookeeper")
 (define (create prefix n)
   (let ((labelNames (strings.Range prefix n))
         // XXX labels.StrToHostname breaks abstraction
