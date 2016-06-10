@@ -65,7 +65,7 @@ func TestDefaultRegion(t *testing.T) {
 }
 
 func TestConstraints(t *testing.T) {
-	checkConstraint := func(descriptions []description, ram stitch.Range, cpu stitch.Range,
+	checkConstraint := func(descriptions []Description, ram stitch.Range, cpu stitch.Range,
 		maxPrice float64, exp string) {
 		resSize := pickBestSize(descriptions, ram, cpu, maxPrice)
 		if resSize != exp {
@@ -74,8 +74,8 @@ func TestConstraints(t *testing.T) {
 	}
 
 	// Test all constraints specified with valid price
-	testDescriptions := []description{
-		{size: "size1", price: 2, ram: 2, cpu: 2},
+	testDescriptions := []Description{
+		{Size: "size1", Price: 2, RAM: 2, CPU: 2},
 	}
 	checkConstraint(testDescriptions, stitch.Range{Min: 1, Max: 3},
 		stitch.Range{Min: 1, Max: 3}, 2, "size1")
@@ -97,10 +97,10 @@ func TestConstraints(t *testing.T) {
 		stitch.Range{Min: 2}, 1, "")
 
 	// Test multiple matches (should pick cheapest)
-	testDescriptions = []description{
-		{size: "size2", price: 2, ram: 8, cpu: 4},
-		{size: "size3", price: 1, ram: 4, cpu: 4},
-		{size: "size4", price: 0.5, ram: 3, cpu: 4},
+	testDescriptions = []Description{
+		{Size: "size2", Price: 2, RAM: 8, CPU: 4},
+		{Size: "size3", Price: 1, RAM: 4, CPU: 4},
+		{Size: "size4", Price: 0.5, RAM: 3, CPU: 4},
 	}
 	checkConstraint(testDescriptions, stitch.Range{Min: 4},
 		stitch.Range{Min: 3}, 2, "size3")

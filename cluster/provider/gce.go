@@ -185,7 +185,7 @@ func (clst *gceCluster) Disconnect() {
 
 func (clst *gceCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
-	return pickBestSize(googleDescriptions, ram, cpu, maxPrice)
+	return pickBestSize(GoogleDescriptions, ram, cpu, maxPrice)
 }
 
 // Get() and operationWait() don't always present the same results, so
