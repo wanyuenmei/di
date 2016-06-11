@@ -70,22 +70,12 @@ Once you see the "New connection" message, you can connect to the Machines with 
 `ssh quilt@<PUBLIC_IP>`.
 
 ### Inspect Docker Containers
-While `ssh`ing into the Master Machine, execute `docker ps` to list active
-Docker containers. Execute `docker logs swarm` to find the IP address of our
-swarm:
-
-```bash
-quilt@ip-172-31-11-161:~$ docker logs -f swarm
-time="2016-06-08T17:44:11Z" level=info msg="Initializing discovery without TLS"
-time="2016-06-08T17:44:11Z" level=info msg="Listening for HTTP" addr="172.31.11.161:2377" proto=tcp
+Docker Swarm has a global view of all the containers in the cluster.  To make
+it easy to access, the Master nodes have a command line utility, `swarm`, that
+directs docker commands to the swarm cluster.  For example, to list all of the
+active Docker containers in the cluster use `swarm ps`.  For example:
 ```
-
-Here, we see that the IP address is `172.31.11.161:2377`. We will then list the
-active Docker containers at this IP using the command
-`docker -H tcp://<IP_ADDRESS> ps`:
-
-```
-quilt@ip-172-31-11-161:~$ docker -H tcp://172.31.11.161:2377 ps
+quilt@ip-172-31-11-161:~$ swarm ps
 CONTAINER ID        IMAGE                        COMMAND                  CREATED             STATUS              PORTS               NAMES
 b4fec2b9950b        quilt/spark                  "run worker"             8 minutes ago       Up 8 minutes                            ip-172-31-7-86/jovial_poincare
 b532520449b9        quilt/spark                  "run worker"             8 minutes ago       Up 8 minutes                            ip-172-31-1-237/jovial_wright
@@ -105,7 +95,7 @@ Once our Master Spark container is up, we can connect to it to find the results 
 our SparkPi job! The results are located in the log of the Master container. In
 the output above, our Master container's name is `ip-172-31-7-86/jovial_poincare`.
 
-Execute `docker -H tcp://<IP_ADDRESS> logs <MASTER_CONTAINER_NAME>`. After
+Execute `swarm logs <MASTER_CONTAINER_NAME>`. After
 scrolling through Spark's info logging, we will find the result of SparkPi:
 
 ```
@@ -121,4 +111,4 @@ Pi is roughly 3.13918
 
 **Note:** The Spark cluster is now up and usable. You can run the interactive
 spark-shell by exec-ing it in the Master Spark container:
-`docker -H tcp://<IP_ADDRESS> exec -it <MASTER_CONTAINER_NAME> spark-shell`
+`swarm exec -it <MASTER_CONTAINER_NAME> spark-shell`
