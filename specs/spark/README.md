@@ -32,7 +32,7 @@ If you would like to use `githubKey` authentication, open
 
 For instructions on configuring a user-supplied public key and more information
 on configuring Quilt SSH authentication, see
-[gettingStarted.md](../../gettingStarted.md#set-up-your-ssh-authentication).
+[GettingStarted.md](../../docs/GettingStarted.md#set-up-your-ssh-authentication).
 
 ### Choose Namespace
 Running two Quilt instances with the same Namespace is not supported.

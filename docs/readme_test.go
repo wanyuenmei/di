@@ -1,4 +1,4 @@
-package main
+package docs
 
 import (
 	"bufio"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestReadme(t *testing.T) {
-	f, err := util.Open("README.md")
+	f, err := util.Open("../README.md")
 	if err != nil {
 		t.Errorf("Failed to open README: %s", err.Error())
 		return

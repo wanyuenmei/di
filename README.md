@@ -22,7 +22,7 @@ Quilt is currently in alpha and under heavy development. Please try it out!
 We are eager for feedback!
 
 You can find setup instructions and a quick tutorial at
-[gettingStarted.md](gettingStarted.md).
+[GettingStarted.md](docs/GettingStarted.md).
 
 ## Stitch
 
@@ -44,7 +44,7 @@ database, one would use the following stitch:
 
 This will produce a simple network:
 
-<img src="./doc-images/quiltSimple.png">
+<img src="./docs/images/quiltSimple.png">
 
 Next, suppose we'd like to expand with a batch processing system and 5 Apache
 containers. By default containers can't communicate, so we will have to add
@@ -75,15 +75,16 @@ some network connections.
 
 After the above commands, our application looks a lot more interesting:
 
-<img src="./doc-images/quiltAbstractWebTierConnect.png">
+<img src="./docs/images/quiltAbstractWebTierConnect.png">
 
 With this stitch, Quilt can now boot the system. Furthermore, if the stitch is
 modified, Quilt will automatically adapt by adding or removing containers as
-necessary. You can learn the specifics of the Stitch language by reading [Language.md](Language.md).
+necessary. You can learn the specifics of the Stitch language by reading
+[Language.md](docs/Language.md).
 
 ## Contributing
-If you are interested in contributing to Quilt, check out [dev.md](dev.md) for
-development instructions, details about the code structure, and more.
+If you are interested in contributing to Quilt, check out [Dev.md](docs/Dev.md)
+for development instructions, details about the code structure, and more.
 
 ## Contact
 Quilt is led by [Ethan J. Jackson](http://ejj.github.io/), a PhD student at

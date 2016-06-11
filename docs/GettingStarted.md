@@ -128,4 +128,4 @@ From your browser via `http://<WORKER_PUBLIC_IP>`, or on the command-line via
 Quilt cluster.
 
 ## Next Steps: Starting Spark
-A starter Spark example to explore is [SparkPI](specs/spark/).
+A starter Spark example to explore is [SparkPI](../specs/spark/).
