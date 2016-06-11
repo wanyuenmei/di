@@ -10,7 +10,7 @@ import (
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/minion/consensus"
 	"github.com/NetSys/quilt/minion/docker"
-	"github.com/NetSys/quilt/ovsdb"
+	"github.com/NetSys/quilt/minion/ovsdb"
 	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"

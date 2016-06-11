@@ -17,8 +17,8 @@ import (
 	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/join"
 	"github.com/NetSys/quilt/minion/docker"
+	"github.com/NetSys/quilt/minion/ovsdb"
 	"github.com/NetSys/quilt/minion/supervisor"
-	"github.com/NetSys/quilt/ovsdb"
 	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"

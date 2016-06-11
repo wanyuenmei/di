@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/ovsdb"
+	"github.com/NetSys/quilt/minion/ovsdb"
 )
 
 var testSwitch = "testSwitch"
