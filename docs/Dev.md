@@ -115,12 +115,6 @@ new dependency, make sure `GO15VENDOREXPERIMENT` is set to 1, then run:
 3. Edit your code to import foo/bar
 4. Run `godep save ./...`
 
-## Containers
-Some of the functionality that isn't captured in this repo is packaged into
-containers that can be found in the following repos:
-
-* [ovs-containers](https://github.com/NetSys/ovs-containers)
-
 ## Developing the Minion
 Whenever you develop code in `minion`, make sure you run your personal minion
 image, and not the default Quilt minion image.  To do that, follow these steps:
