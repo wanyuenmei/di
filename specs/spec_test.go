@@ -1,4 +1,4 @@
-package main
+package specs
 
 import (
 	"bufio"
@@ -38,15 +38,10 @@ func TestConfigs(t *testing.T) {
 			t.Errorf("%s failed validation: %s", configPath, err.Error())
 		}
 	}
-	testConfig("./example.spec", []string{"specs/stdlib"})
-	testConfig("quilt-tester/config/config.spec", []string{"specs/stdlib"})
-	testConfig("specs/spark/sparkPI.spec",
-		[]string{"specs/stdlib", "specs/spark", "specs/zookeeper"})
-	testConfig("specs/wordpress/main.spec",
-		[]string{
-			"specs/stdlib",
-			"specs/wordpress",
-			"specs/spark",
-			"specs/zookeeper",
-		})
+	testConfig("../example.spec", []string{"specs/stdlib"})
+	testConfig("../quilt-tester/config/config.spec", []string{"specs/stdlib"})
+	testConfig("./spark/sparkPI.spec",
+		[]string{"./stdlib", "./spark", "./zookeeper"})
+	testConfig("./wordpress/main.spec",
+		[]string{"./stdlib", "./wordpress", "./spark", "./zookeeper"})
 }
