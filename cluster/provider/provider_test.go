@@ -3,8 +3,66 @@ package provider
 import (
 	"testing"
 
+	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/dsl"
 )
+
+func TestDefaultRegion(t *testing.T) {
+	exp := "foo"
+	m := db.Machine{Provider: "Amazon", Region: exp}
+	m = DefaultRegion(m)
+	if m.Region != exp {
+		t.Errorf("expected %s, found %s", exp, m.Region)
+	}
+
+	m.Region = ""
+	m = DefaultRegion(m)
+	exp = "us-west-1"
+	if m.Region != exp {
+		t.Errorf("expected %s, found %s", exp, m.Region)
+	}
+
+	m.Region = ""
+	m.Provider = "Google"
+	exp = "us-east1-b"
+	m = DefaultRegion(m)
+	if m.Region != exp {
+		t.Errorf("expected %s, found %s", exp, m.Region)
+	}
+
+	m.Region = ""
+	m.Provider = "Azure"
+	exp = "Central US"
+	m = DefaultRegion(m)
+	if m.Region != exp {
+		t.Errorf("expected %s, found %s", exp, m.Region)
+	}
+
+	m.Region = ""
+	m.Provider = "Vagrant"
+	exp = ""
+	m = DefaultRegion(m)
+	if m.Region != exp {
+		t.Errorf("expected %s, found %s", exp, m.Region)
+	}
+
+	paniced := false
+	m.Region = ""
+	m.Provider = "Panic"
+	exp = ""
+	func() {
+		defer func() {
+			r := recover()
+			paniced = r != nil
+		}()
+
+		m = DefaultRegion(m)
+	}()
+
+	if !paniced {
+		t.Error("Expected panic")
+	}
+}
 
 func TestConstraints(t *testing.T) {
 	checkConstraint := func(descriptions []description, ram dsl.Range, cpu dsl.Range,

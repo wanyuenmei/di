@@ -148,7 +148,7 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 
 		m.SSHKeys = dslm.SSHKeys
 		m.Region = dslm.Region
-		dbMachines = append(dbMachines, m)
+		dbMachines = append(dbMachines, provider.DefaultRegion(m))
 	}
 
 	if !hasMaster && hasWorker {
