@@ -26,17 +26,24 @@ Clone the repository into your Go workspace: `go get github.com/NetSys/quilt`.
 This command also automatically installs Quilt. If the installation was
 successful, then the `quilt` command should execute successfully in your shell.
 
-## Configure Amazon Web Service Settings
-If you'd like to use AWS as Quilt's cloud provider, create the file
-`~/.aws/credentials` with the following contents:
+## Configure A Cloud Provider
+
+Below we discuss how to setup Quilt for Amazon EC2.  Other providers are
+supported as well, including [Vagrant](Vagrant.md), Microsoft Azure, and
+Google Compute Engine.  Since Quilt deploys systems consistently across
+providers, the details of the rest of this document will apply no matter what
+provider you choose.
+
+For Amazon EC2, you'll first need to create an account with [Amazon Web
+Services](https://aws.amazon.com/ec2/) and then find your
+[access credentials](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html#cli-signup).
+That done, you simply need to populate the file `~/.aws/credentials`, with your
+Amazon credentials:
 ```
 [default]
 aws_access_key_id = <YOUR_ID>
 aws_secret_access_key = <YOUR_SECRET_KEY>
 ```
-
-Here are instructions for
-[finding your AWS access keys](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html#cli-signup).
 
 ## Your First Quilt-managed Infrastructure
 We suggest you read [specs/example.spec](../specs/example.spec) to understand the
