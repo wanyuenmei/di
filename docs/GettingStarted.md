@@ -39,10 +39,10 @@ Here are instructions for
 [finding your AWS access keys](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html#cli-signup).
 
 ## Your First Quilt-managed Infrastructure
-We suggest you read `example.spec` to understand the infrastructure defined by
-this Stitch.
+We suggest you read [specs/example.spec](../specs/example.spec) to understand the
+infrastructure defined by this Stitch.
 
-### Configure `example.spec`
+### Configure [specs/example.spec](../specs/example.spec)
 #### Set Up Your SSH Authentication
 Quilt-managed Machines use public key authentication to control SSH access. Stitch
 defines two Machine attributes for configuring SSH authentication, `githubKey`
@@ -53,15 +53,16 @@ A Machine with the `githubKey` attribute uses your public keys from GitHub
 to configure SSH authentication. If you can access GitHub repositories through
 SSH, then you can also SSH into a `githubKey`-configured Machine.
 
-If you would like to use `githubKey` authentication, open `example.spec` and
-fill in `(define githubKey "<YOUR_GITHUB_USERNAME>")` appropriately.
+If you would like to use `githubKey` authentication, open `secs/example.spec`
+and fill in `(define githubKey "<YOUR_GITHUB_USERNAME>")` appropriately.
 
 ##### sshkey
 Machines with the `sshkey` attribute use a user-supplied public key to configure
 SSH authentication. This attribute is useful for users who want to use an ssh key
 that isn't stored on GitHub.
 
-To use `sshkey` authentication, open `example.spec` for editting.
+To use `sshkey` authentication, open
+[specs/example.spec](../specs/example.spec) for editing.
 
 Replace `(define githubKey
 "<YOUR_GITHUB_USERNAME>")` with `(define sshkey <YOUR_PUBLIC_KEY>)`.
@@ -73,12 +74,12 @@ AAAAB3NzaC1yc2EAAAADAQABAAABAQ shwang@deepmuse.space")`
 #### Choose Namespace
 Running two Quilt instances with the same Namespace is not supported.
 If you are sharing a computing cluster with others, it would be a good idea to
-change `(define Namespace "example")` to a different name.
+change `(define Namespace "CHANGE_ME")` to a different name.
 
-### Building `example.spec`
+### Deploying [specs/example.spec](../specs/example.spec)
 While in the `$GOPATH/src/github.com/NetSys/quilt/` directory, execute `quilt
-example.spec`. Quilt will set up several Ubuntu VMs on your cloud provider as
-Workers, and these Workers will host Nginx Docker containers.
+specs/example.spec`. Quilt will set up several Ubuntu VMs on your cloud
+provider as Workers, and these Workers will host Nginx Docker containers.
 
 
 ### Accessing the Worker VM
@@ -119,9 +120,9 @@ other and your local computer.
 
 ### Loading the Nginx Webpage
 By default, Quilt-managed containers are disconnected from the public internet
-and isolated from one another.
-The final line of `example.spec` opens port 80 on the Nginx container to the
-outside world.
+and isolated from one another.  The final line of
+[specs/example.spec](../specs/example.spec) opens port 80 on the Nginx
+container to the outside world.
 
 From your browser via `http://<WORKER_PUBLIC_IP>`, or on the command-line via
 `curl <WORKER_PUBLIC_IP>`, you can load the Nginx welcome page served by your
