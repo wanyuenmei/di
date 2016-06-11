@@ -3,9 +3,9 @@ package cluster
 import (
 	"time"
 
+	"github.com/NetSys/quilt/cluster/provider"
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/join"
-	"github.com/NetSys/quilt/provider"
 	log "github.com/Sirupsen/logrus"
 )
 
