@@ -30,13 +30,16 @@ func main() {
 
 	log.SetFormatter(util.Formatter{})
 
-	validLevels := "Valid logger levels are:\n" +
-		"    debug, info, warn, error, fatal or panic."
-
 	flag.Usage = func() {
-		fmt.Println("Usage: quilt stitch  [-log-level=level | -l=level]")
+		fmt.Println("Usage: quilt [stitch | stop [namespace]]" +
+			" [-log-level=level | -l=level]")
+		fmt.Println("\nWhen provided a stitch, quilt takes responsibility\n" +
+			"for deploying it as specified.  Alternatively, quilt may be\n" +
+			"instructed to stop all deployments in a given namespace,\n" +
+			"or the default namespace if none is provided.\n")
 		flag.PrintDefaults()
-		fmt.Println(validLevels)
+		fmt.Println("        Valid logger levels are:\n" +
+			"            debug, info, warn, error, fatal or panic.")
 	}
 
 	var logLevel = flag.String("log-level", "info", "level to set logger to")
@@ -50,25 +53,45 @@ func main() {
 	}
 	log.SetLevel(level)
 
-	stitchPath := flag.Arg(0)
-	if stitchPath == "" {
+	conn := db.New()
+	switch flag.Arg(0) {
+	case "":
 		usage()
+	case "stop":
+		stop(conn, flag.Arg(1))
+	default:
+		go configLoop(conn, flag.Arg(0))
 	}
 
-	conn := db.New()
-	go func() {
-		tick := time.Tick(5 * time.Second)
-		for {
-			if err := updateConfig(conn, stitchPath); err != nil {
-				log.WithError(err).Warn(
-					"Failed to update configuration.")
-			}
-
-			<-tick
-		}
-	}()
-
 	cluster.Run(conn)
+}
+
+func stop(conn db.Conn, namespace string) {
+	specStr := "(define AdminACL (list))"
+	if namespace != "" {
+		specStr += fmt.Sprintf(` (define Namespace "%s")`, namespace)
+	}
+
+	var sc scanner.Scanner
+	spec, err := dsl.New(*sc.Init(strings.NewReader(specStr)), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	err = engine.UpdatePolicy(conn, spec)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func configLoop(conn db.Conn, stitchPath string) {
+	tick := time.Tick(5 * time.Second)
+	for {
+		if err := updateConfig(conn, stitchPath); err != nil {
+			log.WithError(err).Warn("Failed to update configuration.")
+		}
+		<-tick
+	}
 }
 
 func usage() {

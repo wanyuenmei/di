@@ -135,5 +135,14 @@ From your browser via `http://<WORKER_PUBLIC_IP>`, or on the command-line via
 `curl <WORKER_PUBLIC_IP>`, you can load the Nginx welcome page served by your
 Quilt cluster.
 
+### Cleaning up
+
+If you'd like to destroy the infrastructure you just deployed, you can either
+modify the specification to remove all of the Machines, or use a helper utility
+built into the `quilt` binary:  Invoking it with the `stop` command and the
+Namespace you specified earlier, will cause Quilt to destroy all of the
+Machines in the namespace.  For example, `quilt stop Example`, will destroy all
+of the Machines in the Example namespace.
+
 ## Next Steps: Starting Spark
 A starter Spark example to explore is [SparkPI](../specs/spark/).
