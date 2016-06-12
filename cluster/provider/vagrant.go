@@ -26,26 +26,48 @@ func (clst *vagrantCluster) Connect(namespace string) error {
 }
 
 func (clst vagrantCluster) Boot(bootSet []Machine) error {
-	vagrant := clst.vagrant
+
+	// If any of the bootMachine() calls fail, errChan will contain exactly one error
+	// for this function to return.
+	errChan := make(chan error, 1)
+
 	var wg sync.WaitGroup
-	wg.Add(len(bootSet))
 	for _, m := range bootSet {
-		id := uuid.NewV4().String()
-		err := vagrant.Init(cloudConfigUbuntu(m.SSHKeys, "vivid"), m.Size, id)
-		if err != nil {
-			vagrant.Destroy(id)
-			return err
-		}
-		go func() {
+		wg.Add(1)
+		go func(m Machine) {
 			defer wg.Done()
-			err := vagrant.Up(id)
-			if err != nil {
-				vagrant.Destroy(id)
+			if err := bootMachine(clst.vagrant, m); err != nil {
+				select {
+				case errChan <- err:
+				default:
+				}
 			}
-		}()
+		}(m)
 	}
 	wg.Wait()
-	return nil
+
+	var err error
+	select {
+	case err = <-errChan:
+	default:
+	}
+
+	return err
+}
+
+func bootMachine(vagrant vagrantAPI, m Machine) error {
+	id := uuid.NewV4().String()
+
+	err := vagrant.Init(cloudConfigUbuntu(m.SSHKeys, "vivid"), m.Size, id)
+	if err == nil {
+		err = vagrant.Up(id)
+	}
+
+	if err != nil {
+		vagrant.Destroy(id)
+	}
+
+	return err
 }
 
 func (clst vagrantCluster) List() ([]Machine, error) {
