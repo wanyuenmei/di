@@ -211,5 +211,11 @@ end
 // VagrantCreateSize creates an encoded string representing the amount of RAM
 // and number of CPUs for an instance.
 func (api vagrantAPI) CreateSize(ram, cpu float64) string {
+	if ram < 1 {
+		ram = 1
+	}
+	if cpu < 1 {
+		cpu = 1
+	}
 	return fmt.Sprintf("%g,%g", ram, cpu)
 }
