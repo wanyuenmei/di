@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 
 	"github.com/Azure/azure-sdk-for-go/management"
 	"github.com/Azure/azure-sdk-for-go/management/hostedservice"
@@ -147,7 +147,7 @@ func (clst *azureCluster) Disconnect() {
 	// nothing
 }
 
-func (clst *azureCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
 	// XXX: Use ExtraLarge by default because we haven't scraped the CPU and RAM information yet.
 	return "ExtraLarge"
 }

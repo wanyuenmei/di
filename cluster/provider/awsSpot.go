@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -322,7 +322,7 @@ func (clst amazonCluster) List() ([]Machine, error) {
 	return machines, nil
 }
 
-func (clst *amazonCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst *amazonCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
 	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 

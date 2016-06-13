@@ -9,8 +9,8 @@ import (
 	"text/scanner"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -545,12 +545,12 @@ func TestACLs(t *testing.T) {
 	}
 }
 
-func prog(t *testing.T, code string) dsl.Dsl {
+func prog(t *testing.T, code string) stitch.Stitch {
 	var sc scanner.Scanner
-	result, err := dsl.New(*sc.Init(strings.NewReader(code)), []string{})
+	result, err := stitch.New(*sc.Init(strings.NewReader(code)), []string{})
 	if err != nil {
 		t.Error(err.Error())
-		return dsl.Dsl{}
+		return stitch.Stitch{}
 	}
 
 	return result

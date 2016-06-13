@@ -1,4 +1,4 @@
-package dsl
+package stitch
 
 import "fmt"
 
@@ -104,13 +104,13 @@ func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 	if len(sexp) == 0 {
 		err := fmt.Errorf("s-expressions must start with a function call: %s",
 			metaSexp)
-		return nil, dslError{metaSexp.pos, err}
+		return nil, stitchError{metaSexp.pos, err}
 	}
 
 	first, err := sexp[0].eval(ctx)
 	if err != nil {
 		if _, ok := sexp[0].(astIdent); ok {
-			return nil, dslError{metaSexp.pos,
+			return nil, stitchError{metaSexp.pos,
 				fmt.Errorf("unknown function: %s", sexp[0])}
 		}
 		return nil, err
@@ -121,7 +121,7 @@ func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 	case astIdent:
 		fnImpl := funcImplMap[fn]
 		if len(sexp)-1 < fnImpl.minArgs {
-			return nil, dslError{metaSexp.pos,
+			return nil, stitchError{metaSexp.pos,
 				fmt.Errorf("not enough arguments: %s", fn)}
 		}
 
@@ -141,13 +141,13 @@ func (metaSexp astSexp) eval(ctx *evalCtx) (ast, error) {
 		}
 		res, err = evalLambda(fn, args)
 	default:
-		return nil, dslError{metaSexp.pos,
+		return nil, stitchError{metaSexp.pos,
 			fmt.Errorf("s-expressions must start with a function call: %s",
 				first)}
 	}
 
 	if err != nil {
-		err = dslError{pos: metaSexp.pos, err: err}
+		err = stitchError{pos: metaSexp.pos, err: err}
 	}
 	return res, err
 }

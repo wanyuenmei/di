@@ -1,4 +1,4 @@
-package dsl
+package stitch
 
 import "github.com/google/go-github/github"
 

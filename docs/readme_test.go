@@ -8,7 +8,7 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 )
 
@@ -74,7 +74,7 @@ func checkConfig(content string) error {
 	reader := strings.NewReader(content)
 
 	var sc scanner.Scanner
-	_, err := dsl.New(*sc.Init(reader), []string{})
+	_, err := stitch.New(*sc.Init(reader), []string{})
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
 )
@@ -120,6 +120,6 @@ func (clst vagrantCluster) SetACLs(acls []string) error {
 	return nil
 }
 
-func (clst vagrantCluster) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (clst vagrantCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
 	return clst.vagrant.CreateSize(ram.Min, cpu.Min)
 }

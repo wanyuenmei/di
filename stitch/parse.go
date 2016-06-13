@@ -1,4 +1,4 @@
-package dsl
+package stitch
 
 import (
 	"errors"
@@ -50,7 +50,7 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 				s.Next()
 				ident += "."
 				if s.Scan() != scanner.Ident {
-					return nil, dslError{pos: s.Pos(), err: fmt.Errorf("bad ident name: %s", ident)}
+					return nil, stitchError{pos: s.Pos(), err: fmt.Errorf("bad ident name: %s", ident)}
 				}
 				ident += s.TokenText()
 			}
@@ -77,17 +77,17 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 
 		case ')':
 			if depth == 0 {
-				return nil, dslError{s.Pos(), errUnbalancedParens}
+				return nil, stitchError{s.Pos(), errUnbalancedParens}
 			}
 			return slice, nil
 		case scanner.EOF:
 			if depth != 0 {
-				return nil, dslError{s.Pos(), errUnbalancedParens}
+				return nil, stitchError{s.Pos(), errUnbalancedParens}
 			}
 			return slice, nil
 
 		default:
-			return nil, dslError{s.Pos(), fmt.Errorf("bad element: %s", s.TokenText())}
+			return nil, stitchError{s.Pos(), fmt.Errorf("bad element: %s", s.TokenText())}
 		}
 	}
 }

@@ -6,8 +6,8 @@ import (
 	"text/scanner"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/engine"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 )
 
@@ -19,7 +19,7 @@ func configRunOnce(configPath string, quiltPath []string) error {
 	defer f.Close()
 
 	var sc scanner.Scanner
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), quiltPath)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), quiltPath)
 	if err != nil {
 		return err
 	}

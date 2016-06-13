@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -114,7 +114,7 @@ func testContainerTxn(conn db.Conn, spec string) string {
 	})
 
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
+	compiled, err := stitch.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		return err.Error()
 	}
@@ -232,7 +232,7 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 	})
 
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
+	compiled, err := stitch.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		return err.Error()
 	}

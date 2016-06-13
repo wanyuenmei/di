@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/join"
 	"github.com/NetSys/quilt/minion/docker"
 	"github.com/NetSys/quilt/minion/ovsdb"
 	"github.com/NetSys/quilt/minion/supervisor"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -452,7 +452,7 @@ func generateTargetNatRules(containers []db.Container, connections []db.Connecti
 	for _, dbc := range containers {
 		for _, conn := range connections {
 
-			if conn.From != dsl.PublicInternetLabel {
+			if conn.From != stitch.PublicInternetLabel {
 				continue
 			}
 
@@ -980,9 +980,9 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.C
 		portsFromWeb := make(map[int]struct{})
 		for _, l := range dbc.Labels {
 			for _, conn := range connections {
-				if conn.From == l && conn.To == dsl.PublicInternetLabel {
+				if conn.From == l && conn.To == stitch.PublicInternetLabel {
 					portsToWeb[conn.MinPort] = struct{}{}
-				} else if conn.From == dsl.PublicInternetLabel && conn.To == l {
+				} else if conn.From == stitch.PublicInternetLabel && conn.To == l {
 					portsFromWeb[conn.MinPort] = struct{}{}
 				}
 			}
@@ -1150,7 +1150,7 @@ func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 
 	for _, conn := range connections {
-		if conn.To == dsl.PublicInternetLabel || conn.From == dsl.PublicInternetLabel {
+		if conn.To == stitch.PublicInternetLabel || conn.From == stitch.PublicInternetLabel {
 			continue
 		}
 		conns[conn.From] = append(conns[conn.From], conn.To)
@@ -1204,7 +1204,7 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 
 	for _, l := range dbc.Labels {
 		for _, toLabel := range conns[l] {
-			if toLabel == dsl.PublicInternetLabel {
+			if toLabel == stitch.PublicInternetLabel {
 				continue
 			}
 			if ip := labelIP[toLabel]; ip != "" {

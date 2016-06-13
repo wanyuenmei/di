@@ -6,8 +6,8 @@ import (
 
 	"github.com/NetSys/quilt/cluster/provider"
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -16,10 +16,10 @@ import (
 var myIP = util.MyIP
 var defaultDiskSize = 32
 
-// UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'dsl'.
-func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
+// UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'stitch'.
+func UpdatePolicy(conn db.Conn, stitch stitch.Stitch) error {
 	txn := func(db db.Database) error {
-		return updateTxn(db, dsl)
+		return updateTxn(db, stitch)
 	}
 
 	if err := conn.Transact(txn); err != nil {
@@ -29,13 +29,13 @@ func UpdatePolicy(conn db.Conn, dsl dsl.Dsl) error {
 	return nil
 }
 
-func updateTxn(view db.Database, dsl dsl.Dsl) error {
-	cluster, err := clusterTxn(view, dsl)
+func updateTxn(view db.Database, stitch stitch.Stitch) error {
+	cluster, err := clusterTxn(view, stitch)
 	if err != nil {
 		return err
 	}
 
-	if err = machineTxn(view, dsl, cluster); err != nil {
+	if err = machineTxn(view, stitch, cluster); err != nil {
 		return err
 	}
 
@@ -44,15 +44,15 @@ func updateTxn(view db.Database, dsl dsl.Dsl) error {
 	// the database. If we didn't, inter-machine ACLs would get removed
 	// when the Quilt controller restarts, even if there are running cloud
 	// machines that still need to communicate.
-	if err = aclTxn(view, dsl, cluster); err != nil {
+	if err = aclTxn(view, stitch, cluster); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
-	namespace := dsl.QueryString("Namespace")
+func clusterTxn(view db.Database, stitch stitch.Stitch) (int, error) {
+	namespace := stitch.QueryString("Namespace")
 	if namespace == "" {
 		namespace = "DEFAULT_NAMESPACE"
 		msg := "policy did not specify 'Namespace', defaulting to '%s'"
@@ -71,12 +71,12 @@ func clusterTxn(view db.Database, dsl dsl.Dsl) (int, error) {
 	}
 
 	cluster.Namespace = namespace
-	cluster.Spec = dsl.String()
+	cluster.Spec = stitch.String()
 	view.Commit(cluster)
 	return cluster.ID, nil
 }
 
-func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+func aclTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
 	clusters := view.SelectFromCluster(func(c db.Cluster) bool {
 		return c.ID == clusterID
 	})
@@ -89,7 +89,7 @@ func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	machines := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == cluster.ID && m.PublicIP != ""
 	})
-	acls := resolveACLs(dsl.QueryStrSlice("AdminACL"))
+	acls := resolveACLs(stitch.QueryStrSlice("AdminACL"))
 
 	for _, m := range machines {
 		acls = append(acls, m.PublicIP+"/32")
@@ -107,13 +107,13 @@ func aclTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 // Specifically, it sets the role of the db.Machine, the size (which may depend
 // on RAM and CPU constraints), and the provider.
 // Additionally, it skips machines with invalid roles, sizes or providers.
-func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
+func toDBMachine(machines []stitch.Machine, maxPrice float64) []db.Machine {
 	var hasMaster, hasWorker bool
 	var dbMachines []db.Machine
-	for _, dslm := range machines {
+	for _, stitchm := range machines {
 		var m db.Machine
 
-		role, err := db.ParseRole(dslm.Role)
+		role, err := db.ParseRole(stitchm.Role)
 		if err != nil {
 			log.WithError(err).Error("Error parsing role.")
 			continue
@@ -123,30 +123,30 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 		hasMaster = hasMaster || role == db.Master
 		hasWorker = hasWorker || role == db.Worker
 
-		p, err := db.ParseProvider(dslm.Provider)
+		p, err := db.ParseProvider(stitchm.Provider)
 		if err != nil {
 			log.WithError(err).Error("Error parsing provider.")
 			continue
 		}
 		m.Provider = p
-		m.Size = dslm.Size
+		m.Size = stitchm.Size
 
 		if m.Size == "" {
 			providerInst := provider.New(p)
-			m.Size = providerInst.ChooseSize(dslm.RAM, dslm.CPU, maxPrice)
+			m.Size = providerInst.ChooseSize(stitchm.RAM, stitchm.CPU, maxPrice)
 			if m.Size == "" {
 				log.Errorf("No valid size for %v, skipping.", m)
 				continue
 			}
 		}
 
-		m.DiskSize = dslm.DiskSize
+		m.DiskSize = stitchm.DiskSize
 		if m.DiskSize == 0 {
 			m.DiskSize = defaultDiskSize
 		}
 
-		m.SSHKeys = dslm.SSHKeys
-		m.Region = dslm.Region
+		m.SSHKeys = stitchm.SSHKeys
+		m.Region = stitchm.Region
 		dbMachines = append(dbMachines, provider.DefaultRegion(m))
 	}
 
@@ -161,29 +161,29 @@ func toDBMachine(machines []dsl.Machine, maxPrice float64) []db.Machine {
 	return dbMachines
 }
 
-func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
+func machineTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
 	// XXX: How best to deal with machines that don't specify enough information?
-	maxPrice, _ := dsl.QueryFloat("MaxPrice")
-	dslMachines := toDBMachine(dsl.QueryMachines(), maxPrice)
+	maxPrice, _ := stitch.QueryFloat("MaxPrice")
+	stitchMachines := toDBMachine(stitch.QueryMachines(), maxPrice)
 
 	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {
 		return m.ClusterID == clusterID
 	})
 
 	scoreFun := func(left, right interface{}) int {
-		dslMachine := left.(db.Machine)
+		stitchMachine := left.(db.Machine)
 		dbMachine := right.(db.Machine)
 
 		switch {
-		case dbMachine.Provider != dslMachine.Provider:
+		case dbMachine.Provider != stitchMachine.Provider:
 			return -1
-		case dbMachine.Region != dslMachine.Region:
+		case dbMachine.Region != stitchMachine.Region:
 			return -1
-		case dbMachine.Size != "" && dslMachine.Size != dbMachine.Size:
+		case dbMachine.Size != "" && stitchMachine.Size != dbMachine.Size:
 			return -1
-		case dbMachine.Role != db.None && dbMachine.Role != dslMachine.Role:
+		case dbMachine.Role != db.None && dbMachine.Role != stitchMachine.Role:
 			return -1
-		case dbMachine.DiskSize != dslMachine.DiskSize:
+		case dbMachine.DiskSize != stitchMachine.DiskSize:
 			return -1
 		case dbMachine.PrivateIP == "":
 			return 2
@@ -194,7 +194,7 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 		}
 	}
 
-	pairs, bootList, terminateList := join.Join(dslMachines, dbMachines, scoreFun)
+	pairs, bootList, terminateList := join.Join(stitchMachines, dbMachines, scoreFun)
 
 	for _, toTerminate := range terminateList {
 		toTerminate := toTerminate.(db.Machine)
@@ -208,15 +208,15 @@ func machineTxn(view db.Database, dsl dsl.Dsl, clusterID int) error {
 	}
 
 	for _, pair := range pairs {
-		dslMachine := pair.L.(db.Machine)
+		stitchMachine := pair.L.(db.Machine)
 		dbMachine := pair.R.(db.Machine)
 
-		dbMachine.Role = dslMachine.Role
-		dbMachine.Size = dslMachine.Size
-		dbMachine.DiskSize = dslMachine.DiskSize
-		dbMachine.Provider = dslMachine.Provider
-		dbMachine.Region = dslMachine.Region
-		dbMachine.SSHKeys = dslMachine.SSHKeys
+		dbMachine.Role = stitchMachine.Role
+		dbMachine.Size = stitchMachine.Size
+		dbMachine.DiskSize = stitchMachine.DiskSize
+		dbMachine.Provider = stitchMachine.Provider
+		dbMachine.Region = stitchMachine.Region
+		dbMachine.SSHKeys = stitchMachine.SSHKeys
 		dbMachine.ClusterID = clusterID
 		view.Commit(dbMachine)
 	}

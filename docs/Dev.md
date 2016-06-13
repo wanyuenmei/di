@@ -27,7 +27,7 @@ in the database. For instance, to query for `Connection`s in the
 ## Quilt Global
 
 The first thing that happens when Quilt starts is that your config file is parsed
-by `dsl`. `dsl` then puts the connection and container specifications into a
+by `stitch`. `stitch` then puts the connection and container specifications into a
 sensible format and forwards them to the `engine`.
 
 The `engine` is responsible for keeping the `db` updated so it always reflects

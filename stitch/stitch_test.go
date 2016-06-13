@@ -1,4 +1,4 @@
-package dsl
+package stitch
 
 import (
 	"fmt"
@@ -402,7 +402,7 @@ func TestHmap(t *testing.T) {
 func TestDocker(t *testing.T) {
 	checkContainers := func(code, expectedCode string, expected ...*Container) {
 		ctx := parseTest(t, code, expectedCode)
-		containerResult := Dsl{"", ctx}.QueryContainers()
+		containerResult := Stitch{"", ctx}.QueryContainers()
 		if !reflect.DeepEqual(containerResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
 				code, containerResult, expected))
@@ -467,7 +467,7 @@ func TestStdlib(t *testing.T) {
 
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTestImport(t, code, expectedCode, []string{"../specs/stdlib"})
-		machineResult := Dsl{"", ctx}.QueryMachines()
+		machineResult := Stitch{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
@@ -511,7 +511,7 @@ func TestStdlib(t *testing.T) {
 func TestMachines(t *testing.T) {
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Dsl{"", ctx}.QueryMachines()
+		machineResult := Stitch{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
@@ -593,7 +593,7 @@ func TestMachines(t *testing.T) {
 func TestMachineAttribute(t *testing.T) {
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Dsl{"", ctx}.QueryMachines()
+		machineResult := Stitch{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, machineResult, expected))
@@ -681,7 +681,7 @@ func TestKeys(t *testing.T) {
 
 	checkKeys := func(code, expectedCode string, expected ...string) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Dsl{"", ctx}.QueryMachineSlice("sshkeys")
+		machineResult := Stitch{"", ctx}.QueryMachineSlice("sshkeys")
 		if len(machineResult) == 0 {
 			t.Error("no machine found")
 			return
@@ -722,7 +722,7 @@ func TestLabel(t *testing.T) {
 	containerC := &Container{Image: "c", Command: nil, Env: make(map[string]string)}
 	containerC.SetLabels([]string{"qux"})
 	expected := []*Container{containerA, containerB, containerC}
-	containerResult := Dsl{"", ctx}.QueryContainers()
+	containerResult := Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, containerResult, expected))
@@ -736,7 +736,7 @@ func TestLabel(t *testing.T) {
 	expectedA := &Container{Image: "a", Command: nil, Env: make(map[string]string)}
 	expectedA.SetLabels([]string{"foo", "bar"})
 	expected = []*Container{expectedA, expectedA}
-	containerResult = Dsl{"", ctx}.QueryContainers()
+	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
 			code, containerResult, expected))
@@ -753,7 +753,7 @@ func TestLabel(t *testing.T) {
 			Provider: "Amazon",
 		},
 	}
-	machineResult := Dsl{"", ctx}.QueryMachines()
+	machineResult := Stitch{"", ctx}.QueryMachines()
 	if !reflect.DeepEqual(machineResult, expMachines) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult: %v\nexpected: %v",
 			code, machineResult, expMachines))
@@ -780,7 +780,7 @@ func TestLabel(t *testing.T) {
 func TestPlacement(t *testing.T) {
 	checkPlacement := func(code, expCode string, expected ...Placement) {
 		ctx := parseTest(t, code, expCode)
-		placementResult := Dsl{"", ctx}.QueryPlacements()
+		placementResult := Stitch{"", ctx}.QueryPlacements()
 		if !reflect.DeepEqual(placementResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
 				code, placementResult, expected))
@@ -887,7 +887,7 @@ func TestEnv(t *testing.T) {
 		Env:   map[string]string{"key": "value"}}
 	containerA.SetLabels([]string{"red"})
 	expected := []*Container{&containerA}
-	containerResult := Dsl{"", ctx}.QueryContainers()
+	containerResult := Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
@@ -904,7 +904,7 @@ func TestEnv(t *testing.T) {
 	containerA.SetLabels([]string{"red"})
 	expected = []*Container{&containerA, &containerA, &containerA, &containerA,
 		&containerA}
-	containerResult = Dsl{"", ctx}.QueryContainers()
+	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
@@ -930,7 +930,7 @@ func TestEnv(t *testing.T) {
 		Env:   map[string]string{"key1": "value1", "key2": "value2"}}
 	containerB.SetLabels([]string{"bar", "baz"})
 	expected = []*Container{&containerA, &containerB}
-	containerResult = Dsl{"", ctx}.QueryContainers()
+	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
@@ -943,7 +943,7 @@ func TestEnv(t *testing.T) {
 		Image: "a",
 		Env:   map[string]string{"key": "value"}}
 	expected = []*Container{&containerA}
-	containerResult = Dsl{"", ctx}.QueryContainers()
+	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
@@ -958,7 +958,7 @@ func TestEnv(t *testing.T) {
 		atomImpl: atomImpl{labels: []string{"bar"}},
 	}
 	expected = []*Container{&containerA}
-	containerResult = Dsl{"", ctx}.QueryContainers()
+	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
 		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
 			code, containerResult, expected))
@@ -1230,17 +1230,17 @@ func TestErrorMetadata(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	var sc scanner.Scanner
-	dsl, err := New(*sc.Init(strings.NewReader("(")), []string{})
+	stitch, err := New(*sc.Init(strings.NewReader("(")), []string{})
 	if err == nil {
 		t.Error("Expected error")
 	}
 
-	dsl, err = New(*sc.Init(strings.NewReader("(+ a a)")), []string{})
+	stitch, err = New(*sc.Init(strings.NewReader("(+ a a)")), []string{})
 	if err == nil {
 		t.Error("Expected runtime error")
 	}
 
-	dsl, err = New(*sc.Init(strings.NewReader(`
+	stitch, err = New(*sc.Init(strings.NewReader(`
 		(define a (+ 1 2))
 		(define b "This is b")
 		(define c (list "This" "is" "b"))
@@ -1253,52 +1253,52 @@ func TestQuery(t *testing.T) {
 		return
 	}
 
-	if val := dsl.QueryInt("a"); val != 3 {
+	if val := stitch.QueryInt("a"); val != 3 {
 		t.Error(val, "!=", 3)
 	}
 
-	if val := dsl.QueryInt("missing"); val != 0 {
+	if val := stitch.QueryInt("missing"); val != 0 {
 		t.Error(val, "!=", 3)
 	}
 
-	if val := dsl.QueryInt("b"); val != 0 {
+	if val := stitch.QueryInt("b"); val != 0 {
 		t.Error(val, "!=", 3)
 	}
 
-	if val, _ := dsl.QueryFloat("e"); val != 1.5 {
+	if val, _ := stitch.QueryFloat("e"); val != 1.5 {
 		t.Error(val, "!=", 1.5)
 	}
 
-	if val := dsl.QueryString("b"); val != "This is b" {
+	if val := stitch.QueryString("b"); val != "This is b" {
 		t.Error(val, "!=", "This is b")
 	}
 
-	if val := dsl.QueryString("missing"); val != "" {
+	if val := stitch.QueryString("missing"); val != "" {
 		t.Error(val, "!=", "")
 	}
 
-	if val := dsl.QueryString("a"); val != "" {
+	if val := stitch.QueryString("a"); val != "" {
 		t.Error(val, "!=", "")
 	}
 
 	expected := []string{"This", "is", "b"}
-	if val := dsl.QueryStrSlice("c"); !reflect.DeepEqual(val, expected) {
+	if val := stitch.QueryStrSlice("c"); !reflect.DeepEqual(val, expected) {
 		t.Error(val, "!=", expected)
 	}
 
-	if val := dsl.QueryStrSlice("d"); val != nil {
+	if val := stitch.QueryStrSlice("d"); val != nil {
 		t.Error(val, "!=", nil)
 	}
 
-	if val := dsl.QueryStrSlice("missing"); val != nil {
+	if val := stitch.QueryStrSlice("missing"); val != nil {
 		t.Error(val, "!=", nil)
 	}
 
-	if val := dsl.QueryStrSlice("a"); val != nil {
+	if val := stitch.QueryStrSlice("a"); val != nil {
 		t.Error(val, "!=", nil)
 	}
 
-	if val := dsl.QueryContainers(); len(val) != 2 {
+	if val := stitch.QueryContainers(); len(val) != 2 {
 		t.Error(val)
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/NetSys/quilt/cluster/provider"
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -82,7 +82,7 @@ func (p *fakeProvider) SetACLs(acls []string) error { return nil }
 
 func (p *fakeProvider) Connect(namespace string) error { return nil }
 
-func (p *fakeProvider) ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func (p *fakeProvider) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
 	return ""
 }
 

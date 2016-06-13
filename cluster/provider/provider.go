@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 )
 
 // Machine represents an instance of a machine booted by a Provider.
@@ -33,7 +33,7 @@ type Provider interface {
 
 	Disconnect()
 
-	ChooseSize(ram dsl.Range, cpu dsl.Range, maxPrice float64) string
+	ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string
 }
 
 // New returns an empty instance of the Provider represented by `dbp`

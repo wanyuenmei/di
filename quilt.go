@@ -13,8 +13,8 @@ import (
 
 	"github.com/NetSys/quilt/cluster"
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/engine"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 
 	"google.golang.org/grpc/grpclog"
@@ -73,7 +73,7 @@ func stop(conn db.Conn, namespace string) {
 	}
 
 	var sc scanner.Scanner
-	spec, err := dsl.New(*sc.Init(strings.NewReader(specStr)), nil)
+	spec, err := stitch.New(*sc.Init(strings.NewReader(specStr)), nil)
 	if err != nil {
 		panic(err)
 	}
@@ -115,7 +115,7 @@ func updateConfig(conn db.Conn, configPath string) error {
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
 	pathSlice := strings.Split(pathStr, ":")
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), pathSlice)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathSlice)
 	if err != nil {
 		return err
 	}

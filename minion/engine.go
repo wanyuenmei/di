@@ -7,8 +7,8 @@ import (
 	"text/scanner"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
 	"github.com/NetSys/quilt/join"
+	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 
 	log "github.com/Sirupsen/logrus"
@@ -16,7 +16,7 @@ import (
 
 func updatePolicy(view db.Database, role db.Role, spec string) {
 	var sc scanner.Scanner
-	compiled, err := dsl.New(*sc.Init(strings.NewReader(spec)), []string{})
+	compiled, err := stitch.New(*sc.Init(strings.NewReader(spec)), []string{})
 	if err != nil {
 		log.WithError(err).Warn("Invalid spec.")
 		return
@@ -37,13 +37,13 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 	}
 }
 
-func toDBPlacements(dslPlacements []dsl.Placement) db.PlacementSlice {
+func toDBPlacements(stitchPlacements []stitch.Placement) db.PlacementSlice {
 	placementSet := make(map[db.Placement]struct{})
-	for _, dslP := range dslPlacements {
-		rule := dslP.Rule
+	for _, stitchP := range stitchPlacements {
+		rule := stitchP.Rule
 		for _, label := range rule.OtherLabels {
 			placement := db.Placement{
-				TargetLabel: dslP.TargetLabel,
+				TargetLabel: stitchP.TargetLabel,
 				Rule: db.LabelRule{
 					OtherLabel: label,
 					Exclusive:  rule.Exclusive,
@@ -56,7 +56,7 @@ func toDBPlacements(dslPlacements []dsl.Placement) db.PlacementSlice {
 				continue
 			}
 			placement := db.Placement{
-				TargetLabel: dslP.TargetLabel,
+				TargetLabel: stitchP.TargetLabel,
 				Rule: db.MachineRule{
 					Exclusive: rule.Exclusive,
 					Attribute: attr,
@@ -77,7 +77,7 @@ func toDBPlacements(dslPlacements []dsl.Placement) db.PlacementSlice {
 func makeConnectionPlacements(conns []db.Connection) db.PlacementSlice {
 	var dbPlacements db.PlacementSlice
 	for _, conn := range conns {
-		if conn.From == dsl.PublicInternetLabel {
+		if conn.From == stitch.PublicInternetLabel {
 			for p := conn.MinPort; p <= conn.MaxPort; p++ {
 				dbPlacements = append(dbPlacements, db.Placement{
 					TargetLabel: conn.To,
@@ -92,8 +92,8 @@ func makeConnectionPlacements(conns []db.Connection) db.PlacementSlice {
 	return dbPlacements
 }
 
-func updatePlacements(view db.Database, spec dsl.Dsl) {
-	dslPlacements := toDBPlacements(spec.QueryPlacements())
+func updatePlacements(view db.Database, spec stitch.Stitch) {
+	stitchPlacements := toDBPlacements(spec.QueryPlacements())
 	connPlacements := makeConnectionPlacements(view.SelectFromConnection(nil))
 	key := func(val interface{}) interface{} {
 		pVal := val.(db.Placement)
@@ -103,7 +103,7 @@ func updatePlacements(view db.Database, spec dsl.Dsl) {
 		}{pVal.TargetLabel, pVal.Rule}
 	}
 
-	_, addSet, removeSet := join.HashJoin(append(dslPlacements, connPlacements...),
+	_, addSet, removeSet := join.HashJoin(append(stitchPlacements, connPlacements...),
 		db.PlacementSlice(view.SelectFromPlacement(nil)), key, key)
 
 	for _, toAddIntf := range addSet {
@@ -120,20 +120,20 @@ func updatePlacements(view db.Database, spec dsl.Dsl) {
 	}
 }
 
-func makeConnectionSlice(cm map[dsl.Connection]struct{}) dsl.ConnectionSlice {
-	slice := make([]dsl.Connection, 0, len(cm))
+func makeConnectionSlice(cm map[stitch.Connection]struct{}) stitch.ConnectionSlice {
+	slice := make([]stitch.Connection, 0, len(cm))
 	for k := range cm {
 		slice = append(slice, k)
 	}
-	return dsl.ConnectionSlice(slice)
+	return stitch.ConnectionSlice(slice)
 }
 
-func updateConnections(view db.Database, spec dsl.Dsl) {
+func updateConnections(view db.Database, spec stitch.Stitch) {
 	scs, vcs := makeConnectionSlice(spec.QueryConnections()), view.SelectFromConnection(nil)
 
 	dbcKey := func(val interface{}) interface{} {
 		c := val.(db.Connection)
-		return dsl.Connection{
+		return stitch.Connection{
 			From:    c.From,
 			To:      c.To,
 			MinPort: c.MinPort,
@@ -141,42 +141,42 @@ func updateConnections(view db.Database, spec dsl.Dsl) {
 		}
 	}
 
-	pairs, dsls, dbcs := join.HashJoin(scs, db.ConnectionSlice(vcs), nil, dbcKey)
+	pairs, stitchs, dbcs := join.HashJoin(scs, db.ConnectionSlice(vcs), nil, dbcKey)
 
 	for _, dbc := range dbcs {
 		view.Remove(dbc.(db.Connection))
 	}
 
-	for _, dslc := range dsls {
-		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertConnection()})
+	for _, stitchc := range stitchs {
+		pairs = append(pairs, join.Pair{L: stitchc, R: view.InsertConnection()})
 	}
 
 	for _, pair := range pairs {
-		dslc := pair.L.(dsl.Connection)
+		stitchc := pair.L.(stitch.Connection)
 		dbc := pair.R.(db.Connection)
 
-		dbc.From = dslc.From
-		dbc.To = dslc.To
-		dbc.MinPort = dslc.MinPort
-		dbc.MaxPort = dslc.MaxPort
+		dbc.From = stitchc.From
+		dbc.To = stitchc.To
+		dbc.MinPort = stitchc.MinPort
+		dbc.MaxPort = stitchc.MaxPort
 		view.Commit(dbc)
 	}
 }
 
-func updateContainers(view db.Database, spec dsl.Dsl) {
+func updateContainers(view db.Database, spec stitch.Stitch) {
 	score := func(l, r interface{}) int {
-		dslc := l.(*dsl.Container)
+		stitchc := l.(*stitch.Container)
 		dbc := r.(db.Container)
 
-		if dbc.Image != dslc.Image ||
-			!reflect.DeepEqual(dbc.Command, dslc.Command) {
+		if dbc.Image != stitchc.Image ||
+			!reflect.DeepEqual(dbc.Command, stitchc.Command) {
 			return -1
 		}
 
-		score := util.EditDistance(dbc.Labels, dslc.Labels())
+		score := util.EditDistance(dbc.Labels, stitchc.Labels())
 
 		for k, v := range dbc.Env {
-			v2 := dslc.Env[k]
+			v2 := stitchc.Env[k]
 			if v != v2 {
 				return -1
 			}
@@ -185,29 +185,29 @@ func updateContainers(view db.Database, spec dsl.Dsl) {
 		return score
 	}
 
-	pairs, dsls, dbcs := join.Join(spec.QueryContainers(),
+	pairs, stitchs, dbcs := join.Join(spec.QueryContainers(),
 		view.SelectFromContainer(nil), score)
 
 	for _, dbc := range dbcs {
 		view.Remove(dbc.(db.Container))
 	}
 
-	for _, dslc := range dsls {
-		pairs = append(pairs, join.Pair{L: dslc, R: view.InsertContainer()})
+	for _, stitchc := range stitchs {
+		pairs = append(pairs, join.Pair{L: stitchc, R: view.InsertContainer()})
 	}
 
 	for _, pair := range pairs {
-		dslc := pair.L.(*dsl.Container)
+		stitchc := pair.L.(*stitch.Container)
 		dbc := pair.R.(db.Container)
 
 		// By sorting the labels we prevent the database from getting confused
 		// when their order is non determinisitic.
-		dbc.Labels = dslc.Labels()
+		dbc.Labels = stitchc.Labels()
 		sort.Sort(sort.StringSlice(dbc.Labels))
 
-		dbc.Command = dslc.Command
-		dbc.Image = dslc.Image
-		dbc.Env = dslc.Env
+		dbc.Command = stitchc.Command
+		dbc.Image = stitchc.Image
+		dbc.Env = stitchc.Env
 		view.Commit(dbc)
 	}
 }

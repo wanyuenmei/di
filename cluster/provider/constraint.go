@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 )
 
 type description struct {
@@ -14,7 +14,7 @@ type description struct {
 }
 
 // XXX: cache results?
-func pickBestSize(descriptions []description, ram dsl.Range, cpu dsl.Range, maxPrice float64) string {
+func pickBestSize(descriptions []description, ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
 	var best description
 	for _, d := range descriptions {
 		if ram.Accepts(d.ram) && cpu.Accepts(float64(d.cpu)) && (best.size == "" || d.price < best.price) {

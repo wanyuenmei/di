@@ -1,4 +1,4 @@
-package dsl
+package stitch
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-// A Dsl is an abstract representation of the policy language.
-type Dsl struct {
+// A Stitch is an abstract representation of the policy language.
+type Stitch struct {
 	code string
 	ctx  evalCtx
 }
@@ -27,7 +27,7 @@ type Rule struct {
 	MachineAttributes map[string]string
 }
 
-// A Container may be instantiated in the dsl and queried by users.
+// A Container may be instantiated in the stitch and queried by users.
 type Container struct {
 	Image   string
 	Command []string
@@ -72,36 +72,36 @@ type Range struct {
 // network.
 const PublicInternetLabel = "public"
 
-// Accepts returns true if `x` is within the range specified by `dslr` (include),
-// or if no max is specified and `x` is larger than `dslr.min`.
-func (dslr Range) Accepts(x float64) bool {
-	return dslr.Min <= x && (dslr.Max == 0 || x <= dslr.Max)
+// Accepts returns true if `x` is within the range specified by `stitchr` (include),
+// or if no max is specified and `x` is larger than `stitchr.min`.
+func (stitchr Range) Accepts(x float64) bool {
+	return stitchr.Min <= x && (stitchr.Max == 0 || x <= stitchr.Max)
 }
 
-// New parses and executes a dsl (in text form), and returns an abstract Dsl handle.
-func New(sc scanner.Scanner, path []string) (Dsl, error) {
+// New parses and executes a stitch (in text form), and returns an abstract Stitch handle.
+func New(sc scanner.Scanner, path []string) (Stitch, error) {
 	parsed, err := parse(sc)
 	if err != nil {
-		return Dsl{}, err
+		return Stitch{}, err
 	}
 
 	parsed, err = resolveImports(parsed, path)
 	if err != nil {
-		return Dsl{}, err
+		return Stitch{}, err
 	}
 
 	_, ctx, err := eval(astRoot(parsed))
 	if err != nil {
-		return Dsl{}, err
+		return Stitch{}, err
 	}
 
-	return Dsl{astRoot(parsed).String(), ctx}, nil
+	return Stitch{astRoot(parsed).String(), ctx}, nil
 }
 
-// QueryContainers retrieves all containers declared in dsl.
-func (dsl Dsl) QueryContainers() []*Container {
+// QueryContainers retrieves all containers declared in stitch.
+func (stitch Stitch) QueryContainers() []*Container {
 	var containers []*Container
-	for _, c := range *dsl.ctx.containers {
+	for _, c := range *stitch.ctx.containers {
 		var command []string
 		for _, co := range c.command {
 			command = append(command, string(co.(astString)))
@@ -159,8 +159,8 @@ func convertAstMachine(machineAst astMachine) Machine {
 }
 
 // QueryMachineSlice returns the machines associated with a label.
-func (dsl Dsl) QueryMachineSlice(key string) []Machine {
-	label, ok := dsl.ctx.labels[key]
+func (stitch Stitch) QueryMachineSlice(key string) []Machine {
+	label, ok := stitch.ctx.labels[key]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return nil
@@ -180,36 +180,36 @@ func (dsl Dsl) QueryMachineSlice(key string) []Machine {
 	return machines
 }
 
-// QueryMachines returns all machines declared in the dsl.
-func (dsl Dsl) QueryMachines() []Machine {
+// QueryMachines returns all machines declared in the stitch.
+func (stitch Stitch) QueryMachines() []Machine {
 	var machines []Machine
-	for _, machineAst := range *dsl.ctx.machines {
+	for _, machineAst := range *stitch.ctx.machines {
 		machines = append(machines, convertAstMachine(*machineAst))
 	}
 	return machines
 }
 
-// QueryConnections returns the connections declared in the dsl.
-func (dsl Dsl) QueryConnections() map[Connection]struct{} {
+// QueryConnections returns the connections declared in the stitch.
+func (stitch Stitch) QueryConnections() map[Connection]struct{} {
 	copy := map[Connection]struct{}{}
-	for c := range dsl.ctx.connections {
+	for c := range stitch.ctx.connections {
 		copy[c] = struct{}{}
 	}
 	return copy
 }
 
-// QueryPlacements returns the placements declared in the dsl.
-func (dsl Dsl) QueryPlacements() []Placement {
+// QueryPlacements returns the placements declared in the stitch.
+func (stitch Stitch) QueryPlacements() []Placement {
 	var placements []Placement
-	for _, p := range *dsl.ctx.placements {
+	for _, p := range *stitch.ctx.placements {
 		placements = append(placements, p)
 	}
 	return placements
 }
 
-// QueryFloat returns a float value defined in the dsl.
-func (dsl Dsl) QueryFloat(key string) (float64, error) {
-	result, ok := dsl.ctx.binds[astIdent(key)]
+// QueryFloat returns a float value defined in the stitch.
+func (stitch Stitch) QueryFloat(key string) (float64, error) {
+	result, ok := stitch.ctx.binds[astIdent(key)]
 	if !ok {
 		return 0, fmt.Errorf("%s undefined", key)
 	}
@@ -222,9 +222,9 @@ func (dsl Dsl) QueryFloat(key string) (float64, error) {
 	return float64(val), nil
 }
 
-// QueryInt returns an integer value defined in the dsl.
-func (dsl Dsl) QueryInt(key string) int {
-	result, ok := dsl.ctx.binds[astIdent(key)]
+// QueryInt returns an integer value defined in the stitch.
+func (stitch Stitch) QueryInt(key string) int {
+	result, ok := stitch.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return 0
@@ -239,9 +239,9 @@ func (dsl Dsl) QueryInt(key string) int {
 	return int(val)
 }
 
-// QueryString returns a string value defined in the dsl.
-func (dsl Dsl) QueryString(key string) string {
-	result, ok := dsl.ctx.binds[astIdent(key)]
+// QueryString returns a string value defined in the stitch.
+func (stitch Stitch) QueryString(key string) string {
+	result, ok := stitch.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return ""
@@ -256,9 +256,9 @@ func (dsl Dsl) QueryString(key string) string {
 	return string(val)
 }
 
-// QueryStrSlice returns a string slice value defined in the dsl.
-func (dsl Dsl) QueryStrSlice(key string) []string {
-	result, ok := dsl.ctx.binds[astIdent(key)]
+// QueryStrSlice returns a string slice value defined in the stitch.
+func (stitch Stitch) QueryStrSlice(key string) []string {
+	result, ok := stitch.ctx.binds[astIdent(key)]
 	if !ok {
 		log.Warnf("%s undefined", key)
 		return nil
@@ -283,9 +283,9 @@ func (dsl Dsl) QueryStrSlice(key string) []string {
 	return slice
 }
 
-// String returns the dsl in its code form.
-func (dsl Dsl) String() string {
-	return dsl.code
+// String returns the stitch in its code form.
+func (stitch Stitch) String() string {
+	return stitch.code
 }
 
 // When an error occurs within a generated S-expression, the position field
@@ -300,14 +300,14 @@ func (dsl Dsl) String() string {
 // By using the innermost defined position, and the innermost error message,
 // our error message is "Line 6: `a` undefined", instead of
 // "Undefined line: `a` undefined.
-type dslError struct {
+type stitchError struct {
 	pos scanner.Position
 	err error
 }
 
-func (dslErr dslError) Error() string {
-	pos := dslErr.innermostPos()
-	err := dslErr.innermostError()
+func (stitchErr stitchError) Error() string {
+	pos := stitchErr.innermostPos()
+	err := stitchErr.innermostError()
 	if pos.Filename == "" {
 		return fmt.Sprintf("%d: %s", pos.Line, err)
 	}
@@ -315,22 +315,22 @@ func (dslErr dslError) Error() string {
 }
 
 // innermostPos returns the most nested position that is non-zero.
-func (dslErr dslError) innermostPos() scanner.Position {
-	childErr, ok := dslErr.err.(dslError)
+func (stitchErr stitchError) innermostPos() scanner.Position {
+	childErr, ok := stitchErr.err.(stitchError)
 	if !ok {
-		return dslErr.pos
+		return stitchErr.pos
 	}
 
 	innerPos := childErr.innermostPos()
 	if innerPos.Line == 0 {
-		return dslErr.pos
+		return stitchErr.pos
 	}
 	return innerPos
 }
 
-func (dslErr dslError) innermostError() error {
-	switch childErr := dslErr.err.(type) {
-	case dslError:
+func (stitchErr stitchError) innermostError() error {
+	switch childErr := stitchErr.err.(type) {
+	case stitchError:
 		return childErr.innermostError()
 	default:
 		return childErr

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 )
 
 const quiltPath = "QUILT_PATH"
@@ -17,7 +17,7 @@ func main() {
 	case 2:
 		configPath = os.Args[1]
 	default:
-		panic("Usage: dslinspect <path to spec file>")
+		panic("Usage: stitchinspect <path to spec file>")
 	}
 
 	f, err := os.Open(configPath)
@@ -33,17 +33,17 @@ func main() {
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
 	pathSlice := strings.Split(pathStr, ":")
-	spec, err := dsl.New(*sc.Init(bufio.NewReader(f)), pathSlice)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathSlice)
 	if err != nil {
 		panic(err)
 	}
 
-	containerLabels := make(map[string][]*dsl.Container)
+	containerLabels := make(map[string][]*stitch.Container)
 	for _, container := range spec.QueryContainers() {
 		labels := container.Labels()
 		for _, label := range labels {
 			if _, have := containerLabels[label]; !have {
-				containerLabels[label] = make([]*dsl.Container, 0)
+				containerLabels[label] = make([]*stitch.Container, 0)
 			}
 			containerLabels[label] = append(containerLabels[label], container)
 		}

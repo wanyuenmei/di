@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/dsl"
+	"github.com/NetSys/quilt/stitch"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/satori/go.uuid"
@@ -181,7 +181,7 @@ func (clst *gceCluster) Disconnect() {
 	// should delete the network
 }
 
-func (clst *gceCluster) ChooseSize(ram dsl.Range, cpu dsl.Range,
+func (clst *gceCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
 	return pickBestSize(googleDescriptions, ram, cpu, maxPrice)
 }
