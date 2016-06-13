@@ -53,7 +53,7 @@ coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))
 	go tool cover -html=.$@.coverprofile -o .$@.html
 
 # BUILD
-docker-build-all: docker-build-quilt docker-build-tester docker-build-minion docker-build-ovs
+docker-build-all: docker-build-tester docker-build-minion docker-build-ovs
 
 docker-build-tester:
 	cd -P quilt-tester && ${DOCKER} build -t ${REPO}/tester .
@@ -67,7 +67,7 @@ docker-build-ovs:
 
 # PUSH
 #
-docker-push-all: docker-push-quilt docker-push-tester docker-push-minion
+docker-push-all: docker-push-tester docker-push-minion
 	# We do not push the OVS container as it's built by the automated
 	# docker hub system.
 
