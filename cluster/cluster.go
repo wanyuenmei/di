@@ -80,8 +80,8 @@ func newCluster(conn db.Conn, id int, namespace string) cluster {
 		rateLimit := time.NewTicker(5 * time.Second)
 		defer rateLimit.Stop()
 		for range clst.trigger.C {
-			<-rateLimit.C
 			clst.sync()
+			<-rateLimit.C
 		}
 		for _, p := range clst.providers {
 			p.Disconnect()
