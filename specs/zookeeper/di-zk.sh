@@ -14,6 +14,7 @@ FILE=/opt/zookeeper/conf/zoo.cfg
 DATA=/tmp/zookeeper
 
 echo $MYID > $DATA/myid
+echo my id is $MYID
 
 cat << EOF > $FILE
 tickTime=2000
@@ -26,7 +27,11 @@ EOF
 id=1
 for i in `echo $2 | tr "," "\n"`
 do
-    echo server.$id=$i\:2888\:3888 >> $FILE
+	if [ "$id" = "$MYID" ]; then
+		echo server.$id=0.0.0.0\:2888\:3888 >> $FILE
+	else
+		echo server.$id=$i\:2888\:3888 >> $FILE
+	fi
     id=$((id+1))
 done
 
