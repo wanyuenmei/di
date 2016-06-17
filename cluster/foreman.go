@@ -82,7 +82,10 @@ func (fm *foreman) stop() {
 }
 
 func (fm *foreman) init() {
-	time.Sleep(5 * time.Second)
+	// XXX: We HAVE to fix this.  The core problem here is that the foreman lives in
+	// its own thread.  The cluster code is a mess and it's slowing our boot times
+	// and making us unreliable.
+	time.Sleep(10 * time.Second)
 
 	fm.conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
