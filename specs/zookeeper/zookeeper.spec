@@ -22,6 +22,6 @@
     (map label labelNames zooDockers)))
 
 (define (New prefix n)
-  // Zookeeper is port 2181
   (let ((zoos (create prefix n)))
-    (connect (list 1000 65535) zoos zoos)))
+    (connect (list 1000 65535) zoos zoos)
+    zoos))
