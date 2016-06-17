@@ -1,6 +1,6 @@
 (import "strings")
 
-(define image "quilt")
+(define image "quilt/etcd")
 
 (define (New prefix n)
   (let ((labelNames (strings.Range prefix n))
