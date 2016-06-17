@@ -95,7 +95,17 @@ func New(sc scanner.Scanner, path string, download bool) (Stitch, error) {
 		return Stitch{}, err
 	}
 
-	return Stitch{astRoot(parsed).String(), ctx}, nil
+	spec := Stitch{astRoot(parsed).String(), ctx}
+	graph, err := initializeGraph(spec)
+	if err != nil {
+		return Stitch{}, err
+	}
+
+	if _, failer, err := checkInvariants(graph, *ctx.invariants); err != nil {
+		return Stitch{}, fmt.Errorf("invariant failed: %s", failer.str)
+	}
+
+	return spec, nil
 }
 
 // QueryLabels returns a map where the keys are labels defined in the stitch, and the

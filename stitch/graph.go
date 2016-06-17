@@ -3,6 +3,7 @@ package stitch
 // A node in the communiction graph.
 type node struct {
 	name        string
+	label       string
 	connections map[string]node
 }
 
@@ -46,10 +47,29 @@ func (g graph) copyGraph() graph {
 	return graph{nodes: newNodes, availability: newAvail}
 }
 
-func (g *graph) addConnection(from string, to string) {
-	fromNode := g.getAddNode(from)
-	toNode := g.getAddNode(to)
-	fromNode.connections[to] = toNode
+func (g *graph) addConnection(from string, to string) error {
+	// from and to are labels
+	var fromContainers []node
+	var toContainers []node
+
+	for _, node := range g.nodes {
+		if node.label == from {
+			fromContainers = append(fromContainers, node)
+		}
+		if node.label == to {
+			toContainers = append(toContainers, node)
+		}
+	}
+
+	for _, fromNode := range fromContainers {
+		for _, toNode := range toContainers {
+			if fromNode.name != toNode.name {
+				fromNode.connections[toNode.name] = toNode
+			}
+		}
+	}
+
+	return nil
 }
 
 func (g graph) getNodes() []node {
@@ -70,20 +90,17 @@ func (g graph) getConnections() []connection {
 	return res
 }
 
-func (g *graph) getAddNode(label string) node {
-	foundNode, ok := g.nodes[label]
-	if !ok {
-		n := node{
-			name:        label,
-			connections: map[string]node{},
-		}
-		g.nodes[label] = n
-		g.availability[0].insert(label)
-		g.placeNodes()
-		foundNode = n
+func (g *graph) addNode(cid string, label string) node {
+	n := node{
+		name:        cid,
+		label:       label,
+		connections: map[string]node{},
 	}
+	g.nodes[cid] = n
+	g.availability[0].insert(cid)
+	g.placeNodes()
 
-	return foundNode
+	return n
 }
 
 func (g *graph) removeNode(label string) {

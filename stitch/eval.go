@@ -11,6 +11,7 @@ type evalCtx struct {
 	connections map[Connection]struct{}
 	placements  map[Placement]struct{}
 	machines    *[]*astMachine
+	invariants  *[]invariant
 
 	containers  *[]astContainer
 	containerID *int
@@ -42,6 +43,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 		machines:    ctx.machines,
 		containers:  ctx.containers,
 		placements:  ctx.placements,
+		invariants:  ctx.invariants,
 		containerID: ctx.containerID,
 		parent:      parentCopy,
 	}
@@ -296,6 +298,7 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		make(map[Connection]struct{}),
 		make(map[Placement]struct{}),
 		&[]*astMachine{},
+		&[]invariant{},
 		&[]astContainer{},
 		&id}
 }

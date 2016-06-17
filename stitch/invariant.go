@@ -2,7 +2,6 @@ package stitch
 
 import (
 	"fmt"
-	"strings"
 )
 
 type invariantType int
@@ -23,6 +22,14 @@ type invariant struct {
 	str    string   // Original invariant text.
 }
 
+func (i invariant) String() string {
+	return i.str
+}
+
+func (i invariant) eval(ctx *evalCtx) (ast, error) {
+	return i, nil
+}
+
 var formKeywords map[string]invariantType
 var formImpls map[invariantType]func(graph graph, inv invariant) bool
 
@@ -40,15 +47,6 @@ func init() {
 	}
 }
 
-func check(graph graph, path string) ([]invariant, *invariant, error) {
-	invs, err := parseInvariants(graph, path)
-	if err != nil {
-		return []invariant{}, nil, err
-	}
-
-	return checkInvariants(graph, invs)
-}
-
 func checkInvariants(graph graph, invs []invariant) ([]invariant, *invariant, error) {
 	for _, asrt := range invs {
 		if val := formImpls[asrt.form](graph, asrt); !val {
@@ -59,121 +57,92 @@ func checkInvariants(graph graph, invs []invariant) ([]invariant, *invariant, er
 	return invs, nil, nil
 }
 
-func parseLine(graph graph, line string) (invariant, error) {
-	sp := strings.Split(line, " ")
-	var nodes []string
-
-	// Validate target argument.
-	target := true
-	switch {
-	case len(sp) == 0:
-		return invariant{}, fmt.Errorf("split string returned zero length list")
-	case len(sp) == 1:
-		return invariant{
-			form:   formKeywords[sp[0]],
-			target: true,
-			nodes:  nodes,
-			str:    line,
-		}, nil
-	case len(sp) >= 2:
-		switch sp[1] {
-		case "true":
-			target = true
-		case "false":
-			target = false
-		default:
-			return invariant{}, fmt.Errorf(
-				"malformed assertion"+
-					" (second argument must be one of "+
-					"\"true\",\"false\"): %s",
-				line,
-			)
-		}
-
-		// Validate label arguments.
-		for _, n := range sp[2:] {
-			if _, ok := graph.nodes[n]; !ok {
-				return invariant{}, fmt.Errorf(
-					"malformed assertion (unknown label): %s",
-					n,
-				)
-			}
-			nodes = append(nodes, n)
-		}
-
-		return invariant{
-			form:   formKeywords[sp[0]],
-			target: target,
-			nodes:  nodes,
-			str:    line,
-		}, nil
-	}
-	return invariant{}, fmt.Errorf("could not parse invariant")
-}
-
-// Invariant format: <form> <target value ("true"/"false")> <node labels...>
-func parseInvariants(graph graph, path string) ([]invariant, error) {
-	var invs []invariant
-
-	parse := func(line string) error {
-		inv, err := parseLine(graph, line)
-		if err != nil {
-			return err
-		}
-		invs = append(invs, inv)
-		return nil
-	}
-
-	if err := forLineInFile(path, parse); err != nil {
-		return invs, err
-	}
-
-	return invs, nil
-}
-
 func reachImpl(graph graph, inv invariant) bool {
-	from, ok := graph.nodes[inv.nodes[0]]
-	if !ok {
-		return ok == inv.target
+	var fromNodes []node
+	var toNodes []node
+	for _, node := range graph.nodes {
+		if node.label == inv.nodes[0] {
+			fromNodes = append(fromNodes, node)
+		}
+		if node.label == inv.nodes[1] {
+			toNodes = append(toNodes, node)
+		}
 	}
 
-	return contains(from.dfs(), inv.nodes[1]) == inv.target
+	allPassed := true
+	for _, from := range fromNodes {
+		for _, to := range toNodes {
+			pass := contains(from.dfs(), to.name) == inv.target
+			allPassed = allPassed && pass
+		}
+	}
+
+	return allPassed
 }
 
 func betweenImpl(graph graph, inv invariant) bool {
-	from, ok := graph.nodes[inv.nodes[0]]
-	if !ok {
-		return ok == inv.target
-	}
-	to, ok := graph.nodes[inv.nodes[1]]
-	if !ok {
-		return ok == inv.target
+	var fromNodes []node
+	var toNodes []node
+	var betweenNodes []node
+	for _, node := range graph.nodes {
+		switch node.label {
+		case inv.nodes[0]:
+			fromNodes = append(fromNodes, node)
+		case inv.nodes[1]:
+			toNodes = append(toNodes, node)
+		case inv.nodes[2]:
+			betweenNodes = append(betweenNodes, node)
+		}
 	}
 
+	allPassed := true
+	for _, from := range fromNodes {
+		for _, to := range toNodes {
+			allPassed = allPassed && betweenPathsHelper(
+				betweenNodes,
+				from,
+				to,
+				inv.target,
+			)
+		}
+	}
+	return allPassed
+}
+
+func betweenPathsHelper(betweenNodes []node, from node, to node, target bool) bool {
 	paths, ok := paths(from, to)
 	if !ok {
 		// No path between source and dest.
-		return !inv.target
+		return !target
 	}
 
-	betweenNode := inv.nodes[2]
-
-	// True: betweenNode must be in all paths.
-	if inv.target {
+	if target { // A betweenNode must be in all paths.
+		allPaths := true
+	pathsAll:
 		for _, path := range paths {
-			if !contains(path, betweenNode) {
-				return false
+			for _, between := range betweenNodes {
+				if ok := contains(path, between.name); ok {
+					break
+				} else {
+					allPaths = false
+					break pathsAll
+				}
 			}
 		}
-		return true
+		return allPaths
 	}
-	// The betweenNode must not be in any path.
+	// A betweenNode must not be in any path.
+	noPaths := true
+pathsAny:
 	for _, path := range paths {
-		if contains(path, betweenNode) {
-			return true
+		for _, between := range betweenNodes {
+			if ok := contains(path, between.name); ok {
+				noPaths = false
+				break pathsAny
+			}
 		}
 	}
-	return false
+	return noPaths
 }
 
 func schedulabilityImpl(graph graph, inv invariant) bool {

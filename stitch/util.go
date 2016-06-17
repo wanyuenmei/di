@@ -33,3 +33,25 @@ func forLineInFile(path string, f parser) error {
 	}
 	return nil
 }
+
+// Enumerate the cartesian product of the given flattened labels.
+func enumerate(inp [][]interface{}) [][]interface{} {
+	var combos [][]interface{}
+	var enum func(idxs []int)
+	enum = func(idxs []int) {
+		if progress := len(idxs); progress == len(inp) {
+			var argSet []interface{}
+			for i, idx := range idxs {
+				argSet = append(argSet, inp[i][idx])
+			}
+
+			combos = append(combos, argSet)
+		} else {
+			for i := range inp[progress] {
+				enum(append(idxs, i))
+			}
+		}
+	}
+	enum([]int{})
+	return combos
+}

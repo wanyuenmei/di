@@ -55,56 +55,6 @@ func (avSet availabilitySet) removeAndCheck(labels ...string) []string {
 	return toMove
 }
 
-// Merge all placement rules such that each label appears as a target only once
-func (g *graph) addPlacementRule(rule Placement) {
-	if !rule.Exclusive {
-		return
-	}
-
-	target, sep := validateRule(rule, *g)
-	g.placement[target] = append([]string{sep}, g.placement[target]...)
-	g.placement[sep] = append(g.placement[sep], target)
-
-	// Add extra rule separating "public" into its own availability set.
-	// Remove once "implicit placement rules" are incorporated into dsl.
-	if _, ok := g.nodes[PublicInternetLabel]; ok {
-		allLabels := make([]string, 0, len(g.nodes))
-		for _, lab := range g.getNodes() {
-			if lab.name != PublicInternetLabel {
-				allLabels = append(allLabels, lab.name)
-				g.placement[lab.name] = append(g.placement[lab.name],
-					PublicInternetLabel)
-			}
-		}
-		g.placement[PublicInternetLabel] = allLabels
-	}
-
-	g.placeNodes()
-}
-
-func validateRule(place Placement, g graph) (string, string) {
-	targetNode, ok := g.nodes[place.TargetLabel]
-	if !ok {
-		panic(fmt.Errorf("placement constraint: node not found: %s",
-			place.TargetLabel))
-	}
-
-	var wantExclusive string
-	if place.OtherLabel != "" {
-		other, ok := g.nodes[place.OtherLabel]
-		if !ok {
-			panic(fmt.Errorf("placement constraint: node not found: %s",
-				other))
-		}
-
-		if other.name != targetNode.name {
-			wantExclusive = other.name
-		}
-	}
-
-	return targetNode.name, wantExclusive
-}
-
 func (g *graph) removeAvailabiltySet(av availabilitySet) {
 	toRemove := av.nodes()
 	for _, n := range toRemove {
@@ -121,6 +71,63 @@ func (g graph) findAvailabilitySet(label string) availabilitySet {
 	return nil
 }
 
+// Merge all placement rules such that each label appears as a target only once
+func (g *graph) addPlacementRule(rule Placement) error {
+	if !rule.Exclusive {
+		return nil
+	}
+
+	targetNodes, sepNodes := validateRule(rule, *g)
+
+	for _, target := range targetNodes {
+		for _, sep := range sepNodes {
+			if target != sep {
+				g.placement[target] = append(
+					[]string{sep},
+					g.placement[target]...,
+				)
+				g.placement[sep] = append(g.placement[sep], target)
+			}
+		}
+	}
+
+	// Add extra rule separating "public" into its own availability set.
+	// Remove once "implicit placement rules" are incorporated into dsl.
+	if _, ok := g.nodes[PublicInternetLabel]; ok {
+		allLabels := make([]string, 0, len(g.nodes))
+		for _, lab := range g.getNodes() {
+			if lab.name != PublicInternetLabel {
+				allLabels = append(allLabels, lab.name)
+				g.placement[lab.name] = append(
+					g.placement[lab.name],
+					PublicInternetLabel,
+				)
+			}
+		}
+		g.placement[PublicInternetLabel] = allLabels
+	}
+
+	g.placeNodes()
+	return nil
+}
+
+func validateRule(place Placement, g graph) ([]string, []string) {
+	var targetNodes []string
+	var otherNodes []string
+
+	for _, node := range g.nodes {
+		if node.label == place.TargetLabel {
+			targetNodes = append(targetNodes, node.name)
+		}
+
+		if node.label == place.OtherLabel {
+			otherNodes = append(otherNodes, node.name)
+		}
+	}
+
+	return targetNodes, otherNodes
+}
+
 // Finding minimal number of availability sets is NP-complete.
 // Try to pack into as few availability sets as possible.
 // For each placement rule:
@@ -131,6 +138,16 @@ func (g graph) findAvailabilitySet(label string) availabilitySet {
 //   - Create a new set for nodes that could not be moved to an existing set.
 func (g *graph) placeNodes() {
 	for node, wantExclusives := range g.placement {
+		if _, ok := g.nodes[node]; !ok {
+			panic(
+				fmt.Errorf(
+					"invalid node: %s, nodes: %s",
+					node,
+					g.getNodes(),
+				),
+			)
+		}
+
 		av := g.findAvailabilitySet(node)
 		if av == nil {
 			panic(fmt.Errorf("could not find availabilty set: %s", node))

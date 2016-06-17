@@ -61,6 +61,7 @@ func init() {
 		"hmapKeys":         {hmapKeysImpl, 1, false},
 		"hmapValues":       {hmapValuesImpl, 1, false},
 		"if":               {ifImpl, 2, true},
+		"invariant":        {invariantImpl, 1, true},
 		"import":           {importImpl, 1, true},
 		"label":            {labelImpl, 2, false},
 		"labelRule":        {labelRuleImpl, 1, false},
@@ -742,6 +743,94 @@ func hmapValuesImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 
 	return astList(ret), nil
+}
+
+func invariantImpl(ctx *evalCtx, args []ast) (ast, error) {
+	var astArgs []string
+	for _, arg := range args {
+		astArgs = append(astArgs, arg.String())
+	}
+	invStr := strings.Join(astArgs, " ")
+
+	if len(args) == 0 {
+		return invariant{}, fmt.Errorf(
+			"malformed invariant (must specify invariant type): %s",
+			invStr,
+		)
+	}
+
+	globalCtx := ctx.globalCtx()
+	var inv invariant
+
+	// Invariant format: <form> <target value ("true"/"false")> <node labels...>
+	keyword, ok := formKeywords[string(args[0].String())]
+	if !ok {
+		return invariant{}, fmt.Errorf(
+			"malformed invariant (unknown invariant type): %s",
+			invStr,
+		)
+	}
+
+	switch len(args) {
+	case 1:
+		inv = invariant{
+			form:   keyword,
+			target: true,
+			nodes:  []string{},
+			str:    invStr,
+		}
+
+	default:
+		target := true
+		switch astArgs[1] {
+		case "true":
+			target = true
+		case "false":
+			target = false
+		default:
+			return invariant{}, fmt.Errorf(
+				"malformed invariant (second argument must be one of"+
+					" \"true\",\"false\"): %s",
+				invStr,
+			)
+		}
+
+		// args[2:] are label names. Must be at least 2.
+		if len(args[2:]) < 2 {
+			return invariant{}, fmt.Errorf(
+				"malformed invariant (unknown invariant type): %s",
+				invStr,
+			)
+		}
+
+		// Validate label arguments.
+		var nodes []string
+		for _, arg := range args[2:] {
+			if arg.String() == PublicInternetLabel {
+				nodes = append(nodes, PublicInternetLabel)
+			} else {
+				lbl, ok := ctx.resolveLabel(arg)
+				if !ok {
+					return invariant{}, fmt.Errorf(
+						"malformed invariant "+
+							"(unknown label %s): %s",
+						arg,
+						invStr,
+					)
+				}
+				nodes = append(nodes, string(lbl.ident))
+			}
+		}
+
+		inv = invariant{
+			form:   keyword,
+			target: target,
+			nodes:  nodes,
+			str:    invStr,
+		}
+	}
+	*globalCtx.invariants = append(*globalCtx.invariants, inv)
+	return inv, nil
 }
 
 func sprintfImpl(ctx *evalCtx, args []ast) (ast, error) {

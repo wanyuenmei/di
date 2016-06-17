@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	"github.com/NetSys/quilt/db"
 )
 
 func viz(configPath string, spec Stitch, graph graph, outputFormat string) {
@@ -20,55 +18,12 @@ func viz(configPath string, spec Stitch, graph graph, outputFormat string) {
 		panic("Could not find proper output file name")
 	}
 
-	cmap := map[int]*db.Container{}
-	for _, container := range spec.QueryContainers() {
-		cmap[container.ID] = &db.Container{
-			Image:   container.Image,
-			Command: container.Command,
-			Env:     container.Env,
-		}
-	}
-
-	containerLabels := map[string][]*db.Container{}
-	for label, ids := range spec.QueryLabels() {
-		var containers []*db.Container
-		for _, id := range ids {
-			containers = append(containers, cmap[id])
-		}
-		containerLabels[label] = containers
-	}
-
-	graphviz(outputFormat, slug, graph, containerLabels)
-}
-
-func getImageNamesForLabel(containerLabels map[string][]*db.Container,
-	label string) (imageNames string) {
-	containers := containerLabels[label]
-	if len(containers) == 1 {
-		return fmt.Sprintf("\"%s: %s\"", label, containers[0].Image)
-	}
-
-	containerGroup := make(map[string]int)
-	for _, c := range containers {
-		count, here := containerGroup[c.Image]
-		if !here {
-			containerGroup[c.Image] = 1
-		} else {
-			containerGroup[c.Image] = count + 1
-		}
-	}
-
-	images := ""
-	for imageName, count := range containerGroup {
-		images += fmt.Sprintf("%d %s ", count, imageName)
-	}
-	return fmt.Sprintf("\" %s: [ %s]\"", label, images)
+	graphviz(outputFormat, slug, graph)
 }
 
 // Graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
-func graphviz(outputFormat string, slug string, graph graph,
-	containerLabels map[string][]*db.Container) {
+func graphviz(outputFormat string, slug string, graph graph) {
 	f, err := os.Create(slug + ".dot")
 	if err != nil {
 		panic(err)
@@ -82,15 +37,15 @@ func graphviz(outputFormat string, slug string, graph graph,
 	dotfile := "strict digraph {\n"
 
 	for i, av := range graph.availability {
-		dotfile += subGraph(containerLabels, i, av.nodes()...)
+		dotfile += subGraph(i, av.nodes()...)
 	}
 
 	for _, edge := range graph.getConnections() {
 		dotfile +=
 			fmt.Sprintf(
 				"    %s -> %s\n",
-				getImageNamesForLabel(containerLabels, edge.from),
-				getImageNamesForLabel(containerLabels, edge.to),
+				edge.from,
+				edge.to,
 			)
 	}
 
@@ -111,18 +66,17 @@ func graphviz(outputFormat string, slug string, graph graph,
 			slug+".dot")
 	}
 	writeGraph.Stdout = os.Stdout
-	writeGraph.CombinedOutput()
+	writeGraph.Run()
 }
 
 func subGraph(
-	containerLabels map[string][]*db.Container,
 	i int,
 	labels ...string,
 ) string {
 	subgraph := fmt.Sprintf("    subgraph cluster_%d {\n", i)
 	str := ""
 	for _, l := range labels {
-		str += getImageNamesForLabel(containerLabels, l) + "; "
+		str += l + "; "
 	}
 	subgraph += "        " + str + "\n    }\n"
 	return subgraph
