@@ -61,6 +61,9 @@ func (clst *amazonCluster) Connect(namespace string) error {
 	clst.sessions = make(map[string]*ec2.EC2)
 	clst.namespace = namespace
 
+	if _, err := clst.List(); err != nil {
+		return errors.New("AWS failed to connect")
+	}
 	return nil
 }
 
