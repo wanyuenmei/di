@@ -85,8 +85,9 @@ necessary. You can learn the specifics of the Stitch language by reading
 [Language.md](docs/Language.md).
 
 ## Contributing
-If you are interested in contributing to Quilt, check out [Dev.md](docs/Dev.md)
-for development instructions, details about the code structure, and more.
+If you are interested in contributing to Quilt, check out
+[Contributing.md](Contributing.md) and [Dev.md](docs/Dev.md) for development
+instructions, details about the code structure, and more.
 
 ## Contact
 Quilt is led by [Ethan J. Jackson](http://ejj.github.io/), a PhD student at
