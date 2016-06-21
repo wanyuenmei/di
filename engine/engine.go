@@ -103,7 +103,7 @@ func aclTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
 	return nil
 }
 
-// toDBMachine converts machines specified in the DSL into db.Machines that can
+// toDBMachine converts machines specified in the Stitch into db.Machines that can
 // be compared against what's already in the db.
 // Specifically, it sets the role of the db.Machine, the size (which may depend
 // on RAM and CPU constraints), and the provider.

@@ -83,7 +83,7 @@ func makeLabels(dbc db.Container, connections []db.Connection) map[string]string
 	}
 
 	for _, lb := range dbc.Labels {
-		// Add DSL labels
+		// Add Stitch labels
 		labels[docker.UserLabel(lb)] = docker.LabelTrueValue
 	}
 
@@ -100,7 +100,7 @@ func makeEnv(dbc db.Container, placements []db.Placement) map[string]struct{} {
 		}
 	}
 
-	// Add environment variables from the DSL
+	// Add environment variables from the Stitch
 	for key, value := range dbc.Env {
 		envStr := fmt.Sprintf("%s=%s", key, value)
 		env[envStr] = struct{}{}
