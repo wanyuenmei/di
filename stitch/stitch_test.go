@@ -340,7 +340,8 @@ func TestList(t *testing.T) {
 
 	parseTest(t, `(reduce * (list 1 2 3 4))`, "24")
 	parseTest(t, `(reduce (lambda (x y) (+ (* x 10) y)) (list 1 2 3 4))`, "1234")
-	parseTest(t, `(reduce (lambda (x y) (sprintf "%s,%s" x y)) (list "a" "b" "c"))`, `"a,b,c"`)
+	parseTest(t, `(reduce (lambda (x y) (sprintf "%s,%s" x y)) (list "a" "b" "c"))`,
+		`"a,b,c"`)
 	runtimeErr(t, `(reduce * (list 1))`, "1: not enough elements to reduce: (list 1)")
 }
 
@@ -428,7 +429,8 @@ func TestDocker(t *testing.T) {
 	exp = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
 	checkContainers(code, exp,
 		&Container{Image: "a", Command: []string{"c"}, Env: make(map[string]string)},
-		&Container{Image: "b", Command: []string{"d", "e", "f"}, Env: make(map[string]string)})
+		&Container{Image: "b", Command: []string{"d", "e", "f"},
+			Env: make(map[string]string)})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
@@ -485,9 +487,12 @@ func TestStdlib(t *testing.T) {
                 (list)
                 (list)
                 (list))
-                (list (machine (provider "Amazon") (size "m4.large") (role "Master") (sshkey "key"))
-                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (sshkey "key"))
-                      (machine (provider "Amazon") (size "m4.large") (role "Worker") (sshkey "key")))`
+                (list (machine (provider "Amazon") (size "m4.large") (role "Master")
+                        (sshkey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker")
+                        (sshkey "key"))
+                      (machine (provider "Amazon") (size "m4.large") (role "Worker")
+                        (sshkey "key")))`
 	expMachines := []Machine{
 		{Provider: "Amazon",
 			Size:    "m4.large",
@@ -538,12 +543,14 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, code, expMachine)
 
 	// Test heterogeneous sizes
-	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Amazon") (size "m4.xlarge"))`
+	code = `(machine (provider "Amazon") (size "m4.large"))
+	        (machine (provider "Amazon") (size "m4.xlarge"))`
 	expMachine2 := Machine{Provider: "Amazon", Size: "m4.xlarge"}
 	checkMachines(code, code, expMachine, expMachine2)
 
 	// Test heterogeneous providers
-	code = `(machine (provider "Amazon") (size "m4.large")) (machine (provider "Vagrant"))`
+	code = `(machine (provider "Amazon") (size "m4.large"))
+	        (machine (provider "Vagrant"))`
 	expMachine2 = Machine{Provider: "Vagrant"}
 	checkMachines(code, code, expMachine, expMachine2)
 
@@ -587,7 +594,8 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, code, expMachine)
 
 	// Test invalid attribute type
-	runtimeErr(t, `(machine (provider "Amazon") "foo")`, `1: unrecognized argument to machine definition: "foo"`)
+	runtimeErr(t, `(machine (provider "Amazon") "foo")`,
+		`1: unrecognized argument to machine definition: "foo"`)
 }
 
 func TestMachineAttribute(t *testing.T) {
@@ -643,7 +651,8 @@ func TestMachineAttribute(t *testing.T) {
 	// Test setting attribute on a non-machine
 	code = `(define badMachine (docker "foo"))
 	(machineAttribute badMachine (machine (provider "Amazon")))`
-	runtimeErr(t, code, fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
+	runtimeErr(t, code,
+		fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
 
 	// Test setting range attributes
 	code = `(define machines (machine (provider "Amazon")))
@@ -895,7 +904,8 @@ func TestEnv(t *testing.T) {
 
 	code = `(label "red" (makeList 5 (docker "a")))
 	(setEnv "red" "key" "value")`
-	expCode = `(label "red" (docker "a") (docker "a") (docker "a") (docker "a") (docker "a"))
+	expCode = `(label "red"
+	  (docker "a") (docker "a") (docker "a") (docker "a") (docker "a"))
 	(list)`
 	ctx = parseTest(t, code, expCode)
 	containerA = Container{
@@ -1225,7 +1235,8 @@ func TestErrorMetadata(t *testing.T) {
 	// Test that functions which evaluate generated S-expressions still have proper
 	// error messages.
 	util.WriteFile("generated_sexp.spec", []byte(`(apply + (list 1 "1"))`), 0644)
-	checkEvalErr("generated_sexp.spec", `generated_sexp.spec:1: bad arithmetic argument: "1"`)
+	checkEvalErr("generated_sexp.spec",
+		`generated_sexp.spec:1: bad arithmetic argument: "1"`)
 }
 
 func TestQuery(t *testing.T) {

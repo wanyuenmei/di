@@ -379,7 +379,8 @@ func (sv *supervisor) RemoveAll() {
 func initialClusterString(etcdIPs []string) string {
 	var initialCluster []string
 	for _, ip := range etcdIPs {
-		initialCluster = append(initialCluster, fmt.Sprintf("%s=http://%s:2380", nodeName(ip), ip))
+		initialCluster = append(initialCluster,
+			fmt.Sprintf("%s=http://%s:2380", nodeName(ip), ip))
 	}
 	return strings.Join(initialCluster, ",")
 }

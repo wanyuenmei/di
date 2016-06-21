@@ -1,7 +1,8 @@
-// Package network manages the network services of the application dataplane.  This means
-// ensuring that containers can find and communicate with each other in accordance with
-// the policy specification.  It achieves this by manipulating IP addresses and hostnames
-// within the containers, Open vSwitch on each running worker, and the OVN controller.
+// Package network manages the network services of the application dataplane.  This
+// means ensuring that containers can find and communicate with each other in accordance
+// with the policy specification.  It achieves this by manipulating IP addresses and
+// hostnames within the containers, Open vSwitch on each running worker, and the OVN
+// controller.
 package network
 
 import (

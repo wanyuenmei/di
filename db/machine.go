@@ -6,8 +6,8 @@ import (
 	"github.com/NetSys/quilt/util"
 )
 
-// Machine represents a physical or virtual machine operated by a cloud provider on which
-// containers may be run.
+// Machine represents a physical or virtual machine operated by a cloud provider on
+// which containers may be run.
 type Machine struct {
 	ID int //Database ID
 
@@ -88,8 +88,8 @@ func (m Machine) less(arg row) bool {
 	}
 }
 
-// SortMachines returns a slice of machines sorted according to the default database sort
-// order.
+// SortMachines returns a slice of machines sorted according to the default database
+// sort order.
 func SortMachines(machines []Machine) []Machine {
 	rows := make([]row, 0, len(machines))
 	for _, m := range machines {

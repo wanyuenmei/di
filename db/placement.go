@@ -46,7 +46,8 @@ type LabelRule struct {
 
 // AffinityStr is passed to Docker Swarm to implement the LabelRule.
 func (lr LabelRule) AffinityStr() string {
-	return toAffinity(docker.UserLabel(lr.OtherLabel), !lr.Exclusive, docker.LabelTrueValue)
+	return toAffinity(docker.UserLabel(lr.OtherLabel), !lr.Exclusive,
+		docker.LabelTrueValue)
 }
 
 // String returns the AffinityStr of this label.

@@ -66,9 +66,9 @@ func GroupBy(machines []Machine) map[db.Provider][]Machine {
 	return machineMap
 }
 
-// DefaultRegion populates `m.Region` for the provided db.Machine if one isn't specified.
-// This is intended to allow users to omit the cloud provider region when they don't
-// particularly care where a system is placed.
+// DefaultRegion populates `m.Region` for the provided db.Machine if one isn't
+// specified. This is intended to allow users to omit the cloud provider region when
+// they don't particularly care where a system is placed.
 func DefaultRegion(m db.Machine) db.Machine {
 	if m.Region != "" {
 		return m

@@ -528,7 +528,8 @@ func (f fakeDocker) Get(id string) (docker.Container, error) {
 	panic("Supervisor does not Get()")
 }
 
-func (f fakeDocker) WriteToContainer(id, src, dst, archiveName string, permission int) error {
+func (f fakeDocker) WriteToContainer(id, src, dst, archiveName string,
+	permission int) error {
 	panic("Supervisor does not WriteToContainer()")
 }
 

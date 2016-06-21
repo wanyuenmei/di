@@ -120,15 +120,16 @@ type OFRuleSlice []OFRule
 //        * Set up NAT for packets coming from the 10/8 subnet and leaving on eth0.
 //    - On each container:
 //        * Make eth0 the route to the 10/8 subnet.
-//        * Make the quilt-int device on the host the default gateway (this is the LOCAL port
-//          on the quilt-int bridge).
+//        * Make the quilt-int device on the host the default gateway (this is the LOCAL
+//          port on the quilt-int bridge).
 //        * Setup /etc/resolv.conf with the same nameservers as the host.
 //    - On the quilt-int bridge:
 //        * Forward packets from containers to LOCAL, if their dst MAC is that of the
 //          default gateway.
 //        * Forward arp packets to both br-int and the default gateway.
 //        * Forward packets from LOCAL to the container with the packet's dst MAC.
-// XXX: The worker additionally has several basic jobs which are currently unimplemented:
+// XXX: The worker additionally has several basic jobs which are currently
+// unimplemented:
 //    - ACLS should be installed to guarantee only sanctioned communication.
 
 func runWorker(conn db.Conn, dk docker.Client) {
@@ -435,7 +436,8 @@ func generateCurrentNatRules() (ipRuleSlice, error) {
 	return rules, nil
 }
 
-func generateTargetNatRules(containers []db.Container, connections []db.Connection) ipRuleSlice {
+func generateTargetNatRules(containers []db.Container,
+	connections []db.Connection) ipRuleSlice {
 	strRules := []string{
 		"-P PREROUTING ACCEPT",
 		"-P INPUT ACCEPT",
@@ -716,9 +718,11 @@ func updateDefaultGw(odb ovsdb.Ovsdb) {
 	}
 }
 
-func updateIPs(namespace string, dev string, currIPs []string, targetIPs []string) error {
+func updateIPs(namespace string, dev string, currIPs []string,
+	targetIPs []string) error {
 
-	_, ipToDel, ipToAdd := join.HashJoin(StringSlice(currIPs), StringSlice(targetIPs), nil, nil)
+	_, ipToDel, ipToAdd := join.HashJoin(StringSlice(currIPs), StringSlice(targetIPs),
+		nil, nil)
 
 	for _, ip := range ipToDel {
 		if err := delIP(namespace, ip.(string), dev); err != nil {
@@ -836,7 +840,8 @@ func generateCurrentRoutes(namespace string) (routeSlice, error) {
 	}
 
 	var routes routeSlice
-	routeRE := regexp.MustCompile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\s(\\S+)")
+	routeRE := regexp.MustCompile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\" +
+		"s(\\S+)")
 	gwRE := regexp.MustCompile("default via ((?:[0-9]{1,3}\\.){3}[0-9]{1,3}) dev (\\S+)")
 	for _, r := range routeRE.FindAllSubmatch(stdout, -1) {
 		routes = append(routes, route{
@@ -937,8 +942,9 @@ func generateCurrentOpenFlow(dk docker.Client) (OFRuleSlice, error) {
 // The target flows must be in the same format as the output from ovs-ofctl
 // dump-flows. To achieve this, we have some rather ugly hacks that handle
 // a few special cases.
-func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container,
-	labels []db.Label, connections []db.Connection) (OFRuleSlice, error) {
+func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
+	containers []db.Container, labels []db.Label,
+	connections []db.Connection) (OFRuleSlice, error) {
 
 	dflGatewayMAC, err := getMac("", quiltBridge)
 	if err != nil {
@@ -1142,8 +1148,11 @@ func updateNameservers(dk docker.Client, containers []db.Container) {
 func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Label,
 	connections []db.Connection) {
 
-	labelIP := make(map[string]string) /* Map label name to its IP. */
-	conns := make(map[string][]string) /* Map label to a list of all labels it connect to. */
+	/* Map label name to its IP. */
+	labelIP := make(map[string]string)
+
+	/* Map label to a list of all labels it connect to. */
+	conns := make(map[string][]string)
 
 	for _, l := range labels {
 		labelIP[l.Label] = l.IP

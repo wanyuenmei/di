@@ -322,7 +322,8 @@ func (clst amazonCluster) List() ([]Machine, error) {
 	return machines, nil
 }
 
-func (clst *amazonCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
+func (clst *amazonCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
+	maxPrice float64) string {
 	return pickBestSize(awsDescriptions, ram, cpu, maxPrice)
 }
 
@@ -358,8 +359,8 @@ OuterLoop:
 	return nil
 }
 
-/* Wait for the spot request 'ids' to have booted or terminated depending on the value of
-* 'boot' */
+/* Wait for the spot request 'ids' to have booted or terminated depending on the value
+ * of 'boot' */
 func (clst *amazonCluster) wait(awsIDs []awsID, boot bool) error {
 OuterLoop:
 	for i := 0; i < 100; i++ {

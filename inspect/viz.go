@@ -10,7 +10,8 @@ import (
 
 // Write parsed Quilt graph to a graphviz dotfile.
 
-func getImageNamesForLabel(containerLabels map[string][]*stitch.Container, label string) (imageNames string) {
+func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
+	label string) (imageNames string) {
 	containers := containerLabels[label]
 	if len(containers) == 1 {
 		return fmt.Sprintf("\"%s: %s\"", label, containers[0].Image)
@@ -35,7 +36,8 @@ func getImageNamesForLabel(containerLabels map[string][]*stitch.Container, label
 
 // Graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
-func Graphviz(slug string, graph Graph, containerLabels map[string][]*stitch.Container) {
+func Graphviz(slug string, graph Graph,
+	containerLabels map[string][]*stitch.Container) {
 	f, err := os.Create(slug + ".dot")
 	if err != nil {
 		panic(err)

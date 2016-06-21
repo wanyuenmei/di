@@ -246,8 +246,8 @@ func (clst cluster) syncACLs(acls []string, machines []db.Machine) {
 	}
 }
 
-func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (pairs []join.Pair,
-	bootSet []provider.Machine, terminateSet []provider.Machine) {
+func syncDB(cloudMachines []provider.Machine, dbMachines []db.Machine) (
+	pairs []join.Pair, bootSet []provider.Machine, terminateSet []provider.Machine) {
 	scoreFun := func(left, right interface{}) int {
 		dbm := left.(db.Machine)
 		m := right.(provider.Machine)

@@ -129,7 +129,8 @@ func makeConnectionSlice(cm map[stitch.Connection]struct{}) stitch.ConnectionSli
 }
 
 func updateConnections(view db.Database, spec stitch.Stitch) {
-	scs, vcs := makeConnectionSlice(spec.QueryConnections()), view.SelectFromConnection(nil)
+	scs, vcs := makeConnectionSlice(spec.QueryConnections()),
+		view.SelectFromConnection(nil)
 
 	dbcKey := func(val interface{}) interface{} {
 		c := val.(db.Connection)

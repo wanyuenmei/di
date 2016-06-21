@@ -27,8 +27,8 @@ var rand32 = rand.Uint32
 // consensus store.
 type directory map[string]map[string]string
 
-// wakeChan collapses the various channels these functions wait on into a single channel.
-// Multiple redundant pings will be coalesced into a single message.
+// wakeChan collapses the various channels these functions wait on into a single
+// channel. Multiple redundant pings will be coalesced into a single message.
 func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
 	labelWatch := store.Watch(labelDir, 1*time.Second)
 	containerWatch := store.Watch(labelDir, 1*time.Second)
@@ -298,7 +298,8 @@ func syncDir(store consensus.Store, dir directory, path string, idsArg []string)
 	}
 }
 
-// syncIPs() takes a directory and creates an IP node for every entry that's missing one.
+// syncIPs() takes a directory and creates an IP node for every entry that's missing
+// one.
 func syncIPs(store consensus.Store, dir directory, path string, prefixIP net.IP) {
 	prefix := binary.BigEndian.Uint32(prefixIP.To4())
 	mask := uint32(0xffff0000)

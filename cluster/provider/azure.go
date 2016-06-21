@@ -26,7 +26,8 @@ import (
 
 const storageAccount string = "netsysstorage"
 const clusterLocation string = "Central US"
-const vmImage string = "b39f27a8b8c64d52b05eac6a62ebad85__Ubuntu-15_10-amd64-server-20151116.1-en-us-30GB"
+const vmImage string = "b39f27a8b8c64d52b05eac6a62ebad85__Ubuntu-15_10-amd64-server" +
+	"-20151116.1-en-us-30GB"
 const username string = "ubuntu"
 
 type azureCluster struct {
@@ -124,7 +125,8 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 
 	for _, m := range bootSet {
 		name := "quilt-" + uuid.NewV4().String()
-		if err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
+		if err := clst.instanceNew(name, m.Size, m.Region,
+			cloudConfigUbuntu(m.SSHKeys, "wily")); err != nil {
 			return err
 		}
 	}
@@ -147,8 +149,10 @@ func (clst *azureCluster) Disconnect() {
 	// nothing
 }
 
-func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
-	// XXX: Use ExtraLarge by default because we haven't scraped the CPU and RAM information yet.
+func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
+	maxPrice float64) string {
+	// XXX: Use ExtraLarge by default because we haven't scraped the CPU and RAM
+	// information yet.
 	return "ExtraLarge"
 }
 
@@ -156,7 +160,8 @@ func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPric
 func (clst *azureCluster) instanceNew(name string, vmSize string, region string,
 	cloudConfig string) error {
 	if region != clst.location {
-		return fmt.Errorf("cannot create instance in %s, only %s is supported", region, clusterLocation)
+		return fmt.Errorf("cannot create instance in %s, only %s is supported", region,
+			clusterLocation)
 	}
 	// create hostedservice
 	err := clst.hsClient.CreateHostedService(
@@ -181,15 +186,24 @@ func (clst *azureCluster) instanceNew(name string, vmSize string, region string,
 		mediaLink,
 		"")
 	vmutils.ConfigureForLinux(&role, name, clst.username, clst.userPassword)
-	vmutils.ConfigureWithExternalPort(&role, "ssh", 22, 22, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "grpc", 9999, 9999, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "swarm-1", 2375, 2375, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "swarm-2", 2377, 2377, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "etcd-1", 2379, 2379, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "etcd-2", 2380, 2380, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "ovsdb", 6640, 6640, virtualmachine.InputEndpointProtocolTCP)
-	vmutils.ConfigureWithExternalPort(&role, "geneve", 6081, 6081, virtualmachine.InputEndpointProtocolUDP)
-	vmutils.ConfigureWithExternalPort(&role, "http", 80, 80, virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "ssh", 22, 22,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "grpc", 9999, 9999,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "swarm-1", 2375, 2375,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "swarm-2", 2377, 2377,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "etcd-1", 2379, 2379,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "etcd-2", 2380, 2380,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "ovsdb", 6640, 6640,
+		virtualmachine.InputEndpointProtocolTCP)
+	vmutils.ConfigureWithExternalPort(&role, "geneve", 6081, 6081,
+		virtualmachine.InputEndpointProtocolUDP)
+	vmutils.ConfigureWithExternalPort(&role, "http", 80, 80,
+		virtualmachine.InputEndpointProtocolTCP)
 
 	role.ConfigurationSets[0].CustomData =
 		base64.StdEncoding.EncodeToString([]byte(cloudConfig))

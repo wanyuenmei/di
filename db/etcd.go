@@ -49,7 +49,8 @@ func (db Database) SelectFromEtcd(check func(Etcd) bool) []Etcd {
 	return result
 }
 
-// SelectFromEtcd gets all Etcd rows in the database connection that satisfy the 'check'.
+// SelectFromEtcd gets all Etcd rows in the database connection that satisfy the
+// 'check'.
 func (conn Conn) SelectFromEtcd(check func(Etcd) bool) []Etcd {
 	var etcdRows []Etcd
 	conn.Transact(func(view Database) error {

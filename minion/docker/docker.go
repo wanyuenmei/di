@@ -220,7 +220,8 @@ func (dk docker) ExecVerbose(name string, cmd ...string) ([]byte, []byte, error)
 
 // WriteToContainer writes the contents of SRC into the file at path DST on the
 // container with id ID. Overwrites DST if it already exists.
-func (dk docker) WriteToContainer(id, src, dst, archiveName string, permission int) error {
+func (dk docker) WriteToContainer(id, src, dst, archiveName string,
+	permission int) error {
 
 	tarBuf, err := util.ToTar(archiveName, permission, src)
 

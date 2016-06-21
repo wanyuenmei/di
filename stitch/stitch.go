@@ -78,7 +78,8 @@ func (stitchr Range) Accepts(x float64) bool {
 	return stitchr.Min <= x && (stitchr.Max == 0 || x <= stitchr.Max)
 }
 
-// New parses and executes a stitch (in text form), and returns an abstract Stitch handle.
+// New parses and executes a stitch (in text form), and returns an abstract Stitch
+// handle.
 func New(sc scanner.Scanner, path []string) (Stitch, error) {
 	parsed, err := parse(sc)
 	if err != nil {

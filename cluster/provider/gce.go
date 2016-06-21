@@ -133,7 +133,8 @@ func (clst *gceCluster) Boot(bootSet []Machine) error {
 	var names []string
 	for _, m := range bootSet {
 		name := "quilt-" + uuid.NewV4().String()
-		_, err := clst.instanceNew(name, m.Size, m.Region, cloudConfigUbuntu(m.SSHKeys, "wily"))
+		_, err := clst.instanceNew(name, m.Size, m.Region,
+			cloudConfigUbuntu(m.SSHKeys, "wily"))
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
@@ -175,7 +176,8 @@ func (clst *gceCluster) Stop(machines []Machine) error {
 
 // Disconnect
 func (clst *gceCluster) Disconnect() {
-	panic("disconnect(): unimplemented! Check the comments on what this should actually do")
+	panic("disconnect(): unimplemented! Check the comments on what this should " +
+		"actually do")
 	// should cancel the ACL watch
 	// should delete the instances
 	// should delete the network
@@ -443,7 +445,8 @@ func (clst *gceCluster) firewallExists(name string) (bool, error) {
 // The IP addresses must be in CIDR notation.
 // XXX: Assumes there is only one network
 // XXX: Assumes the firewall only needs to adjust the IP addrs affected
-func (clst *gceCluster) firewallPatch(name string, ips []string) (*compute.Operation, error) {
+func (clst *gceCluster) firewallPatch(name string,
+	ips []string) (*compute.Operation, error) {
 	firewall := &compute.Firewall{
 		Name: name,
 		Network: fmt.Sprintf("%s/global/networks/%s",

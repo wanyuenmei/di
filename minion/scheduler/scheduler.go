@@ -23,7 +23,8 @@ type scheduler interface {
 // Run blocks implementing the scheduler module.
 func Run(conn db.Conn) {
 	var sched scheduler
-	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable, db.PlacementTable).C {
+	for range conn.TriggerTick(30, db.MinionTable, db.EtcdTable, db.ContainerTable,
+		db.PlacementTable).C {
 		minions := conn.SelectFromMinion(nil)
 		etcdRows := conn.SelectFromEtcd(nil)
 		if len(minions) != 1 || len(etcdRows) != 1 || minions[0].Role != db.Master ||

@@ -12,8 +12,8 @@ type Connection struct {
 	To   *Node
 }
 
-// A Graph represents permission to communicate across a series of Nodes.  Each Node is a
-// container and each edge is permissions to initiate a connection.
+// A Graph represents permission to communicate across a series of Nodes.  Each Node is
+// a container and each edge is permissions to initiate a connection.
 type Graph struct {
 	Nodes       map[string]Node
 	Connections []Connection

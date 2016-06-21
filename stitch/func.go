@@ -247,7 +247,9 @@ func parseExclusive(arg ast) (astBool, error) {
 
 	exclusiveStr := string(exclusiveAst)
 	if exclusiveStr != "exclusive" && exclusiveStr != "on" {
-		return astBool(false), fmt.Errorf("exclusiveness must be one of \"exclusive\" or \"on\": %s", exclusiveAst)
+		return astBool(false),
+			fmt.Errorf("exclusiveness must be one of \"exclusive\" or \"on\": %s",
+				exclusiveAst)
 	}
 
 	isExclusive := exclusiveStr == "exclusive"
@@ -458,7 +460,8 @@ func rangeTypeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
 		min, minErr := toFloat(args[0])
 
 		if minErr != nil || maxErr != nil {
-			return nil, fmt.Errorf("range arguments must be convertable to floats: %v", args)
+			return nil, fmt.Errorf("range arguments must be convertable to floats: %v",
+				args)
 		}
 
 		return astRange{ident: astIdent(rangeType), min: min, max: max}, nil
@@ -546,7 +549,7 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	label := string(str)
 	if label != strings.ToLower(label) {
-		log.Error("Labels must be lowercase, sorry! https://github.com/docker/swarm/issues/1795")
+		log.Error("Labels must be lowercase. https://github.com/docker/swarm/issues/1795")
 	}
 	if label == PublicInternetLabel {
 		return nil, fmt.Errorf("the \"public\" label is reserved for the public internet")
@@ -767,7 +770,9 @@ func logImpl(ctx *evalCtx, args []ast) (ast, error) {
 	case "error":
 		log.Errorln(msg)
 	default:
-		return nil, fmt.Errorf("log level must be one of [print, info, debug, warn, error]: %s", level)
+		return nil,
+			fmt.Errorf("log level must be one of [print, info, debug, warn, error]: %s",
+				level)
 	}
 
 	return astList{}, nil
@@ -1156,8 +1161,8 @@ func reduceImpl(ctx *evalCtx, args []ast) (ast, error) {
 }
 
 // `range` operates like the range function in python.  If there's one argument, it
-// counts from 1 to n, if there's to, the first argument is considered the start, and the
-// second is considered the stop, and if there's three then the third argument is
+// counts from 1 to n, if there's to, the first argument is considered the start, and
+// the second is considered the stop, and if there's three then the third argument is
 // considered a steparator.
 func rangeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	for _, arg := range args {

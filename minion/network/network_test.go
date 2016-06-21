@@ -92,7 +92,8 @@ func TestACL(t *testing.T) {
 	purpleContainer := db.Container{IP: purpleContainerIP,
 		Labels: []string{"purple"},
 	}
-	allContainers := []db.Container{redContainer, blueContainer, yellowContainer, purpleContainer}
+	allContainers := []db.Container{redContainer, blueContainer, yellowContainer,
+		purpleContainer}
 
 	matchFmt := "ip4.src==%s && ip4.dst==%s && " +
 		"(icmp || %d <= udp.dst <= %d || %[3]d <= tcp.dst <= %[4]d)"
@@ -351,7 +352,8 @@ func (odb *fakeOvsdb) CreateACL(lswitch string, dir string, priority int,
 	return nil
 }
 
-func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int, match string) error {
+func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int,
+	match string) error {
 	for i := 0; i < len(odb.acls); i++ {
 		acl := odb.acls[i]
 		if dir != "*" && acl.Core.Direction != dir {

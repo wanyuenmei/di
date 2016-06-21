@@ -8,8 +8,8 @@ import (
 )
 
 // Mock implements a fake consensus.Store interface suitable for unit testing.  It
-// more-or-less attempts to mimic the semantics of the Etcd backend, though it may not be
-// perfect in that respect.  It has several notable limitations listed below:
+// more-or-less attempts to mimic the semantics of the Etcd backend, though it may not
+// be perfect in that respect.  It has several notable limitations listed below:
 //
 // * The Watch() function is not yet implemented.
 // * ttls are currently ignored.

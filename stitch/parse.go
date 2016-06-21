@@ -50,7 +50,8 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 				s.Next()
 				ident += "."
 				if s.Scan() != scanner.Ident {
-					return nil, stitchError{pos: s.Pos(), err: fmt.Errorf("bad ident name: %s", ident)}
+					return nil, stitchError{pos: s.Pos(),
+						err: fmt.Errorf("bad ident name: %s", ident)}
 				}
 				ident += s.TokenText()
 			}

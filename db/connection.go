@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-// A Connection allows the members of two labels to speak to each other on the port range
-// [MinPort, MaxPort] inclusive.
+// A Connection allows the members of two labels to speak to each other on the port
+// range [MinPort, MaxPort] inclusive.
 type Connection struct {
 	ID int
 
@@ -42,7 +42,8 @@ func (c Connection) getID() int {
 	return c.ID
 }
 
-// SelectFromConnection gets all connections in the database connection that satisfy the 'check'.
+// SelectFromConnection gets all connections in the database connection that satisfy
+// the 'check'.
 func (conn Conn) SelectFromConnection(check func(Connection) bool) []Connection {
 	var connections []Connection
 	conn.Transact(func(view Database) error {

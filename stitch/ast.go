@@ -302,7 +302,8 @@ func (c *astContainer) String() string {
 	if len(c.env) == 0 {
 		return fmt.Sprintf("(docker %s %s)", c.image, sliceStr(c.command, " "))
 	}
-	return fmt.Sprintf("(docker %s %s %s)", c.image, sliceStr(c.command, " "), c.env.String())
+	return fmt.Sprintf("(docker %s %s %s)", c.image, sliceStr(c.command, " "),
+		c.env.String())
 }
 
 func sliceStr(asts []ast, sep string) string {

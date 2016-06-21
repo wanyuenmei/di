@@ -78,7 +78,8 @@ func (api vagrantAPI) Destroy(id string) error {
 }
 
 func (api vagrantAPI) PublicIP(id string) (string, error) {
-	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'"`)
+	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | " +
+		"sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'"`)
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +132,8 @@ func (api vagrantAPI) AddBox(name string, provider string) error {
 	if exists {
 		return nil
 	}
-	err = exec.Command(vagrantCmd, []string{"--machine-readable", "box", "add", "--provider", provider, name}...).Run()
+	err = exec.Command(vagrantCmd, []string{"--machine-readable", "box", "add",
+		"--provider", provider, name}...).Run()
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,8 @@ func (api vagrantAPI) AddBox(name string, provider string) error {
 }
 
 func (api vagrantAPI) ContainsBox(name string) (bool, error) {
-	output, err := exec.Command(vagrantCmd, []string{"--machine-readable", "box", "list"}...).Output()
+	output, err := exec.Command(vagrantCmd, []string{"--machine-readable", "box",
+		"list"}...).Output()
 	if err != nil {
 		return false, err
 	}

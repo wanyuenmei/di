@@ -221,8 +221,10 @@ func TestEngine(t *testing.T) {
 	/* Test mixed providers. */
 	code = `
 	(define Namespace "Namespace")
-	(list (machine (provider "Amazon") (size "m4.large") (role "Master")) (machine (provider "Vagrant") (size "v.large") (role "Master")))
-	(list (machine (provider "Azure") (size "a.large") (role "Worker")) (machine (provider "Google") (size "g.large") (role "Worker")))
+	(list (machine (provider "Amazon") (size "m4.large") (role "Master"))
+	      (machine (provider "Vagrant") (size "v.large") (role "Master")))
+	(list (machine (provider "Azure") (size "a.large") (role "Worker"))
+	      (machine (provider "Google") (size "g.large") (role "Worker")))
 	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
@@ -249,7 +251,8 @@ func TestEngine(t *testing.T) {
 	/* Test that machines with different providers don't match. */
 	code = `
 	(define Namespace "Namespace")
-	(list (machine (provider "Amazon") (size "m4.large") (role "Master")) (machine (provider "Azure") (size "a.large") (role "Master")))
+	(list (machine (provider "Amazon") (size "m4.large") (role "Master"))
+	      (machine (provider "Azure") (size "a.large") (role "Master")))
 	(list (machine (provider "Amazon") (size "m4.large") (role "Worker")))
 	(define AdminACL (list "1.2.3.4/32"))`
 	UpdatePolicy(conn, prog(t, code))

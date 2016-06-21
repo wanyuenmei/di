@@ -70,8 +70,8 @@ func (s store) Mkdir(dir string) error {
 	return err
 }
 
-// A Tree is a parsed subtree of the consensus store including each node's key, value and
-// all of it's children recursively.
+// A Tree is a parsed subtree of the consensus store including each node's key, value
+// and all of it's children recursively.
 type Tree struct {
 	Key      string
 	Value    string

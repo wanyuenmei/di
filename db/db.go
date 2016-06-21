@@ -59,8 +59,8 @@ func (cn Conn) run(db Database) {
 }
 
 // Transact executes database transactions.  It takes a closure, 'do', which is operates
-// on its 'db' argument.  Transactions are not concurrent, instead each runs sequentially
-// on it's database without conflicting with other transactions.
+// on its 'db' argument.  Transactions are not concurrent, instead each runs
+// sequentially on it's database without conflicting with other transactions.
 func (cn Conn) Transact(do func(db Database) error) error {
 	txn := transaction{do, make(chan error)}
 	cn <- txn

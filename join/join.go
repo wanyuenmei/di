@@ -13,9 +13,9 @@ type Pair struct {
 // Join attempts to match each element in `lSlice` with an element in `rSlice` in
 // accordance with a score function.  If such a match is found, it is returned as an
 // element of `pairs`, while leftover elements from `lSlice` and `rSlice` that couldn`t
-// be matched, are returned as elements of `lonelyLefts` and `lonelyRights` respectively.
-// Both `lSlice` and `rSlice` must be slice or array types, but they do not necessarily
-// have to have the same type.
+// be matched, are returned as elements of `lonelyLefts` and `lonelyRights`
+// respectively. Both `lSlice` and `rSlice` must be slice or array types, but they do
+// not necessarily have to have the same type.
 //
 // Matches are made in accordance with the provided `score` function.  It takes a single
 // element from `lSlice`, and a single element from `rSlice`, and computes a score

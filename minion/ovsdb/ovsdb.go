@@ -23,7 +23,8 @@ type Ovsdb interface {
 	CreatePort(lswitch, name, mac, ip string) error
 	DeletePort(lswitch, name string) error
 	ListACLs(lswitch string) ([]Acl, error)
-	CreateACL(lswitch string, dir string, priority int, match string, action string, doLog bool) error
+	CreateACL(lswitch string, dir string, priority int, match string, action string,
+		doLog bool) error
 	DeleteACL(lswitch string, dir string, priority int, match string) error
 	DeleteOFPort(bridge, name string) error
 	GetOFPortNo(name string) (int, error)
@@ -525,7 +526,8 @@ func (ovsdb Client) CreateACL(lswitch string, dir string, priority int, match st
 }
 
 // DeleteACL removes an access control rule from OVN.
-func (ovsdb Client) DeleteACL(lswitch string, dir string, priority int, match string) error {
+func (ovsdb Client) DeleteACL(lswitch string, dir string, priority int,
+	match string) error {
 	acls, err := ovsdb.ListACLs(lswitch)
 	if err != nil {
 		return err

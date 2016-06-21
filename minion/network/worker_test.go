@@ -66,7 +66,8 @@ func TestImplementsMultipleLabels(t *testing.T) {
 	}
 }
 
-// Both red and blue connect to green. Make sure that green.q only appears once in /etc/hosts.
+// Both red and blue connect to green. Make sure that green.q only appears once in
+// /etc/hosts.
 func TestDuplicateConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{

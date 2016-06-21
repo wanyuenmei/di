@@ -120,6 +120,7 @@ func (clst vagrantCluster) SetACLs(acls []string) error {
 	return nil
 }
 
-func (clst vagrantCluster) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
+func (clst vagrantCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
+	maxPrice float64) string {
 	return clst.vagrant.CreateSize(ram.Min, cpu.Min)
 }

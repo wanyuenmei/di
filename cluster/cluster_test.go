@@ -82,7 +82,8 @@ func (p *fakeProvider) SetACLs(acls []string) error { return nil }
 
 func (p *fakeProvider) Connect(namespace string) error { return nil }
 
-func (p *fakeProvider) ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
+func (p *fakeProvider) ChooseSize(ram stitch.Range, cpu stitch.Range,
+	maxPrice float64) string {
 	return ""
 }
 
@@ -105,13 +106,16 @@ func newTestCluster() cluster {
 func TestSyncDB(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
-	checkSyncDB := func(cloudMachines []provider.Machine, databaseMachines []db.Machine, expectedBoot, expectedStop []provider.Machine) {
+	checkSyncDB := func(cloudMachines []provider.Machine, databaseMachines []db.Machine,
+		expectedBoot, expectedStop []provider.Machine) {
 		_, bootResult, stopResult := syncDB(cloudMachines, databaseMachines)
-		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult, expectedBoot) {
+		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult,
+			expectedBoot) {
 			t.Error(spew.Sprintf("booted wrong machines. Expected %v, got %v.",
 				expectedBoot, bootResult))
 		}
-		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult, expectedStop) {
+		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult,
+			expectedStop) {
 			t.Error(spew.Sprintf("stopped wrong machines. Expected %v, got %v.",
 				expectedStop, stopResult))
 		}
@@ -124,38 +128,47 @@ func TestSyncDB(t *testing.T) {
 	cmLarge := provider.Machine{Provider: FakeAmazon, Size: "m4.large"}
 
 	// Test boot with no size
-	checkSyncDB(noMachines, []db.Machine{dbNoSize}, []provider.Machine{cmNoSize}, noMachines)
+	checkSyncDB(noMachines, []db.Machine{dbNoSize}, []provider.Machine{cmNoSize},
+		noMachines)
 
 	// Test boot with size
-	checkSyncDB(noMachines, []db.Machine{dbLarge}, []provider.Machine{cmLarge}, noMachines)
+	checkSyncDB(noMachines, []db.Machine{dbLarge}, []provider.Machine{cmLarge},
+		noMachines)
 
 	// Test mixed boot
-	checkSyncDB(noMachines, []db.Machine{dbNoSize, dbLarge}, []provider.Machine{cmNoSize, cmLarge}, noMachines)
+	checkSyncDB(noMachines, []db.Machine{dbNoSize, dbLarge}, []provider.Machine{cmNoSize,
+		cmLarge}, noMachines)
 
 	// Test partial boot
-	checkSyncDB([]provider.Machine{cmNoSize}, []db.Machine{dbNoSize, dbLarge}, []provider.Machine{cmLarge}, noMachines)
+	checkSyncDB([]provider.Machine{cmNoSize}, []db.Machine{dbNoSize, dbLarge},
+		[]provider.Machine{cmLarge}, noMachines)
 
 	// Test stop
-	checkSyncDB([]provider.Machine{cmNoSize}, []db.Machine{}, noMachines, []provider.Machine{cmNoSize})
+	checkSyncDB([]provider.Machine{cmNoSize}, []db.Machine{}, noMachines,
+		[]provider.Machine{cmNoSize})
 
 	// Test partial stop
-	checkSyncDB([]provider.Machine{cmNoSize, cmLarge}, []db.Machine{}, noMachines, []provider.Machine{cmNoSize, cmLarge})
+	checkSyncDB([]provider.Machine{cmNoSize, cmLarge}, []db.Machine{}, noMachines,
+		[]provider.Machine{cmNoSize, cmLarge})
 }
 
 func TestSync(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
-	checkSync := func(clst cluster, provider db.Provider, expectedBoot []bootRequest, expectedStop []string) {
+	checkSync := func(clst cluster, provider db.Provider, expectedBoot []bootRequest,
+		expectedStop []string) {
 		clst.sync()
 		providerInst := clst.providers[provider].(*fakeProvider)
 		bootResult := providerInst.bootRequests
 		stopResult := providerInst.stopRequests
 		providerInst.clearLogs()
-		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult, expectedBoot) {
+		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult,
+			expectedBoot) {
 			t.Error(spew.Sprintf("booted wrong machines. Expected %s, got %s.",
 				expectedBoot, bootResult))
 		}
-		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult, expectedStop) {
+		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult,
+			expectedStop) {
 			t.Error(spew.Sprintf("stopped wrong machines. Expected %s, got %s.",
 				expectedStop, stopResult))
 		}
@@ -165,7 +178,8 @@ func TestSync(t *testing.T) {
 	var noBoots []bootRequest
 	amazonLargeBoot := bootRequest{size: "m4.large", cloudConfig: amazonCloudConfig}
 	amazonXLargeBoot := bootRequest{size: "m4.xlarge", cloudConfig: amazonCloudConfig}
-	vagrantLargeBoot := bootRequest{size: "vagrant.large", cloudConfig: vagrantCloudConfig}
+	vagrantLargeBoot := bootRequest{size: "vagrant.large",
+		cloudConfig: vagrantCloudConfig}
 
 	// Test initial boot
 	clst := newTestCluster()
@@ -234,7 +248,8 @@ func TestSync(t *testing.T) {
 
 		return nil
 	})
-	checkSync(clst, FakeAmazon, []bootRequest{amazonXLargeBoot}, []string{toRemove.CloudID})
+	checkSync(clst, FakeAmazon, []bootRequest{amazonXLargeBoot},
+		[]string{toRemove.CloudID})
 }
 
 func emptySlices(slice1 interface{}, slice2 interface{}) bool {

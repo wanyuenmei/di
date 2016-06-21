@@ -16,7 +16,8 @@ import (
 var myIP = util.MyIP
 var defaultDiskSize = 32
 
-// UpdatePolicy executes transactions on 'conn' to make it reflect a new policy, 'stitch'.
+// UpdatePolicy executes transactions on 'conn' to make it reflect a new policy,
+// 'stitch'.
 func UpdatePolicy(conn db.Conn, stitch stitch.Stitch) error {
 	txn := func(db db.Database) error {
 		return updateTxn(db, stitch)

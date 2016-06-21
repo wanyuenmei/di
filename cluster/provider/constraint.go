@@ -14,10 +14,12 @@ type description struct {
 }
 
 // XXX: cache results?
-func pickBestSize(descriptions []description, ram stitch.Range, cpu stitch.Range, maxPrice float64) string {
+func pickBestSize(descriptions []description, ram stitch.Range, cpu stitch.Range,
+	maxPrice float64) string {
 	var best description
 	for _, d := range descriptions {
-		if ram.Accepts(d.ram) && cpu.Accepts(float64(d.cpu)) && (best.size == "" || d.price < best.price) {
+		if ram.Accepts(d.ram) && cpu.Accepts(float64(d.cpu)) &&
+			(best.size == "" || d.price < best.price) {
 			best = d
 		}
 	}

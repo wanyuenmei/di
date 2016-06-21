@@ -24,7 +24,8 @@ func (s swarm) list() ([]docker.Container, error) {
 	return s.dk.List(map[string][]string{"label": {docker.SchedulerLabelPair}})
 }
 
-func (s swarm) boot(dbcs []db.Container, placements []db.Placement, connections []db.Connection) {
+func (s swarm) boot(dbcs []db.Container, placements []db.Placement,
+	connections []db.Connection) {
 	numWorkers := 100
 	if len(dbcs) < numWorkers {
 		numWorkers = len(dbcs)
