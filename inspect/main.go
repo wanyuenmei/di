@@ -20,7 +20,7 @@ func usage() {
 	panic(
 		"Usage: inspect <path to spec file> [commands]\n" +
 			"Options\n" +
-			" - viz\n" +
+			" - viz <pdf|ascii>\n" +
 			" - check <path to invariants file>\n" +
 			" - query [must have check] <path to query file>")
 }
@@ -81,7 +81,9 @@ func main() {
 				ignoreNext--
 			case arg == "viz":
 				foundFlags[arg] = argOption{}
-				viz(configPath, spec, graph)
+				outputFormat := args[i+1] // 'pdf' or 'ascii'
+				viz(configPath, spec, graph, outputFormat)
+				ignoreNext = 1
 			case arg == "check":
 				invs, failer, err := check(graph, args[i+1])
 				if err != nil && failer == nil {

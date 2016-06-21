@@ -8,7 +8,7 @@ import (
 	"github.com/NetSys/quilt/stitch"
 )
 
-func viz(configPath string, spec stitch.Stitch, graph graph) {
+func viz(configPath string, spec stitch.Stitch, graph graph, outputFormat string) {
 	var slug string
 	for i, ch := range configPath {
 		if ch == '.' {
@@ -31,10 +31,8 @@ func viz(configPath string, spec stitch.Stitch, graph graph) {
 		}
 	}
 
-	graphviz(slug, graph, containerLabels)
+	graphviz(outputFormat, slug, graph, containerLabels)
 }
-
-// Write parsed Quilt graph to a graphviz dotfile.
 
 func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
 	label string) (imageNames string) {
@@ -62,7 +60,8 @@ func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
 
 // Graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
-func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Container) {
+func graphviz(outputFormat string, slug string, graph graph,
+	containerLabels map[string][]*stitch.Container) {
 	f, err := os.Create(slug + ".dot")
 	if err != nil {
 		panic(err)
@@ -92,9 +91,18 @@ func graphviz(slug string, graph graph, containerLabels map[string][]*stitch.Con
 
 	f.Write([]byte(dotfile))
 
-	// Run "dot" (part of graphviz) on the dotfile to output the image.
-	writepng := exec.Command("dot", "-Tpdf", "-o", slug+".pdf", slug+".dot")
-	writepng.Run()
+	// Dependencies:
+	// - easy-graph (install Graph::Easy from cpan)
+	// - graphviz (install from your favorite package manager)
+	var writeGraph *exec.Cmd
+	switch outputFormat {
+	case "ascii":
+		writeGraph = exec.Command("graph-easy", "--input="+slug+".dot", "--as_ascii")
+	case "pdf":
+		writeGraph = exec.Command("dot", "-Tpdf", "-o", slug+".pdf", slug+".dot")
+	}
+	writeGraph.Stdout = os.Stdout
+	writeGraph.CombinedOutput()
 }
 
 func subGraph(
