@@ -155,43 +155,67 @@ func updateConnections(view db.Database, spec stitch.Stitch) {
 	}
 }
 
+func queryContainers(spec stitch.Stitch) []db.Container {
+	containers := map[int]*db.Container{}
+	for _, c := range spec.QueryContainers() {
+		containers[c.ID] = &db.Container{
+			Command: c.Command,
+			Image:   c.Image,
+			Env:     c.Env,
+		}
+	}
+
+	for label, ids := range spec.QueryLabels() {
+		for _, id := range ids {
+			containers[id].Labels = append(containers[id].Labels, label)
+		}
+	}
+
+	var ret []db.Container
+	for _, c := range containers {
+		ret = append(ret, *c)
+	}
+
+	return ret
+}
+
 func updateContainers(view db.Database, spec stitch.Stitch) {
 	score := func(l, r interface{}) int {
-		stitchc := l.(*stitch.Container)
-		dbc := r.(db.Container)
+		left := l.(db.Container)
+		right := r.(db.Container)
 
-		if dbc.Image != stitchc.Image ||
-			!util.StrSliceEqual(dbc.Command, stitchc.Command) ||
-			!util.StrStrMapEqual(dbc.Env, stitchc.Env) {
+		if left.Image != right.Image ||
+			!util.StrSliceEqual(left.Command, right.Command) ||
+			!util.StrStrMapEqual(left.Env, right.Env) {
 			return -1
 		}
 
-		return util.EditDistance(dbc.Labels, stitchc.Labels())
+		return util.EditDistance(left.Labels, right.Labels)
 	}
 
-	pairs, stitchs, dbcs := join.Join(spec.QueryContainers(),
+	pairs, news, dbcs := join.Join(queryContainers(spec),
 		view.SelectFromContainer(nil), score)
 
 	for _, dbc := range dbcs {
 		view.Remove(dbc.(db.Container))
 	}
 
-	for _, stitchc := range stitchs {
-		pairs = append(pairs, join.Pair{L: stitchc, R: view.InsertContainer()})
+	for _, new := range news {
+		pairs = append(pairs, join.Pair{L: new, R: view.InsertContainer()})
 	}
 
 	for _, pair := range pairs {
-		stitchc := pair.L.(*stitch.Container)
+		newc := pair.L.(db.Container)
 		dbc := pair.R.(db.Container)
 
 		// By sorting the labels we prevent the database from getting confused
 		// when their order is non determinisitic.
-		dbc.Labels = stitchc.Labels()
+		dbc.Labels = newc.Labels
 		sort.Sort(sort.StringSlice(dbc.Labels))
 
-		dbc.Command = stitchc.Command
-		dbc.Image = stitchc.Image
-		dbc.Env = stitchc.Env
+		dbc.Command = newc.Command
+		dbc.Image = newc.Image
+		dbc.Env = newc.Env
 		view.Commit(dbc)
 	}
 }

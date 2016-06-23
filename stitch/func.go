@@ -167,35 +167,30 @@ func dockerImpl(ctx *evalCtx, evalArgs []ast) (ast, error) {
 		astArgs = append(astArgs, astString(arg))
 	}
 
-	newContainer := &astContainer{
+	globalCtx := ctx.globalCtx()
+	*globalCtx.containerID++
+	newContainer := astContainer{
+		ID:      *globalCtx.containerID,
 		image:   astArgs[0].(astString),
 		command: astList(astArgs[1:]),
 		env:     astHmap(make(map[ast]ast)),
 	}
 
-	globalCtx := ctx.globalCtx()
 	*globalCtx.containers = append(*globalCtx.containers, newContainer)
 
 	return newContainer, nil
 }
 
-func setEnvHelper(container ast, key, value ast) error {
-	c, ok := container.(*astContainer)
-	if !ok {
-		return fmt.Errorf("cannot setEnv on non-container: %s", c)
-	}
-
-	_, ok = key.(astString)
-	if !ok {
+func setEnvHelper(container astContainer, key, value ast) error {
+	if _, ok := key.(astString); !ok {
 		return fmt.Errorf("setEnv key must be a string: %s", key)
 	}
 
-	_, ok = value.(astString)
-	if !ok {
+	if _, ok := value.(astString); !ok {
 		return fmt.Errorf("setEnv value must be a string: %s", value)
 	}
 
-	c.env[key] = value
+	container.env[key] = value
 	return nil
 }
 
@@ -212,7 +207,7 @@ func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
 					return nil, err
 				}
 			}
-		case *astContainer:
+		case astContainer:
 			if err := setEnvHelper(val, args[1], args[2]); err != nil {
 				return nil, err
 			}
@@ -559,39 +554,35 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 		return nil, fmt.Errorf("attempt to redefine label: %s", label)
 	}
 
-	var atoms []atom
+	var containers []astContainer
 	for _, elem := range flatten(args[1:]) {
 		switch t := elem.(type) {
-		case atom:
-			atoms = append(atoms, t)
+		case astContainer:
+			containers = append(containers, t)
 		case astString, astLabel:
 			l, ok := ctx.resolveLabel(t)
 			if !ok {
 				return nil, fmt.Errorf("undefined label: %s", t)
 			}
-
-			for _, c := range l.elems {
-				atoms = append(atoms, c)
-			}
+			containers = append(containers, l.elems...)
 		default:
 			return nil, fmt.Errorf("label must apply to atoms or other"+
 				" labels, found: %s", elem)
 		}
 	}
 
-	for _, a := range atoms {
-		labels := a.Labels()
-		if len(labels) > 0 && labels[len(labels)-1] == label {
-			// It's possible that the same container appears in the list
-			// twice.  If that's the case, we'll end up labelling it multiple
-			// times unless we check it's most recently added label.
+	newLabel := astLabel{ident: astString(label), elems: nil}
+
+	// `containers` likely has duplicates, we'll need to remove them.
+	idSet := map[int]struct{}{}
+	for _, c := range containers {
+		if _, ok := idSet[c.ID]; ok {
 			continue
 		}
-
-		a.SetLabels(append(labels, label))
+		idSet[c.ID] = struct{}{}
+		newLabel.elems = append(newLabel.elems, c)
 	}
 
-	newLabel := astLabel{ident: astString(label), elems: atoms}
 	ctx.globalCtx().labels[label] = newLabel
 
 	return newLabel, nil

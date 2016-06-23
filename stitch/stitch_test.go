@@ -405,48 +405,49 @@ func TestDocker(t *testing.T) {
 		ctx := parseTest(t, code, expectedCode)
 		containerResult := Stitch{"", ctx}.QueryContainers()
 		if !reflect.DeepEqual(containerResult, expected) {
-			t.Error(spew.Sprintf("test: %s, result: %s, expected: %s",
+			t.Error(spew.Sprintf("test: %v, result: %v, expected: %v",
 				code, containerResult, expected))
 		}
 	}
 
+	env := map[string]string{}
 	code := `(docker "a")`
-	checkContainers(code, code, &Container{Image: "a", Env: make(map[string]string)})
+	checkContainers(code, code, &Container{ID: 1, Image: "a", Env: env})
 
 	code = "(docker \"a\")\n(docker \"a\")"
-	checkContainers(code, code, &Container{Image: "a", Env: make(map[string]string)},
-		&Container{Image: "a", Env: make(map[string]string)})
+	checkContainers(code, code, &Container{ID: 1, Image: "a", Env: env},
+		&Container{ID: 2, Image: "a", Env: env})
 
 	code = `(makeList 2 (list (docker "a") (docker "b")))`
 	exp := `(list (list (docker "a") (docker "b"))` +
 		` (list (docker "a") (docker "b")))`
 	checkContainers(code, exp,
-		&Container{Image: "a", Env: make(map[string]string)},
-		&Container{Image: "b", Env: make(map[string]string)},
-		&Container{Image: "a", Env: make(map[string]string)},
-		&Container{Image: "b", Env: make(map[string]string)})
+		&Container{ID: 1, Image: "a", Env: env},
+		&Container{ID: 2, Image: "b", Env: env},
+		&Container{ID: 3, Image: "a", Env: env},
+		&Container{ID: 4, Image: "b", Env: env})
 	code = `(list (docker "a" "c") (docker "b" (list "d" "e" "f")))`
 	exp = `(list (docker "a" "c") (docker "b" "d" "e" "f"))`
 	checkContainers(code, exp,
-		&Container{Image: "a", Command: []string{"c"}, Env: make(map[string]string)},
-		&Container{Image: "b", Command: []string{"d", "e", "f"},
-			Env: make(map[string]string)})
+		&Container{ID: 1, Image: "a", Command: []string{"c"}, Env: env},
+		&Container{ID: 2, Image: "b", Command: []string{"d", "e", "f"},
+			Env: env})
 
 	code = `(let ((a "foo") (b "bar")) (list (docker a) (docker b)))`
 	exp = `(list (docker "foo") (docker "bar"))`
-	checkContainers(code, exp, &Container{Image: "foo", Env: make(map[string]string)},
-		&Container{Image: "bar", Env: make(map[string]string)})
+	checkContainers(code, exp, &Container{ID: 1, Image: "foo", Env: env},
+		&Container{ID: 2, Image: "bar", Env: env})
 
 	// Test creating containers from within a lambda function
 	code = `((lambda () (docker "foo")))`
 	exp = `(docker "foo")`
-	checkContainers(code, exp, &Container{Image: "foo", Env: make(map[string]string)})
+	checkContainers(code, exp, &Container{ID: 1, Image: "foo", Env: env})
 
 	code = `(define (make) (docker "a") (docker "b") (list)) (make)`
 	exp = `(list) (list)`
 	checkContainers(code, exp,
-		&Container{Image: "a", Env: make(map[string]string)},
-		&Container{Image: "b", Env: make(map[string]string)})
+		&Container{ID: 1, Image: "a", Env: env},
+		&Container{ID: 2, Image: "b", Env: env})
 
 	// Test creating containers from within a module
 	code = `(module "foo"
@@ -456,7 +457,7 @@ func TestDocker(t *testing.T) {
 	exp = `(module "foo"
 			 (list))
 		   (docker "baz")`
-	checkContainers(code, exp, &Container{Image: "baz", Env: make(map[string]string)})
+	checkContainers(code, exp, &Container{ID: 1, Image: "baz", Env: env})
 
 	runtimeErr(t, `(docker bar)`, `1: unassigned variable: bar`)
 	runtimeErr(t, `(docker 1)`, `1: expected string, found: 1`)
@@ -583,9 +584,8 @@ func TestMachines(t *testing.T) {
 	checkMachines(code, expCode, expMachine)
 
 	// Test setting region
-	code = `(label "machines" (machine (region "us-west-1")))`
+	code = `(machine (region "us-west-1"))`
 	expMachine = Machine{Region: "us-west-1"}
-	expMachine.SetLabels([]string{"machines"})
 	checkMachines(code, code, expMachine)
 
 	// Test setting disk size
@@ -690,7 +690,7 @@ func TestKeys(t *testing.T) {
 
 	checkKeys := func(code, expectedCode string, expected ...string) {
 		ctx := parseTest(t, code, expectedCode)
-		machineResult := Stitch{"", ctx}.QueryMachineSlice("sshkeys")
+		machineResult := Stitch{"", ctx}.QueryMachines()
 		if len(machineResult) == 0 {
 			t.Error("no machine found")
 			return
@@ -701,17 +701,19 @@ func TestKeys(t *testing.T) {
 		}
 	}
 
-	code := `(label "sshkeys" (machine (sshkey "key")))`
+	code := `(machine (sshkey "key"))`
 	checkKeys(code, code, "key")
 
-	code = `(label "sshkeys" (machine (githubKey "user")))`
+	code = `(machine (githubKey "user"))`
 	checkKeys(code, code, "user")
 
-	code = `(label "sshkeys" (machine (githubKey "user") (sshkey "key")))`
+	code = `(machine (githubKey "user") (sshkey "key"))`
 	checkKeys(code, code, "user", "key")
 }
 
 func TestLabel(t *testing.T) {
+	env := map[string]string{}
+
 	code := `(label "foo" (docker "a"))
 	(label "bar" "foo" (docker "b"))
 	(label "baz" "foo" "bar")
@@ -719,22 +721,33 @@ func TestLabel(t *testing.T) {
 	(label "qux" (docker "c"))`
 	expCode := `(label "foo" (docker "a"))
 	(label "bar" (docker "a") (docker "b"))
-	(label "baz" (docker "a") (docker "a") (docker "b"))
-	(label "baz2" (docker "a") (docker "a") (docker "b"))
+	(label "baz" (docker "a") (docker "b"))
+	(label "baz2" (docker "a") (docker "b"))
 	(label "qux" (docker "c"))`
 	ctx := parseTest(t, code, expCode)
+	stitch := Stitch{"", ctx}
 
-	containerA := &Container{Image: "a", Command: nil, Env: make(map[string]string)}
-	containerA.SetLabels([]string{"foo", "bar", "baz", "baz2"})
-	containerB := &Container{Image: "b", Command: nil, Env: make(map[string]string)}
-	containerB.SetLabels([]string{"bar", "baz", "baz2"})
-	containerC := &Container{Image: "c", Command: nil, Env: make(map[string]string)}
-	containerC.SetLabels([]string{"qux"})
+	containerA := &Container{ID: 1, Image: "a", Command: nil, Env: env}
+	containerB := &Container{ID: 2, Image: "b", Command: nil, Env: env}
+	containerC := &Container{ID: 3, Image: "c", Command: nil, Env: env}
 	expected := []*Container{containerA, containerB, containerC}
-	containerResult := Stitch{"", ctx}.QueryContainers()
+	containerResult := stitch.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
+	}
+
+	expLabels := map[string][]int{
+		"foo":  {1},
+		"bar":  {1, 2},
+		"baz":  {1, 2},
+		"baz2": {1, 2},
+		"qux":  {3},
+	}
+	labels := stitch.QueryLabels()
+	if !reflect.DeepEqual(labels, expLabels) {
+		t.Error(spew.Sprintf("\ntest labels: %v\nresult  : %v\nexpected: %v",
+			code, labels, expLabels))
 	}
 
 	code = `(label "foo" (makeList 2 (docker "a")))` +
@@ -742,13 +755,26 @@ func TestLabel(t *testing.T) {
 	exp := `(label "foo" (docker "a") (docker "a"))
 	(label "bar" (docker "a") (docker "a"))`
 	ctx = parseTest(t, code, exp)
-	expectedA := &Container{Image: "a", Command: nil, Env: make(map[string]string)}
-	expectedA.SetLabels([]string{"foo", "bar"})
-	expected = []*Container{expectedA, expectedA}
-	containerResult = Stitch{"", ctx}.QueryContainers()
+	stitch = Stitch{"", ctx}
+
+	a1 := Container{ID: 1, Image: "a", Command: nil, Env: env}
+	a2 := a1
+	a2.ID = 2
+	expected = []*Container{&a1, &a2}
+	containerResult = stitch.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult: %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
+	}
+
+	expLabels = map[string][]int{
+		"foo": {1, 2},
+		"bar": {1, 2},
+	}
+	labels = stitch.QueryLabels()
+	if !reflect.DeepEqual(labels, expLabels) {
+		t.Error(spew.Sprintf("\ntest labels: %v\nresult  : %v\nexpected: %v",
+			code, labels, expLabels))
 	}
 
 	// Test referring to a label directly
@@ -764,7 +790,7 @@ func TestLabel(t *testing.T) {
 	}
 	machineResult := Stitch{"", ctx}.QueryMachines()
 	if !reflect.DeepEqual(machineResult, expMachines) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult: %v\nexpected: %v",
+		t.Error(spew.Sprintf("\ntest: %s\nresult  : %v\nexpected: %v",
 			code, machineResult, expMachines))
 	}
 
@@ -892,13 +918,13 @@ func TestEnv(t *testing.T) {
 	(list)`
 	ctx := parseTest(t, code, expCode)
 	containerA := Container{
+		ID:    1,
 		Image: "a",
 		Env:   map[string]string{"key": "value"}}
-	containerA.SetLabels([]string{"red"})
 	expected := []*Container{&containerA}
 	containerResult := Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
 	}
 
@@ -908,15 +934,17 @@ func TestEnv(t *testing.T) {
 	  (docker "a") (docker "a") (docker "a") (docker "a") (docker "a"))
 	(list)`
 	ctx = parseTest(t, code, expCode)
-	containerA = Container{
-		Image: "a",
-		Env:   map[string]string{"key": "value"}}
-	containerA.SetLabels([]string{"red"})
-	expected = []*Container{&containerA, &containerA, &containerA, &containerA,
-		&containerA}
+
+	expected = nil
+	for i := 1; i <= 5; i++ {
+		expected = append(expected, &Container{
+			ID:    i,
+			Image: "a",
+			Env:   map[string]string{"key": "value"}})
+	}
 	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
 	}
 
@@ -927,22 +955,22 @@ func TestEnv(t *testing.T) {
 	(setEnv "baz" "key2" "value2")`
 	expCode = `(label "foo" (docker "a"))
 	(label "bar" (docker "a") (docker "b"))
-	(label "baz" (docker "a") (docker "a") (docker "b"))
+	(label "baz" (docker "a") (docker "b"))
 	(list)
 	(list)`
 	ctx = parseTest(t, code, expCode)
 	containerA = Container{
+		ID:    1,
 		Image: "a",
 		Env:   map[string]string{"key1": "value1", "key2": "value2"}}
-	containerA.SetLabels([]string{"foo", "bar", "baz"})
 	containerB := Container{
+		ID:    2,
 		Image: "b",
 		Env:   map[string]string{"key1": "value1", "key2": "value2"}}
-	containerB.SetLabels([]string{"bar", "baz"})
 	expected = []*Container{&containerA, &containerB}
 	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
 	}
 
@@ -950,12 +978,13 @@ func TestEnv(t *testing.T) {
 	expCode = `(list)`
 	ctx = parseTest(t, code, expCode)
 	containerA = Container{
+		ID:    1,
 		Image: "a",
 		Env:   map[string]string{"key": "value"}}
 	expected = []*Container{&containerA}
 	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
 	}
 
@@ -963,14 +992,14 @@ func TestEnv(t *testing.T) {
 	(setEnv foo "key" "value"))`
 	ctx = parseTest(t, code, "(list)")
 	containerA = Container{
-		Image:    "a",
-		Env:      map[string]string{"key": "value"},
-		atomImpl: atomImpl{labels: []string{"bar"}},
+		ID:    1,
+		Image: "a",
+		Env:   map[string]string{"key": "value"},
 	}
 	expected = []*Container{&containerA}
 	containerResult = Stitch{"", ctx}.QueryContainers()
 	if !reflect.DeepEqual(containerResult, expected) {
-		t.Error(spew.Sprintf("\ntest: %s\nresult  : %s\nexpected: %s",
+		t.Error(spew.Sprintf("\ntest: %v\nresult  : %v\nexpected: %v",
 			code, containerResult, expected))
 	}
 

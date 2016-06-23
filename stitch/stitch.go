@@ -29,11 +29,10 @@ type Rule struct {
 
 // A Container may be instantiated in the stitch and queried by users.
 type Container struct {
+	ID      int
 	Image   string
 	Command []string
 	Env     map[string]string
-
-	atomImpl
 }
 
 // A Connection allows containers implementing the From label to speak to containers
@@ -58,8 +57,6 @@ type Machine struct {
 	DiskSize int
 	Region   string
 	SSHKeys  []string
-
-	atomImpl
 }
 
 // A Range defines a range of acceptable values for a Machine attribute
@@ -96,7 +93,24 @@ func New(sc scanner.Scanner, path []string) (Stitch, error) {
 		return Stitch{}, err
 	}
 
+	fmt.Println(astRoot(parsed).String())
 	return Stitch{astRoot(parsed).String(), ctx}, nil
+}
+
+// QueryLabels returns a map where the keys are labels defined in the stitch, and the
+// values are a slice of container IDs.
+func (stitch Stitch) QueryLabels() map[string][]int {
+	res := map[string][]int{}
+	for _, l := range stitch.ctx.labels {
+		var ids []int
+		for _, c := range l.elems {
+			ids = append(ids, c.ID)
+		}
+
+		res[string(l.ident)] = ids
+	}
+
+	return res
 }
 
 // QueryContainers retrieves all containers declared in stitch.
@@ -112,10 +126,10 @@ func (stitch Stitch) QueryContainers() []*Container {
 			env[string(key.(astString))] = string(val.(astString))
 		}
 		containers = append(containers, &Container{
-			Image:    string(c.image),
-			Command:  command,
-			atomImpl: c.atomImpl,
-			Env:      env,
+			ID:      c.ID,
+			Image:   string(c.image),
+			Command: command,
+			Env:     env,
 		})
 	}
 	return containers
@@ -155,30 +169,7 @@ func convertAstMachine(machineAst astMachine) Machine {
 		CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
 		DiskSize: int(machineAst.diskSize),
 		SSHKeys:  parseKeys(machineAst.sshKeys),
-		atomImpl: machineAst.atomImpl,
 	}
-}
-
-// QueryMachineSlice returns the machines associated with a label.
-func (stitch Stitch) QueryMachineSlice(key string) []Machine {
-	label, ok := stitch.ctx.labels[key]
-	if !ok {
-		log.Warnf("%s undefined", key)
-		return nil
-	}
-	result := label.elems
-
-	var machines []Machine
-	for _, val := range result {
-		machineAst, ok := val.(*astMachine)
-		if !ok {
-			log.Warnf("%s: Requested []machine, found %s", key, val)
-			return nil
-		}
-		machines = append(machines, convertAstMachine(*machineAst))
-	}
-
-	return machines
 }
 
 // QueryMachines returns all machines declared in the stitch.

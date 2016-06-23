@@ -7,25 +7,6 @@ import (
 	"text/scanner"
 )
 
-type atom interface {
-	Labels() []string
-	SetLabels([]string)
-
-	ast
-}
-
-type atomImpl struct {
-	labels []string
-}
-
-func (l *atomImpl) Labels() []string {
-	return l.labels
-}
-
-func (l *atomImpl) SetLabels(labels []string) {
-	l.labels = labels
-}
-
 /* An abstract syntax tree is the parsed representation of our specification language.
 * It can be transformed into its evaluated form my calling the eval() method. */
 type ast interface {
@@ -56,7 +37,7 @@ type astSexp struct {
 
 type astLabel struct {
 	ident astString
-	elems []atom
+	elems []astContainer
 }
 
 /* The top level is a list of abstract syntax trees, typically populated by define
@@ -96,16 +77,13 @@ type astMachine struct {
 	ram      astRange
 	diskSize astDiskSize
 	sshKeys  []key
-
-	atomImpl
 }
 
 type astContainer struct {
+	ID      int
 	image   astString
 	command astList
 	env     astHmap
-
-	atomImpl
 }
 
 type astLabelRule struct {
@@ -295,7 +273,7 @@ func (m *astMachine) String() string {
 	return fmt.Sprintf("(machine %s)", sliceStr(args, " "))
 }
 
-func (c *astContainer) String() string {
+func (c astContainer) String() string {
 	if len(c.command) == 0 {
 		return fmt.Sprintf("(docker %s)", c.image)
 	}

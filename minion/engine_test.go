@@ -119,13 +119,12 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		return err.Error()
 	}
 
-	exp := compiled.QueryContainers()
-	for _, e := range exp {
+	for _, e := range queryContainers(compiled) {
 		found := false
 		for i, c := range containers {
 			if e.Image == c.Image &&
 				reflect.DeepEqual(e.Command, c.Command) &&
-				util.EditDistance(c.Labels, e.Labels()) == 0 {
+				util.EditDistance(c.Labels, e.Labels) == 0 {
 				containers = append(containers[:i], containers[i+1:]...)
 				found = true
 				break

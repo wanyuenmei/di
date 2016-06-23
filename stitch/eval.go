@@ -3,14 +3,16 @@ package stitch
 import "fmt"
 
 type evalCtx struct {
+	parent *evalCtx
+
 	binds       map[astIdent]ast
 	labels      map[string]astLabel
 	connections map[Connection]struct{}
 	machines    *[]*astMachine
-	containers  *[]*astContainer
 	placements  *[]Placement
 
-	parent *evalCtx
+	containers  *[]astContainer
+	containerID *int
 }
 
 func (ctx *evalCtx) globalCtx() *evalCtx {
@@ -38,6 +40,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 		machines:    ctx.machines,
 		containers:  ctx.containers,
 		placements:  ctx.placements,
+		containerID: ctx.containerID,
 		parent:      parentCopy,
 	}
 }
@@ -247,7 +250,7 @@ func (m *astMachine) eval(ctx *evalCtx) (ast, error) {
 	return m, nil
 }
 
-func (c *astContainer) eval(ctx *evalCtx) (ast, error) {
+func (c astContainer) eval(ctx *evalCtx) (ast, error) {
 	return c, nil
 }
 
@@ -281,12 +284,14 @@ func evalList(ctx *evalCtx, args []ast) ([]ast, error) {
 }
 
 func newEvalCtx(parent *evalCtx) evalCtx {
+	id := 0
 	return evalCtx{
+		parent,
 		make(map[astIdent]ast),
 		make(map[string]astLabel),
 		make(map[Connection]struct{}),
 		&[]*astMachine{},
-		&[]*astContainer{},
 		&[]Placement{},
-		parent}
+		&[]astContainer{},
+		&id}
 }

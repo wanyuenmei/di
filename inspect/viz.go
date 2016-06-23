@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/stitch"
 )
 
@@ -20,21 +21,28 @@ func viz(configPath string, spec stitch.Stitch, graph graph, outputFormat string
 		panic("Could not find proper output file name")
 	}
 
-	containerLabels := map[string][]*stitch.Container{}
+	cmap := map[int]*db.Container{}
 	for _, container := range spec.QueryContainers() {
-		labels := container.Labels()
-		for _, label := range labels {
-			if _, ok := containerLabels[label]; !ok {
-				containerLabels[label] = make([]*stitch.Container, 0)
-			}
-			containerLabels[label] = append(containerLabels[label], container)
+		cmap[container.ID] = &db.Container{
+			Image:   container.Image,
+			Command: container.Command,
+			Env:     container.Env,
 		}
+	}
+
+	containerLabels := map[string][]*db.Container{}
+	for label, ids := range spec.QueryLabels() {
+		var containers []*db.Container
+		for _, id := range ids {
+			containers = append(containers, cmap[id])
+		}
+		containerLabels[label] = containers
 	}
 
 	graphviz(outputFormat, slug, graph, containerLabels)
 }
 
-func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
+func getImageNamesForLabel(containerLabels map[string][]*db.Container,
 	label string) (imageNames string) {
 	containers := containerLabels[label]
 	if len(containers) == 1 {
@@ -61,7 +69,7 @@ func getImageNamesForLabel(containerLabels map[string][]*stitch.Container,
 // Graphviz generates a specification for the graphviz program that visualizes the
 // communication graph of a stitch.
 func graphviz(outputFormat string, slug string, graph graph,
-	containerLabels map[string][]*stitch.Container) {
+	containerLabels map[string][]*db.Container) {
 	f, err := os.Create(slug + ".dot")
 	if err != nil {
 		panic(err)
@@ -106,7 +114,7 @@ func graphviz(outputFormat string, slug string, graph graph,
 }
 
 func subGraph(
-	containerLabels map[string][]*stitch.Container,
+	containerLabels map[string][]*db.Container,
 	i int,
 	labels ...string,
 ) string {

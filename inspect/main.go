@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/scanner"
 
+	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/stitch"
 )
 
@@ -51,15 +52,22 @@ func main() {
 		panic(err)
 	}
 
-	containerLabels := make(map[string][]*stitch.Container)
-	for _, container := range spec.QueryContainers() {
-		labels := container.Labels()
-		for _, label := range labels {
-			if _, have := containerLabels[label]; !have {
-				containerLabels[label] = []*stitch.Container{}
-			}
-			containerLabels[label] = append(containerLabels[label], container)
+	containers := map[int]*db.Container{}
+	for _, c := range spec.QueryContainers() {
+		containers[c.ID] = &db.Container{
+			Command: c.Command,
+			Image:   c.Image,
+			Env:     c.Env,
 		}
+	}
+
+	containerLabels := make(map[string][]*db.Container)
+	for label, ids := range spec.QueryLabels() {
+		var slice []*db.Container
+		for _, id := range ids {
+			slice = append(slice, containers[id])
+		}
+		containerLabels[label] = slice
 	}
 
 	graph := makeGraph()
