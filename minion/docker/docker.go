@@ -155,11 +155,6 @@ func (dk docker) Run(opts RunOptions) error {
 		}
 	}
 
-	id, err := dk.create(opts.Name, opts.Image, opts.Args, opts.Labels, opts.Env)
-	if err != nil {
-		return err
-	}
-
 	hc := dkc.HostConfig{
 		Binds:       opts.Binds,
 		NetworkMode: opts.NetworkMode,
@@ -167,6 +162,11 @@ func (dk docker) Run(opts RunOptions) error {
 		Privileged:  opts.Privileged,
 		VolumesFrom: opts.VolumesFrom,
 	}
+	id, err := dk.create(opts.Name, opts.Image, opts.Args, opts.Labels, opts.Env, &hc)
+	if err != nil {
+		return err
+	}
+
 	if err = dk.StartContainer(id, &hc); err != nil {
 		if _, ok := err.(*dkc.ContainerAlreadyRunning); ok {
 			return nil
@@ -367,7 +367,7 @@ func (dk docker) IsRunning(name string) (bool, error) {
 }
 
 func (dk docker) create(name, image string, args []string,
-	labels map[string]string, env map[string]struct{}) (string, error) {
+	labels map[string]string, env map[string]struct{}, hc *dkc.HostConfig) (string, error) {
 	if err := dk.Pull(image); err != nil {
 		return "", err
 	}
@@ -378,8 +378,9 @@ func (dk docker) create(name, image string, args []string,
 	}
 
 	container, err := dk.CreateContainer(dkc.CreateContainerOptions{
-		Name:   name,
-		Config: &dkc.Config{Image: string(image), Cmd: args, Labels: labels, Env: envList},
+		Name:       name,
+		Config:     &dkc.Config{Image: string(image), Cmd: args, Labels: labels, Env: envList},
+		HostConfig: hc,
 	})
 	if err != nil {
 		return "", err
