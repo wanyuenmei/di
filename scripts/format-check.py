@@ -10,7 +10,7 @@ def checkFile(filepath):
             (i, l)
             for i, l
             in enumerate(f)
-            if len(l) > 89
+            if len(l) > (89 + 1) # + 1 to account for trailing newline
         ]
         if (len(offendingLines) > 0):
             print(
