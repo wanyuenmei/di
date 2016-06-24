@@ -12,9 +12,8 @@
 //##########
 // main
 
-(import "machines")
-
-(import "exwp")
+(import "github.com/NetSys/quilt/specs/wordpress/exwp")
+(import "github.com/NetSys/quilt/specs/stdlib/machines")
 
 (define Namespace "CHANGE_ME")
 (define AdminACL (list "local"))

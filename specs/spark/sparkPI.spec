@@ -1,5 +1,4 @@
-(import "spark") // Import spark.spec
-
+(import "github.com/NetSys/quilt/specs/spark/spark") // Import spark.spec
 // We will have three worker machines.
 (define nWorker 3)
 

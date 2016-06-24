@@ -73,7 +73,7 @@ func stop(conn db.Conn, namespace string) {
 	}
 
 	var sc scanner.Scanner
-	spec, err := stitch.New(*sc.Init(strings.NewReader(specStr)), nil)
+	spec, err := stitch.New(*sc.Init(strings.NewReader(specStr)), "")
 	if err != nil {
 		panic(err)
 	}
@@ -114,8 +114,11 @@ func updateConfig(conn db.Conn, configPath string) error {
 		},
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
-	pathSlice := strings.Split(pathStr, ":")
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathSlice)
+	if pathStr == "" {
+		log.Warn("QUILT_PATH environment variable is not defined")
+	}
+
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr)
 	if err != nil {
 		return err
 	}

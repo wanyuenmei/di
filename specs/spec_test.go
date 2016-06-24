@@ -2,6 +2,8 @@ package specs
 
 import (
 	"bufio"
+	"os"
+	"path/filepath"
 	"testing"
 	"text/scanner"
 
@@ -9,7 +11,7 @@ import (
 	"github.com/NetSys/quilt/util"
 )
 
-func configRunOnce(configPath string, quiltPath []string) error {
+func configRunOnce(configPath string, quiltPath string) error {
 	f, err := util.Open(configPath)
 	if err != nil {
 		return err
@@ -17,7 +19,8 @@ func configRunOnce(configPath string, quiltPath []string) error {
 	defer f.Close()
 
 	var sc scanner.Scanner
-	if _, err = stitch.New(*sc.Init(bufio.NewReader(f)), quiltPath); err != nil {
+	_, err = stitch.New(*sc.Init(bufio.NewReader(f)), quiltPath, false)
+	if err != nil {
 		return err
 	}
 
@@ -25,26 +28,20 @@ func configRunOnce(configPath string, quiltPath []string) error {
 }
 
 func TestConfigs(t *testing.T) {
-	testConfig := func(configPath string, quiltPath []string) {
+	testConfig := func(configPath string, quiltPath string) {
 		if err := configRunOnce(configPath, quiltPath); err != nil {
-			t.Errorf("%s failed validation: %s", configPath, err.Error())
+			t.Errorf("%s failed validation: %s \n quiltPath: %s",
+				configPath, err.Error(), quiltPath)
 		}
 	}
 
-	path := []string{
-		"./etcd",
-		"./redis",
-		"./spark",
-		"./stdlib",
-		"./wordpress",
-		"./zookeeper",
-	}
+	goPath := os.Getenv("GOPATH")
+	quiltPath := filepath.Join(goPath, "src")
 
-	testConfig("example.spec", path)
-	testConfig("../quilt-tester/config/config.spec", path)
-	testConfig("./spark/sparkPI.spec", path)
-	testConfig("./wordpress/main.spec", path)
-	testConfig("./wordpress/main.spec", path)
-	testConfig("./etcd/example.spec", path)
-	testConfig("./redis/example.spec", path)
+	testConfig("example.spec", "specs/stdlib")
+	testConfig("../quilt-tester/config/config.spec", "specs/stdlib")
+	testConfig("./spark/sparkPI.spec", quiltPath)
+	testConfig("./wordpress/main.spec", quiltPath)
+	testConfig("./etcd/example.spec", quiltPath)
+	testConfig("./redis/example.spec", quiltPath)
 }

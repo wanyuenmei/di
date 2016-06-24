@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"text/scanner"
 
 	"github.com/NetSys/quilt/db"
@@ -49,8 +48,7 @@ func main() {
 		},
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
-	pathSlice := strings.Split(pathStr, ":")
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathSlice)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr)
 	if err != nil {
 		panic(err)
 	}

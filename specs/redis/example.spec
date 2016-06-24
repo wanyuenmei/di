@@ -1,4 +1,4 @@
-(import "redis") // Import redis.spec
+(import "github.com/NetSys/quilt/specs/redis/redis") // Import redis.spec
 
 (define nWorker 3)
 

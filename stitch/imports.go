@@ -4,16 +4,18 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"text/scanner"
 
 	"github.com/NetSys/quilt/util"
 )
 
-func resolveImports(asts []ast, paths []string) ([]ast, error) {
-	return resolveImportsRec(asts, paths, nil)
+func resolveImports(asts []ast, path string) ([]ast, error) {
+	return resolveImportsRec(asts, path, nil)
 }
 
-func resolveImportsRec(asts []ast, paths, imported []string) ([]ast, error) {
+func resolveImportsRec(asts []ast, path string, imported []string) ([]ast, error) {
 	var newAsts []ast
 	top := true // Imports are required to be at the top of the file.
 
@@ -37,28 +39,28 @@ func resolveImportsRec(asts []ast, paths, imported []string) ([]ast, error) {
 			}
 		}
 
+		modulePath := filepath.Join(path, name+".spec")
 		var sc scanner.Scanner
-		for _, path := range paths {
-			modulePath := path + "/" + name + ".spec"
-			f, err := util.Open(modulePath)
-			if err == nil {
-				defer f.Close()
-				sc.Filename = modulePath
-				sc.Init(bufio.NewReader(f))
-				break
-			}
+		sc.Filename = modulePath
+		if _, err := os.Stat(modulePath); os.IsNotExist(err) {
+			util.GetSpec(name)
 		}
 
-		if sc.Filename == "" {
+		f, err := util.Open(modulePath)
+		if err != nil {
 			return nil, fmt.Errorf("unable to open import %s", name)
 		}
 
+		defer f.Close()
+		sc.Init(bufio.NewReader(f))
 		parsed, err := parse(sc)
 		if err != nil {
 			return nil, err
 		}
 
-		parsed, err = resolveImportsRec(parsed, paths, append(imported, name))
+		// Rename module name to last name in import path
+		name = filepath.Base(name)
+		parsed, err = resolveImportsRec(parsed, path, append(imported, name))
 		if err != nil {
 			return nil, err
 		}

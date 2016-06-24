@@ -1,4 +1,4 @@
-(import "etcd") // Import etcd.spec
+(import "github.com/NetSys/quilt/specs/etcd/etcd") // Import etcd.spec
 
 (define nWorker 3)
 (etcd.New "etcdexample" nWorker)

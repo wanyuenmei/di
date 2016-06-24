@@ -1,4 +1,4 @@
-(import "strings")
+(import "github.com/NetSys/quilt/specs/stdlib/strings")
 
 (define (StrToHostname s) (sprintf "%s.q" s))
 

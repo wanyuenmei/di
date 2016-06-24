@@ -469,7 +469,7 @@ func TestStdlib(t *testing.T) {
 	util.AppFs = afero.NewOsFs()
 
 	checkMachines := func(code, expectedCode string, expected ...Machine) {
-		ctx := parseTestImport(t, code, expectedCode, []string{"../specs/stdlib"})
+		ctx := parseTestImport(t, code, expectedCode, "../specs")
 		machineResult := Stitch{"", ctx}.QueryMachines()
 		if !reflect.DeepEqual(machineResult, expected) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
@@ -477,7 +477,7 @@ func TestStdlib(t *testing.T) {
 		}
 	}
 
-	code := `(import "machines")
+	code := `(import "stdlib/machines")
 	         (machines.Boot
 	           1
 	           2
@@ -1182,7 +1182,7 @@ func TestImport(t *testing.T) {
 	util.WriteFile("math.spec", []byte("(define Square (lambda (x) (* x x)))"), 0644)
 	util.AppFs = testFs
 	parseTestImport(t, `(import "math") (math.Square 2)`, `(module "math" (list)) 4`,
-		[]string{"."})
+		".")
 
 	// Test two imports in separate directories
 	testFs = afero.NewMemMapFs()
@@ -1194,13 +1194,13 @@ func TestImport(t *testing.T) {
 	util.WriteFile("cube/cube.spec",
 		[]byte("(define Cube (lambda (x) (* x x x)))"), 0644)
 	parseTestImport(t,
-		`(import "square")
-		(import "cube")
+		`(import "square/square")
+		(import "cube/cube")
 		(square.Square 2)
 		(cube.Cube 2)`,
 		`(module "square" (list))
 		(module "cube" (list)) 4 8`,
-		[]string{"square", "cube"})
+		".")
 
 	// Test import with an import
 	testFs = afero.NewMemMapFs()
@@ -1211,25 +1211,25 @@ func TestImport(t *testing.T) {
 	(define Cube (lambda (x) (* x (square.Square x))))`), 0644)
 	parseTestImport(t, `(import "cube") (cube.Cube 2)`,
 		`(module "cube" (module "square" (list)) (list)) 8`,
-		[]string{"."})
+		".")
 
 	// Test error in an imported module
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("bad.spec", []byte(`(define BadFunc (lambda () (+ 1 "1")))`), 0644)
 	runtimeErrImport(t, `(import "bad") (bad.BadFunc)`,
-		`./bad.spec:1: bad arithmetic argument: "1"`, []string{"."})
+		`bad.spec:1: bad arithmetic argument: "1"`, ".")
 
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("A.spec", []byte(`(import "A")`), 0644)
-	importErr(t, `(import "A")`, `import cycle: [A A]`, []string{"."})
+	importErr(t, `(import "A")`, `import cycle: [A A]`, ".")
 
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
 	util.WriteFile("A.spec", []byte(`(import "B")`), 0644)
 	util.WriteFile("B.spec", []byte(`(import "A")`), 0644)
-	importErr(t, `(import "A")`, `import cycle: [A B A]`, []string{"."})
+	importErr(t, `(import "A")`, `import cycle: [A B A]`, ".")
 
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
@@ -1242,11 +1242,11 @@ func TestImport(t *testing.T) {
 	parseTestImport(t, `(import "A") (A.AddTwo 1)`,
 		`(module "A" (module "B" (module "C" (list)) (list))
 		(module "C" (list))
-		(list)) 3`, []string{"."})
+		(list)) 3`, ".")
 
 	// Test that non-capitalized binds are not exported
 	runtimeErr(t, `(module "A" (define addOne (lambda (x) (+ x 1))))
-(A.addOne 1)`, `2: unknown function: A.addOne`)
+		(A.addOne 1)`, `2: unknown function: A.addOne`)
 }
 
 func TestScanError(t *testing.T) {
@@ -1365,12 +1365,12 @@ func TestErrorMetadata(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	var sc scanner.Scanner
-	stitch, err := New(*sc.Init(strings.NewReader("(")), []string{})
+	stitch, err := New(*sc.Init(strings.NewReader("(")), "")
 	if err == nil {
 		t.Error("Expected error")
 	}
 
-	stitch, err = New(*sc.Init(strings.NewReader("(+ a a)")), []string{})
+	stitch, err = New(*sc.Init(strings.NewReader("(+ a a)")), "")
 	if err == nil {
 		t.Error("Expected runtime error")
 	}
@@ -1382,7 +1382,7 @@ func TestQuery(t *testing.T) {
 		(define d (list "1" 2 "3"))
 		(define e 1.5)
 		(docker b)
-		(docker b)`)), []string{})
+		(docker b)`)), "")
 	if err != nil {
 		t.Error(err)
 		return
@@ -1426,7 +1426,7 @@ func TestQuery(t *testing.T) {
 	}
 }
 
-func parseTestImport(t *testing.T, code, evalExpected string, path []string) evalCtx {
+func parseTestImport(t *testing.T, code, evalExpected string, path string) evalCtx {
 	var sc scanner.Scanner
 	parsed, err := parse(*sc.Init(strings.NewReader(code)))
 	if err != nil {
@@ -1497,7 +1497,7 @@ func runtimeErr(t *testing.T, code, expectedErr string) {
 	}
 }
 
-func runtimeErrImport(t *testing.T, code, expectedErr string, path []string) {
+func runtimeErrImport(t *testing.T, code, expectedErr string, path string) {
 	var sc scanner.Scanner
 	prog, err := parse(*sc.Init(strings.NewReader(code)))
 	if err != nil {
@@ -1513,12 +1513,12 @@ func runtimeErrImport(t *testing.T, code, expectedErr string, path []string) {
 
 	_, _, err = eval(astRoot(prog))
 	if fmt.Sprintf("%s", err) != expectedErr {
-		t.Errorf("%s: %s", code, err)
+		t.Errorf("%s: got %s but expected %s", code, err, expectedErr)
 		return
 	}
 }
 
-func importErr(t *testing.T, code, expectedErr string, path []string) {
+func importErr(t *testing.T, code, expectedErr string, path string) {
 	var sc scanner.Scanner
 	prog, err := parse(*sc.Init(strings.NewReader(code)))
 	if err != nil {

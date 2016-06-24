@@ -21,14 +21,7 @@ func initSpec(configPath string) graph {
 			Filename: configPath,
 		},
 	}
-	pathSlice := []string{
-		"../specs",
-		"../specs/stdlib",
-		"../specs/spark",
-		"../specs/zookeeper",
-		"../specs/wordpress",
-	}
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathSlice)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), "../specs")
 	if err != nil {
 		panic(err)
 	}

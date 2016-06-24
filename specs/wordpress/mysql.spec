@@ -1,5 +1,5 @@
-(import "strings")
-(import "labels")
+(import "github.com/NetSys/quilt/specs/stdlib/strings")
+(import "github.com/NetSys/quilt/specs/stdlib/labels")
 
 (define mysqlSource "quay.io/netsys/di-wp-mysql")
 (define mysqlDefaultArgs "mysqld")

@@ -1,4 +1,4 @@
-(import "zookeeper")
+(import "github.com/NetSys/quilt/specs/zookeeper/zookeeper")
 
 (define count 3)
 

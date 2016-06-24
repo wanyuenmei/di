@@ -1,4 +1,4 @@
-(import "labels")
+(import "github.com/NetSys/quilt/specs/stdlib/labels")
 
 (define image "quay.io/netsys/di-memcached")
 

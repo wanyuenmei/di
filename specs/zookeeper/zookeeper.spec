@@ -1,6 +1,6 @@
-(import "labels")
-(import "strings")
-(import "log")
+(import "github.com/NetSys/quilt/specs/stdlib/labels")
+(import "github.com/NetSys/quilt/specs/stdlib/strings")
+(import "github.com/NetSys/quilt/specs/stdlib/log")
 
 (define image "quilt/zookeeper")
 

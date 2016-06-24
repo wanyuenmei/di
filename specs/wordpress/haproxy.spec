@@ -1,5 +1,5 @@
-(import "labels")
-(import "strings")
+(import "github.com/NetSys/quilt/specs/stdlib/labels")
+(import "github.com/NetSys/quilt/specs/stdlib/strings")
 
 (define haproxySource "quay.io/netsys/di-wp-haproxy")
 (define haproxyDefaultArgs
