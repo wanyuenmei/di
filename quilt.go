@@ -31,7 +31,7 @@ func main() {
 	log.SetFormatter(util.Formatter{})
 
 	flag.Usage = func() {
-		fmt.Println("Usage: quilt [stitch | stop [namespace]]" +
+		fmt.Println("Usage: quilt [<stitch> | stop <namespace> | get <import_path>]" +
 			" [-log-level=level | -l=level]")
 		fmt.Println("\nWhen provided a stitch, quilt takes responsibility\n" +
 			"for deploying it as specified.  Alternatively, quilt may be\n" +
@@ -54,16 +54,28 @@ func main() {
 	log.SetLevel(level)
 
 	conn := db.New()
-	switch flag.Arg(0) {
-	case "":
+	if len(flag.Args()) != 2 {
 		usage()
+	}
+
+	switch flag.Arg(0) {
 	case "stop":
 		stop(conn, flag.Arg(1))
+	case "get":
+		getSpec(flag.Arg(1))
 	default:
-		go configLoop(conn, flag.Arg(0))
+		usage()
 	}
 
 	cluster.Run(conn)
+}
+
+func getSpec(importPath string) {
+	if err := stitch.GetSpec(importPath); err != nil {
+		log.Error(err)
+	}
+
+	os.Exit(0)
 }
 
 func stop(conn db.Conn, namespace string) {
@@ -73,7 +85,7 @@ func stop(conn db.Conn, namespace string) {
 	}
 
 	var sc scanner.Scanner
-	spec, err := stitch.New(*sc.Init(strings.NewReader(specStr)), "")
+	spec, err := stitch.New(*sc.Init(strings.NewReader(specStr)), "", false)
 	if err != nil {
 		panic(err)
 	}
@@ -115,10 +127,10 @@ func updateConfig(conn db.Conn, configPath string) error {
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
 	if pathStr == "" {
-		log.Warn("QUILT_PATH environment variable is not defined")
+		pathStr = stitch.GetQuiltPath()
 	}
 
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr, false)
 	if err != nil {
 		return err
 	}

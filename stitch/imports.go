@@ -11,11 +11,12 @@ import (
 	"github.com/NetSys/quilt/util"
 )
 
-func resolveImports(asts []ast, path string) ([]ast, error) {
-	return resolveImportsRec(asts, path, nil)
+func resolveImports(asts []ast, path string, download bool) ([]ast, error) {
+	return resolveImportsRec(asts, path, nil, download)
 }
 
-func resolveImportsRec(asts []ast, path string, imported []string) ([]ast, error) {
+func resolveImportsRec(asts []ast, path string, imported []string,
+	download bool) ([]ast, error) {
 	var newAsts []ast
 	top := true // Imports are required to be at the top of the file.
 
@@ -42,8 +43,8 @@ func resolveImportsRec(asts []ast, path string, imported []string) ([]ast, error
 		modulePath := filepath.Join(path, name+".spec")
 		var sc scanner.Scanner
 		sc.Filename = modulePath
-		if _, err := os.Stat(modulePath); os.IsNotExist(err) {
-			util.GetSpec(name)
+		if _, err := os.Stat(modulePath); os.IsNotExist(err) && download {
+			GetSpec(name)
 		}
 
 		f, err := util.Open(modulePath)
@@ -60,7 +61,8 @@ func resolveImportsRec(asts []ast, path string, imported []string) ([]ast, error
 
 		// Rename module name to last name in import path
 		name = filepath.Base(name)
-		parsed, err = resolveImportsRec(parsed, path, append(imported, name))
+		parsed, err = resolveImportsRec(parsed, path, append(imported, name),
+			download)
 		if err != nil {
 			return nil, err
 		}

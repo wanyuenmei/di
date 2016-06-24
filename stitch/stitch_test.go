@@ -2,6 +2,10 @@ package stitch
 
 import (
 	"fmt"
+	"golang.org/x/tools/go/vcs"
+	"os"
+	"os/user"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1365,12 +1369,12 @@ func TestErrorMetadata(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	var sc scanner.Scanner
-	stitch, err := New(*sc.Init(strings.NewReader("(")), "")
+	stitch, err := New(*sc.Init(strings.NewReader("(")), "", false)
 	if err == nil {
 		t.Error("Expected error")
 	}
 
-	stitch, err = New(*sc.Init(strings.NewReader("(+ a a)")), "")
+	stitch, err = New(*sc.Init(strings.NewReader("(+ a a)")), "", false)
 	if err == nil {
 		t.Error("Expected runtime error")
 	}
@@ -1382,7 +1386,7 @@ func TestQuery(t *testing.T) {
 		(define d (list "1" 2 "3"))
 		(define e 1.5)
 		(docker b)
-		(docker b)`)), "")
+		(docker b)`)), "", false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -1434,7 +1438,7 @@ func parseTestImport(t *testing.T, code, evalExpected string, path string) evalC
 		return evalCtx{}
 	}
 
-	parsed, err = resolveImports(parsed, path)
+	parsed, err = resolveImports(parsed, path, false)
 	if err != nil {
 		t.Errorf("%s: %s", code, err)
 		return evalCtx{}
@@ -1505,7 +1509,7 @@ func runtimeErrImport(t *testing.T, code, expectedErr string, path string) {
 		return
 	}
 
-	prog, err = resolveImports(prog, path)
+	prog, err = resolveImports(prog, path, false)
 	if err != nil {
 		t.Errorf("%s: %s", code, err)
 		return
@@ -1526,7 +1530,7 @@ func importErr(t *testing.T, code, expectedErr string, path string) {
 		return
 	}
 
-	_, err = resolveImports(prog, path)
+	_, err = resolveImports(prog, path, false)
 	if fmt.Sprintf("%s", err) != expectedErr {
 		t.Errorf("%s\n\t%s: %s", code, err, expectedErr)
 		return
@@ -1539,4 +1543,134 @@ func codeEq(a, b string) bool {
 	a = strings.TrimSpace(codeEqRE.ReplaceAllString(a, " "))
 	b = strings.TrimSpace(codeEqRE.ReplaceAllString(b, " "))
 	return a == b
+}
+
+// Tests for get.go.
+func TestGetQuiltPath(t *testing.T) {
+	os.Setenv("QUILT_PATH", "")
+	actual := GetQuiltPath()
+	usr, err := user.Current()
+	if err != nil {
+		t.Error(err)
+	}
+	expected := filepath.Join(usr.HomeDir, ".quilt")
+	if actual != expected {
+		t.Errorf("expected %s \n but got %s", expected, actual)
+	}
+}
+
+// Modify the download and create functions so that calls are not made to the network.
+// They will update a list of directories accessed, to verify behavior of checkSpec and
+// getSpec.
+var updated []string
+var created []string
+
+func initVCSFunc() {
+	updated = []string{}
+	created = []string{}
+
+	download = func(repo *vcs.RepoRoot, dir string) error {
+		updated = append(updated, dir)
+		return nil
+	}
+
+	create = func(repo *vcs.RepoRoot, dir string) error {
+		created = append(created, dir)
+		return nil
+	}
+}
+
+func testCheckSpec(t *testing.T) {
+	initVCSFunc()
+	os.Setenv("QUILT_PATH", ".")
+	util.AppFs = afero.NewMemMapFs()
+	util.AppFs.Mkdir("test", 777)
+	util.WriteFile("test/noDownload.spec",
+		[]byte(`(import "nextimport/nextimport")`), 0644)
+	util.AppFs.Mkdir("nextimport", 777)
+	util.WriteFile("nextimport/nextimport.spec", []byte("(define dummy 1)"), 0644)
+	if err := checkSpec("test/noDownload.spec", nil, nil); err != nil {
+		t.Error(err)
+	}
+
+	if len(created) != 0 {
+		t.Errorf("should not have downloaded, but downloaded %s", created)
+	}
+
+	// Verify that call is made to GetSpec
+	util.WriteFile("test/toDownload.spec",
+		[]byte(`(import "github.com/NetSys/quilt/specs/example")`), 0644)
+	expected := "unable to open import github.com/NetSys/quilt/specs/example"
+	if err := checkSpec("test/toDownload.spec", nil, nil); err.Error() != expected {
+		t.Errorf("expected %s \n but got %s", expected, err.Error())
+	}
+
+	if len(created) == 0 {
+		t.Error("did not download dependency!")
+	}
+
+	expected = "github.com/NetSys/quilt"
+	if created[0] != expected {
+		t.Errorf("expected to download %s \n but got %s", expected, created[0])
+	}
+}
+
+func TestResolveSpecImports(t *testing.T) {
+	testCheckSpec(t)
+	initVCSFunc()
+	// This will error because we do not actually download the file. Checking a spec
+	// is handled in testCheckSpec.
+	expected := "unable to open import github.com/NetSys/quilt/specs/example"
+	if err := resolveSpecImports("test"); err.Error() != expected {
+		t.Errorf("expected %s \n but got %s", expected, err.Error())
+	}
+
+	if len(created) == 0 {
+		t.Error("did not download dependency!")
+	}
+
+	expected = "github.com/NetSys/quilt"
+	if created[0] != expected {
+		t.Errorf("expected to download %s \n but got %s", expected, created[0])
+	}
+}
+
+// Due to limitations with git and afero, GetSpec will error at resolveSpecImports.
+// Instead, resolveSpecImports is covered above.
+func TestGetSpec(t *testing.T) {
+	initVCSFunc()
+	util.AppFs = afero.NewMemMapFs()
+	util.AppFs.Mkdir("getspecs", 777)
+	os.Setenv("QUILT_PATH", "./getspecs")
+	importPath := "github.com/NetSys/quilt"
+
+	// Clone
+	if _, err := getSpec(importPath); err != nil {
+		t.Error(err)
+	}
+
+	if len(created) == 0 {
+		t.Errorf("did not download dependency %s", importPath)
+	}
+
+	expected := "getspecs/github.com/NetSys/quilt"
+	if created[0] != expected {
+		t.Errorf("expected to download %s \n but got %s", expected, created[0])
+	}
+	fmt.Println(created)
+	util.AppFs.Mkdir("getspecs/github.com/NetSys/quilt", 777)
+
+	// Update
+	if _, err := getSpec(importPath); err != nil {
+		t.Error(err)
+	}
+
+	if len(updated) == 0 {
+		t.Errorf("did not update dependency %s", importPath)
+	}
+
+	expected = "getspecs/github.com/NetSys/quilt"
+	if updated[0] != expected {
+		t.Errorf("expected to update %s \n but got %s", expected, updated[0])
+	}
 }

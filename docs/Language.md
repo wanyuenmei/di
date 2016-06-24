@@ -135,33 +135,55 @@ binds and labels that start with a capital letter are exported.
 (math.Square 5) // => 25
 ```
 
-`import` is a way of importing code in other files. It evaluates to a `module`
-where the module name is the filename (minus the .spec extension), and the module
-body is the contents of the body.
+`import` is a way of importing code in other files. Specs are imported
+relative to the location of `QUILT_PATH` environment variable. It evaluates to a
+`module` where the module name is the name after the last slash (minus the .spec
+extension), and the module body is the contents of that spec file. For example,
 
 ```
-// math.spec
+// $QUILT_PATH/github.com/NetSys/quilt/math.spec
 (define Square (lambda (x) (* x x)))
 
 
-// main.spec
-(import "math")
+// $QUILT_PATH/main.spec
+(import "github.com/NetSys/quilt/math")
 (math.Square 5) // => 25
 ```
 
 ### QUILT_PATH
-`quilt` looks for imports according to the `QUILT_PATH` environment variable.
-So if you have a spec that imports `stdlib`, and `stdlib.spec` is located at
-`specs/stdlib.spec`, then your `QUILT_PATH` should be `QUILT_PATH="specs"`.
-
-Multiple paths are separated by colons, so you may do `QUILT_PATH="specs:specs/spark"`.
+Quilt looks for imports according to the `QUILT_PATH` environment variable.
+This variable should only be one directory, much like `GOPATH`. For example, if
+your `QUILT_PATH="~/.quilt"`, and you have a spec that imports
+`stdlib`, and `stdlib.spec` is located at
+`~/.quilt/github.com/NetSys/quilt/specs/util/stdlib.spec`, then you should
+`(import "github.com/NetSys/quilt/util/stdlib")`.
 
 You can invoke `quilt` with the path in one line:
-```
-QUILT_PATH="specs" ./quilt config.spec
+
+```bash
+QUILT_PATH="~/.quilt" quilt config.spec
 ```
 
-or `export` it into your environment.
+or `export` it into your environment. If a `QUILT_PATH` is not specified,
+Quilt assumes that it is `~/.quilt`.
+
+### Downloading Specs
+If you would like to download a spec from another repository, execute
+`quilt get <IMPORT_PATH>`, where `<IMPORT_PATH>` is a path to a repository
+containing specs (e.g. `github.com/NetSys/quilt`). Quilt will clone the
+repository into your `QUILT_PATH`, laying out a file structure like so
+(assuming `QUILT_PATH="specs"`):
+
+```
+specs
+├── github.com
+│   ├── username
+│   │   ├── repository_name
+│   │   │   ├── ...
+```
+
+Quilt will look at each spec it downloads for their imports, and download
+those as well.
 
 ## Labels
 ```

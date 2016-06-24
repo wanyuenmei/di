@@ -21,7 +21,7 @@ func initSpec(configPath string) graph {
 			Filename: configPath,
 		},
 	}
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), "../specs")
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), "../specs", false)
 	if err != nil {
 		panic(err)
 	}

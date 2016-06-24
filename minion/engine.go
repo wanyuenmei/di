@@ -15,7 +15,7 @@ import (
 
 func updatePolicy(view db.Database, role db.Role, spec string) {
 	var sc scanner.Scanner
-	compiled, err := stitch.New(*sc.Init(strings.NewReader(spec)), "")
+	compiled, err := stitch.New(*sc.Init(strings.NewReader(spec)), "", false)
 	if err != nil {
 		log.WithError(err).Warn("Invalid spec.")
 		return

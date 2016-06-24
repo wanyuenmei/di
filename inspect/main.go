@@ -48,7 +48,7 @@ func main() {
 		},
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr, false)
 	if err != nil {
 		panic(err)
 	}

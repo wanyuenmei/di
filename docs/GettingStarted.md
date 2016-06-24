@@ -1,4 +1,4 @@
-# GETTING STARTED
+# GETTINe STARTED
 This guide explains how to install Quilt, and also serves as a
 brief, hands-on introduction to some Quilt basics.
 
@@ -25,6 +25,13 @@ Clone the repository into your Go workspace: `go get github.com/NetSys/quilt`.
 
 This command also automatically installs Quilt. If the installation was
 successful, then the `quilt` command should execute successfully in your shell.
+
+## QUILT_PATH
+Your `QUILT_PATH` will be where Quilt looks for imported specs, and where
+specs you download with `quilt get` get placed. You can set this to be anywhere,
+but by default, your `QUILT_PATH` is `~/.quilt`. To set a custom `QUILT_PATH`,
+follow the instructions
+[here](https://github.com/NetSys/quilt/blob/master/docs/Language.md#quilt_path).
 
 ## Configure A Cloud Provider
 
@@ -146,3 +153,15 @@ of the Machines in the Example namespace.
 
 ## Next Steps: Starting Spark
 A starter Spark example to explore is [SparkPI](../specs/spark/).
+
+## Next Steps: Downloading Other Specs
+You can download specs into your QUILT_PATH by executing
+`quilt get <IMPORT_PATH>`, where `<IMPORT_PATH>` is a path to a repository
+containing specs (e.g. `github.com/NetSys/quilt`). Quilt will download files
+into your `QUILT_PATH`. You can read more about its functionality
+[here](https://github.com/NetSys/quilt/blob/master/docs/Language.md#quilt_path).
+
+Try `quilt get github.com/NetSys/quilt` and running
+`quilt github.com/NetSys/quilt/specs/example.spec` (remember to
+configure the file that was just downloaded by following the instructions
+above).
