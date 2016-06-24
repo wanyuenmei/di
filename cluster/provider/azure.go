@@ -246,8 +246,8 @@ func (clst *azureCluster) Boot(bootSet []Machine) error {
 
 	// For each region, we need:
 	// 1. A globally unique storage account.
-	// 2. A subscription-wise unique virtual network.
-	// 3. A subscription-wise unique security group.
+	// 2. A subscription-wide unique virtual network.
+	// 3. A subscription-wide unique security group.
 	regions := make(map[string]struct{})
 	for _, m := range bootSet {
 		if _, ok := regions[m.Region]; ok {
