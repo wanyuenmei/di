@@ -1264,18 +1264,6 @@ func TestQuery(t *testing.T) {
 		return
 	}
 
-	if val := stitch.QueryInt("a"); val != 3 {
-		t.Error(val, "!=", 3)
-	}
-
-	if val := stitch.QueryInt("missing"); val != 0 {
-		t.Error(val, "!=", 3)
-	}
-
-	if val := stitch.QueryInt("b"); val != 0 {
-		t.Error(val, "!=", 3)
-	}
-
 	if val, _ := stitch.QueryFloat("e"); val != 1.5 {
 		t.Error(val, "!=", 1.5)
 	}

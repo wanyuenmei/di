@@ -223,23 +223,6 @@ func (stitch Stitch) QueryFloat(key string) (float64, error) {
 	return float64(val), nil
 }
 
-// QueryInt returns an integer value defined in the stitch.
-func (stitch Stitch) QueryInt(key string) int {
-	result, ok := stitch.ctx.binds[astIdent(key)]
-	if !ok {
-		log.Warnf("%s undefined", key)
-		return 0
-	}
-
-	val, ok := result.(astInt)
-	if !ok {
-		log.Warnf("%s: Requested int, found %s", key, val)
-		return 0
-	}
-
-	return int(val)
-}
-
 // QueryString returns a string value defined in the stitch.
 func (stitch Stitch) QueryString(key string) string {
 	result, ok := stitch.ctx.binds[astIdent(key)]
