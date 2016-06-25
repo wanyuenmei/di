@@ -9,7 +9,7 @@ set -e
 
 status_line "Begin build..."
 
-make all check lint
+make all check lint format-check
 
 if [[ $(make -s lint 2>&1) ]] ; then # golint doesn't fail, just prints things.
     exit 1

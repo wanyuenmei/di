@@ -27,6 +27,13 @@ format:
 	gofmt -w -s $(NOVENDOR)
 	python scripts/format-check.py $(filter-out $(LINE_LENGTH_EXCLUDE),$(NOVENDOR))
 
+format-check:
+	RESULT=`gofmt -s -l $(NOVENDOR)` && \
+	if [[ -n "$$RESULT"  ]] ; then \
+	    echo $$RESULT && \
+	    exit 1 ; \
+	fi
+
 check:
 	go test $(PACKAGES)
 
