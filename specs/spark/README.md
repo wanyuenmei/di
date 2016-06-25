@@ -40,7 +40,7 @@ If you are sharing a computing cluster with others, it would be a good idea to
 change `(define Namespace "CHANGE_ME")` to a different name.
 
 ### Build `sparkPI.spec`
-Execute `quilt $GOPATH/github.com/NetSys/Quilt/specs/spark/sparkPI.spec` to
+Execute `quilt run $GOPATH/github.com/NetSys/Quilt/specs/spark/sparkPI.spec` to
 build this Stitch specification.
 
 Quilt will now begin provisioning several VMs on your cloud provider. Five VMs

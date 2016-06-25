@@ -92,7 +92,7 @@ change `(define Namespace "CHANGE_ME")` to a different name.
 
 ### Deploying [specs/example.spec](../specs/example.spec)
 While in the `$GOPATH/src/github.com/NetSys/quilt/` directory, execute `quilt
-specs/example.spec`. Quilt will set up several Ubuntu VMs on your cloud
+run specs/example.spec`. Quilt will set up several Ubuntu VMs on your cloud
 provider as Workers, and these Workers will host Nginx Docker containers.
 
 
@@ -162,6 +162,6 @@ into your `QUILT_PATH`. You can read more about its functionality
 [here](https://github.com/NetSys/quilt/blob/master/docs/Language.md#quilt_path).
 
 Try `quilt get github.com/NetSys/quilt` and running
-`quilt github.com/NetSys/quilt/specs/example.spec` (remember to
+`quilt run github.com/NetSys/quilt/specs/example.spec` (remember to
 configure the file that was just downloaded by following the instructions
 above).

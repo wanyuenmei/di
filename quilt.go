@@ -31,8 +31,8 @@ func main() {
 	log.SetFormatter(util.Formatter{})
 
 	flag.Usage = func() {
-		fmt.Println("Usage: quilt [<stitch> | stop <namespace> | get <import_path>]" +
-			" [-log-level=level | -l=level]")
+		fmt.Println("Usage: quilt [run <stitch> | stop <namespace>" +
+			" | get <import_path>]" + " [-log-level=<level> | -l=<level>]")
 		fmt.Println("\nWhen provided a stitch, quilt takes responsibility\n" +
 			"for deploying it as specified.  Alternatively, quilt may be\n" +
 			"instructed to stop all deployments in a given namespace,\n" +
@@ -59,6 +59,8 @@ func main() {
 	}
 
 	switch flag.Arg(0) {
+	case "run":
+		go configLoop(conn, flag.Arg(1))
 	case "stop":
 		stop(conn, flag.Arg(1))
 	case "get":

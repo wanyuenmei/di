@@ -161,7 +161,7 @@ your `QUILT_PATH="~/.quilt"`, and you have a spec that imports
 You can invoke `quilt` with the path in one line:
 
 ```bash
-QUILT_PATH="~/.quilt" quilt config.spec
+QUILT_PATH="~/.quilt" quilt run config.spec
 ```
 
 or `export` it into your environment. If a `QUILT_PATH` is not specified,
