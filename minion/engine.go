@@ -1,7 +1,6 @@
 package main
 
 import (
-	"reflect"
 	"sort"
 	"strings"
 	"text/scanner"
@@ -170,20 +169,12 @@ func updateContainers(view db.Database, spec stitch.Stitch) {
 		dbc := r.(db.Container)
 
 		if dbc.Image != stitchc.Image ||
-			!reflect.DeepEqual(dbc.Command, stitchc.Command) {
+			!util.StrSliceEqual(dbc.Command, stitchc.Command) ||
+			!util.StrStrMapEqual(dbc.Env, stitchc.Env) {
 			return -1
 		}
 
-		score := util.EditDistance(dbc.Labels, stitchc.Labels())
-
-		for k, v := range dbc.Env {
-			v2 := stitchc.Env[k]
-			if v != v2 {
-				return -1
-			}
-		}
-
-		return score
+		return util.EditDistance(dbc.Labels, stitchc.Labels())
 	}
 
 	pairs, stitchs, dbcs := join.Join(spec.QueryContainers(),
