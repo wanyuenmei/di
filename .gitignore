@@ -30,3 +30,5 @@ quilt
 *.cov.coverprofile
 
 *.pdf
+
+scripts/format

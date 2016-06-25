@@ -42,10 +42,12 @@ coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))
 	go test -coverprofile=.$@.coverprofile .$*
 	go tool cover -html=.$@.coverprofile -o .$@.html
 
-format:
+format: scripts/format
 	gofmt -w -s $(NOVENDOR)
-	python scripts/format-check.py \
-	    $(filter-out $(LINE_LENGTH_EXCLUDE),$(NOVENDOR))
+	scripts/format $(filter-out $(LINE_LENGTH_EXCLUDE),$(NOVENDOR))
+
+scripts/format: scripts/format.go
+	cd scripts && go build format.go
 
 format-check:
 	RESULT=`gofmt -s -l $(NOVENDOR)` && \
