@@ -12,7 +12,6 @@ install:
 script: ./scripts/build-push.sh
 
 after_success:
-    - make coverage
     - goveralls -coverprofile=./gover.coverprofile
 
 notifications:
