@@ -27,5 +27,6 @@ quilt
 
 *.cov.html
 *.cov.out
+*.cov.coverprofile
 
 *.pdf
