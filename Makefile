@@ -49,14 +49,7 @@ inspect:
 
 .PHONY: ./inspect
 
-COV_SKIP= /minion/consensus \
-	  /minion/docker \
-	  /minion/elector \
-	  /minion/ovsdb \
-	  /minion/pb \
-	  /minion/pprofile \
-	  /quilt \
-	  /inspect
+COV_SKIP= /minion/pb /minion/pprofile
 
 COV_PKG = $(subst github.com/NetSys/quilt,,$(PACKAGES))
 coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))
