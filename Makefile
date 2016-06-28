@@ -13,7 +13,7 @@ all: inspect
 	go build -o ./minion/minion ./minion
 
 install:
-	cd -P . && go install . && \
+	cd -P . && go install .
 
 generate:
 	go generate $(PACKAGES)
