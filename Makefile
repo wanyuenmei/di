@@ -1,53 +1,36 @@
 export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
-LINE_LENGTH_EXCLUDE=./cluster/provider/constraintConstants.go ./cluster/provider/gceConstants.go ./minion/pb/pb.pb.go ./cluster/provider/cloud_config.go ./minion/network/link_test.go
+LINE_LENGTH_EXCLUDE=./cluster/provider/constraintConstants.go \
+		    ./cluster/provider/gceConstants.go \
+		    ./minion/pb/pb.pb.go \
+		    ./cluster/provider/cloud_config.go \
+		    ./minion/network/link_test.go
 
 REPO = quilt
 DOCKER = docker
 SHELL := /bin/bash
 
-all: inspect
-	cd -P . && \
-	go build . && \
-	go build -o ./minion/minion ./minion
+.PHONY: all
+all: inspect minion quilt
+
+.PHONY: quilt
+quilt:
+	cd -P . && go build .
+
+.PHONY: minion
+minion:
+	cd -P . && go build -o ./minion/minion ./minion
+
+.PHONY: inspect
+inspect:
+	cd -P . && go build -o ./inspect/inspect ./inspect
 
 install:
-	cd -P . && go install .
-
-generate:
-	go generate $(PACKAGES)
-
-providers:
-	python3 scripts/gce-descriptions > provider/gceConstants.go
-
-format:
-	gofmt -w -s $(NOVENDOR)
-	python scripts/format-check.py $(filter-out $(LINE_LENGTH_EXCLUDE),$(NOVENDOR))
-
-format-check:
-	RESULT=`gofmt -s -l $(NOVENDOR)` && \
-	if [[ -n "$$RESULT"  ]] ; then \
-	    echo $$RESULT && \
-	    exit 1 ; \
-	fi
+	cd -P . && go install . && go install ./inspect && go install ./minion
 
 check:
 	go test $(PACKAGES)
-
-lint: format
-	cd -P . && go vet $(PACKAGES)
-	for package in $(PACKAGES) ; do \
-		if [[ $$package != *minion/pb* ]] ; then \
-			golint -min_confidence .25 $$package ; \
-		fi \
-	done
-
-inspect:
-	cd -P . && \
-	go build -o ./inspect/inspect ./inspect
-
-.PHONY: ./inspect
 
 COV_SKIP= /minion/pb /minion/pprofile
 
@@ -58,6 +41,32 @@ coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))
 %.cov:
 	go test -coverprofile=.$@.coverprofile .$*
 	go tool cover -html=.$@.coverprofile -o .$@.html
+
+format:
+	gofmt -w -s $(NOVENDOR)
+	python scripts/format-check.py \
+	    $(filter-out $(LINE_LENGTH_EXCLUDE),$(NOVENDOR))
+
+format-check:
+	RESULT=`gofmt -s -l $(NOVENDOR)` && \
+	if [[ -n "$$RESULT"  ]] ; then \
+	    echo $$RESULT && \
+	    exit 1 ; \
+	fi
+
+lint: format
+	cd -P . && go vet $(PACKAGES)
+	for package in $(PACKAGES) ; do \
+		if [[ $$package != *minion/pb* ]] ; then \
+			golint -min_confidence .25 $$package ; \
+		fi \
+	done
+
+generate:
+	go generate $(PACKAGES)
+
+providers:
+	python3 scripts/gce-descriptions > provider/gceConstants.go
 
 # BUILD
 docker-build-all: docker-build-tester docker-build-minion docker-build-ovs
