@@ -22,7 +22,10 @@ func usage() {
 		"Options\n"+
 		" - viz <pdf|ascii>\n"+
 		" - check <path to invariants file>\n"+
-		" - query [must have check] <path to query file>")
+		" - query [must have check] <path to query file>\n"+
+		"Dependencies\n"+
+		" - easy-graph (install Graph::Easy from cpan)\n"+
+		" - graphviz (install from your favorite package manager)\n")
 	os.Exit(1)
 }
 
