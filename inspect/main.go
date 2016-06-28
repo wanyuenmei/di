@@ -17,12 +17,12 @@ type argOption struct {
 }
 
 func usage() {
-	panic(
-		"Usage: inspect <path to spec file> [commands]\n" +
-			"Options\n" +
-			" - viz <pdf|ascii>\n" +
-			" - check <path to invariants file>\n" +
-			" - query [must have check] <path to query file>")
+	fmt.Fprintln(os.Stderr, "Usage: inspect <path to spec file> [commands]\n"+
+		"Options\n"+
+		" - viz <pdf|ascii>\n"+
+		" - check <path to invariants file>\n"+
+		" - query [must have check] <path to query file>")
+	os.Exit(1)
 }
 
 func main() {
