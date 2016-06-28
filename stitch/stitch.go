@@ -93,7 +93,6 @@ func New(sc scanner.Scanner, path []string) (Stitch, error) {
 		return Stitch{}, err
 	}
 
-	fmt.Println(astRoot(parsed).String())
 	return Stitch{astRoot(parsed).String(), ctx}, nil
 }
 
