@@ -133,7 +133,7 @@ func testContainerTxn(conn db.Conn, spec string) string {
 		}
 
 		if found == false {
-			return fmt.Sprintf("Missing expected label set: %s\n%s",
+			return fmt.Sprintf("Missing expected label set: %v\n%v",
 				e, containers)
 		}
 	}
