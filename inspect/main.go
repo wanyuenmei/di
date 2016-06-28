@@ -27,7 +27,7 @@ func usage() {
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("not enough arguments: ", len(os.Args))
+		fmt.Println("not enough arguments: ", len(os.Args-1))
 		usage()
 	}
 
