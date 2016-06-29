@@ -76,8 +76,6 @@ func (p *fakeProvider) Stop(machines []provider.Machine) error {
 	return nil
 }
 
-func (p *fakeProvider) Disconnect() {}
-
 func (p *fakeProvider) SetACLs(acls []string) error { return nil }
 
 func (p *fakeProvider) Connect(namespace string) error { return nil }

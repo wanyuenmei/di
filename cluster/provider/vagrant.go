@@ -114,10 +114,6 @@ func (clst vagrantCluster) Stop(machines []Machine) error {
 	return nil
 }
 
-func (clst vagrantCluster) Disconnect() {
-
-}
-
 func (clst vagrantCluster) SetACLs(acls []string) error {
 	return nil
 }

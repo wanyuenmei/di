@@ -176,15 +176,6 @@ func (clst *gceCluster) Stop(machines []Machine) error {
 	return nil
 }
 
-// Disconnect
-func (clst *gceCluster) Disconnect() {
-	panic("disconnect(): unimplemented! Check the comments on what this should " +
-		"actually do")
-	// should cancel the ACL watch
-	// should delete the instances
-	// should delete the network
-}
-
 func (clst *gceCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
 	return pickBestSize(constants.GoogleDescriptions, ram, cpu, maxPrice)

@@ -339,11 +339,6 @@ func (clst *azureCluster) Stop(machines []Machine) error {
 	return forEachMachine(stopFunc, machines)
 }
 
-// Disconnect.
-func (clst *azureCluster) Disconnect() {
-	// nothing
-}
-
 func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
 	// XXX: Use ExtraLarge by default because we haven't scraped the CPU and RAM

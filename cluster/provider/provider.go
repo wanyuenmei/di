@@ -31,8 +31,6 @@ type Provider interface {
 
 	SetACLs(acls []string) error
 
-	Disconnect()
-
 	ChooseSize(ram stitch.Range, cpu stitch.Range, maxPrice float64) string
 }
 

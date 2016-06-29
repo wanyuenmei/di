@@ -68,11 +68,6 @@ func (clst *amazonCluster) Connect(namespace string) error {
 	return nil
 }
 
-func (clst *amazonCluster) Disconnect() {
-	/* Ideally we'd close clst.ec2, but the API doesn't export that ability
-	* apparently. */
-}
-
 func (clst amazonCluster) getSession(region string) *ec2.EC2 {
 	if _, ok := clst.sessions[region]; ok {
 		return clst.sessions[region]
