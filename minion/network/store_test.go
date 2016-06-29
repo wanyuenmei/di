@@ -26,12 +26,12 @@ func testReadContainerTransact(t *testing.T, view db.Database) {
 
 	for _, id := range []string{"a", "b"} {
 		container := view.InsertContainer()
-		container.SchedID = id
+		container.DockerID = id
 		view.Commit(container)
 	}
 
 	container := view.InsertContainer()
-	container.SchedID = "c"
+	container.DockerID = "c"
 	container.IP = "junk"
 	view.Commit(container)
 
@@ -45,8 +45,8 @@ func testReadContainerTransact(t *testing.T, view db.Database) {
 	ipMap := map[string]string{}
 	labelMap := map[string][]string{}
 	for _, c := range view.SelectFromContainer(nil) {
-		ipMap[c.SchedID] = c.IP
-		labelMap[c.SchedID] = c.Labels
+		ipMap[c.DockerID] = c.IP
+		labelMap[c.DockerID] = c.Labels
 	}
 
 	expIPMap := map[string]string{
@@ -124,9 +124,9 @@ func TestSyncLabels(t *testing.T) {
 	dir, _ := getDirectory(store, "/test")
 
 	containers := []db.Container{
-		{SchedID: "a", Labels: []string{"d", "c"}},
-		{SchedID: "b", Labels: []string{}},
-		{SchedID: "c", Labels: nil},
+		{DockerID: "a", Labels: []string{"d", "c"}},
+		{DockerID: "b", Labels: []string{}},
+		{DockerID: "c", Labels: nil},
 	}
 
 	syncLabels(store, dir, "/test", containers)
@@ -146,7 +146,7 @@ func TestSyncLabels(t *testing.T) {
 	}
 
 	containers = []db.Container{
-		{SchedID: "a", Labels: []string{"d", "c"}},
+		{DockerID: "a", Labels: []string{"d", "c"}},
 	}
 
 	syncLabels(store, dir, "/test", containers)

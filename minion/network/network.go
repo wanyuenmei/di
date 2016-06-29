@@ -54,7 +54,7 @@ func runMaster(conn db.Conn) {
 		})
 
 		containers = view.SelectFromContainer(func(dbc db.Container) bool {
-			return dbc.SchedID != "" && dbc.Mac != "" && dbc.IP != ""
+			return dbc.DockerID != "" && dbc.Mac != "" && dbc.IP != ""
 		})
 
 		connections = view.SelectFromConnection(nil)
@@ -108,20 +108,20 @@ func runMaster(conn db.Conn) {
 	}
 
 	for _, dbc := range containers {
-		if _, ok := garbageMap[dbc.SchedID]; ok {
-			delete(garbageMap, dbc.SchedID)
+		if _, ok := garbageMap[dbc.DockerID]; ok {
+			delete(garbageMap, dbc.DockerID)
 			continue
 		}
 
 		log.WithFields(log.Fields{
-			"name": util.ShortUUID(dbc.SchedID),
+			"name": util.ShortUUID(dbc.DockerID),
 			"IP":   dbc.IP,
 		}).Info("New logical port.")
-		err := ovsdb.CreatePort("quilt", dbc.SchedID, dbc.Mac, dbc.IP)
+		err := ovsdb.CreatePort("quilt", dbc.DockerID, dbc.Mac, dbc.IP)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
-				"name":  dbc.SchedID,
+				"name":  dbc.DockerID,
 			}).Warn("Failed to create port.")
 		}
 	}

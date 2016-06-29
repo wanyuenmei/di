@@ -101,7 +101,7 @@ func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Contai
 			return -1
 		case len(dbcCmd) != 0 && !strEq(dbcCmd, cmd1) && !strEq(dbcCmd, cmd2):
 			return -1
-		case dkc.ID == dbc.SchedID:
+		case dkc.ID == dbc.DockerID:
 			return 0
 		default:
 			return util.EditDistance(dbc.Labels, dkcLabels)
@@ -111,7 +111,7 @@ func syncDB(view db.Database, dkcsArg []docker.Container) ([]string, []db.Contai
 
 	for _, pair := range pairs {
 		dbc := pair.L.(db.Container)
-		dbc.SchedID = pair.R.(docker.Container).ID
+		dbc.DockerID = pair.R.(docker.Container).ID
 		view.Commit(dbc)
 	}
 

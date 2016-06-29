@@ -88,7 +88,7 @@ func readContainerTransact(view db.Database, dir directory) {
 	for _, container := range view.SelectFromContainer(nil) {
 		container.IP = ""
 		var labels []string
-		if children, ok := dir[container.SchedID]; ok {
+		if children, ok := dir[container.DockerID]; ok {
 			json.Unmarshal([]byte(children["Labels"]), &labels)
 
 			container.IP = children["IP"]
@@ -159,8 +159,8 @@ func writeStoreRun(conn db.Conn, store consensus.Store) {
 func writeStoreContainers(store consensus.Store, containers []db.Container) error {
 	var ids []string
 	for _, container := range containers {
-		if container.SchedID != "" {
-			ids = append(ids, container.SchedID)
+		if container.DockerID != "" {
+			ids = append(ids, container.DockerID)
 		}
 	}
 
@@ -352,8 +352,8 @@ func syncLabels(store consensus.Store, dir directory, path string,
 
 	idLabelMap := map[string][]string{}
 	for _, container := range containers {
-		if container.SchedID != "" {
-			idLabelMap[container.SchedID] = container.Labels
+		if container.DockerID != "" {
+			idLabelMap[container.DockerID] = container.Labels
 		}
 	}
 

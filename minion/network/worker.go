@@ -150,7 +150,7 @@ func runWorker(conn db.Conn, dk docker.Client) {
 	var connections []db.Connection
 	conn.Transact(func(view db.Database) error {
 		containers = view.SelectFromContainer(func(c db.Container) bool {
-			return c.SchedID != "" && c.IP != "" && c.Mac != ""
+			return c.DockerID != "" && c.IP != "" && c.Mac != ""
 		})
 		labels = view.SelectFromLabel(func(l db.Label) bool {
 			return l.IP != ""
@@ -189,7 +189,7 @@ func updateNamespaces(containers []db.Container) {
 	var targetNamespaces nsInfoSlice
 	for _, dbc := range containers {
 		targetNamespaces = append(targetNamespaces,
-			nsInfo{ns: networkNS(dbc.SchedID), pid: dbc.Pid})
+			nsInfo{ns: networkNS(dbc.DockerID), pid: dbc.Pid})
 	}
 	currentNamespaces, err := generateCurrentNamespaces()
 	if err != nil {
@@ -265,7 +265,7 @@ func addNS(info nsInfo) error {
 
 func updateLoopback(containers []db.Container) {
 	for _, dbc := range containers {
-		namespace := networkNS(dbc.SchedID)
+		namespace := networkNS(dbc.DockerID)
 		if err := upLink(namespace, loopback); err != nil {
 			log.WithError(err).Error("failed to up loopback device")
 		}
@@ -314,11 +314,11 @@ func updateVeths(containers []db.Container) {
 func generateTargetVeths(containers []db.Container) netdevSlice {
 	var configs netdevSlice
 	for _, dbc := range containers {
-		_, vethOut := veths(dbc.SchedID)
+		_, vethOut := veths(dbc.DockerID)
 		cfg := netdev{
 			name:    vethOut,
 			up:      true,
-			peerNS:  networkNS(dbc.SchedID),
+			peerNS:  networkNS(dbc.DockerID),
 			peerMTU: innerMTU,
 		}
 		configs = append(configs, cfg)
@@ -348,9 +348,9 @@ func generateCurrentVeths(containers []db.Container) (netdevSlice, error) {
 		}
 
 		for _, dbc := range containers {
-			_, vethOut := veths(dbc.SchedID)
+			_, vethOut := veths(dbc.DockerID)
 			if vethOut == name {
-				cfg.peerNS = networkNS(dbc.SchedID)
+				cfg.peerNS = networkNS(dbc.DockerID)
 				break
 			}
 		}
@@ -549,8 +549,8 @@ func updatePorts(odb ovsdb.Ovsdb, containers []db.Container) {
 func generateTargetPorts(containers []db.Container) ovsPortSlice {
 	var configs ovsPortSlice
 	for _, dbc := range containers {
-		_, vethOut := veths(dbc.SchedID)
-		peerBr, peerQuilt := patchPorts(dbc.SchedID)
+		_, vethOut := veths(dbc.DockerID)
+		peerBr, peerQuilt := patchPorts(dbc.DockerID)
 		configs = append(configs, ovsPort{
 			name:   vethOut,
 			bridge: quiltBridge,
@@ -567,7 +567,7 @@ func generateTargetPorts(containers []db.Container) ovsPortSlice {
 			patch:       true,
 			peer:        peerQuilt,
 			attachedMAC: dbc.Mac,
-			ifaceID:     dbc.SchedID,
+			ifaceID:     dbc.DockerID,
 		})
 	}
 	return configs
@@ -754,7 +754,7 @@ func updateContainerIPs(containers []db.Container, labels []db.Label) {
 	for _, dbc := range containers {
 		var err error
 
-		ns := networkNS(dbc.SchedID)
+		ns := networkNS(dbc.DockerID)
 		ip := dbc.IP
 
 		currIPs, err := listIP(ns, innerVeth)
@@ -815,7 +815,7 @@ func updateRoutes(containers []db.Container) {
 	}
 
 	for _, dbc := range containers {
-		ns := networkNS(dbc.SchedID)
+		ns := networkNS(dbc.DockerID)
 
 		currentRoutes, err := generateCurrentRoutes(ns)
 		if err != nil {
@@ -964,8 +964,8 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 
 	var rules []string
 	for _, dbc := range containers {
-		_, vethOut := veths(dbc.SchedID)
-		_, peerQuilt := patchPorts(dbc.SchedID)
+		_, vethOut := veths(dbc.DockerID)
+		_, peerQuilt := patchPorts(dbc.DockerID)
 		dbcMac := dbc.Mac
 
 		ofQuilt, err := odb.GetOFPortNo(peerQuilt)
@@ -1161,7 +1161,7 @@ func updateNameservers(dk docker.Client, containers []db.Container) {
 	newNameservers := strings.Join(matches, "\n")
 
 	for _, dbc := range containers {
-		id := dbc.SchedID
+		id := dbc.DockerID
 
 		currNameservers, err := dk.GetFromContainer(id, "/etc/resolv.conf")
 		if err != nil {
@@ -1202,7 +1202,7 @@ func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 
 	for _, dbc := range containers {
-		id := dbc.SchedID
+		id := dbc.DockerID
 
 		currHosts, err := dk.GetFromContainer(id, "/etc/hosts")
 		if err != nil {
@@ -1237,8 +1237,8 @@ func generateEtcHosts(dbc db.Container, labelIP map[string]string,
 		{"ff02::2", "ip6-allrouters"},
 	}
 
-	if dbc.IP != "" && dbc.SchedID != "" {
-		entry := entry{dbc.IP, util.ShortUUID(dbc.SchedID)}
+	if dbc.IP != "" && dbc.DockerID != "" {
+		entry := entry{dbc.IP, util.ShortUUID(dbc.DockerID)}
 		localhosts = append(localhosts, entry)
 	}
 

@@ -13,14 +13,14 @@ import (
 type Container struct {
 	ID int
 
-	Pid     int
-	IP      string
-	Mac     string
-	SchedID string
-	Image   string
-	Command []string
-	Labels  []string
-	Env     map[string]string
+	Pid      int
+	IP       string
+	Mac      string
+	DockerID string
+	Image    string
+	Command  []string
+	Labels   []string
+	Env      map[string]string
 }
 
 // ContainerSlice is an alias for []Container to allow for joins
@@ -61,7 +61,7 @@ func (c Container) equal(r row) bool {
 		c.Pid == other.Pid &&
 		c.IP == other.IP &&
 		c.Mac == other.Mac &&
-		c.SchedID == other.SchedID &&
+		c.DockerID == other.DockerID &&
 		c.Image == other.Image &&
 		util.StrSliceEqual(c.Command, other.Command) &&
 		util.StrSliceEqual(c.Labels, other.Labels) &&
@@ -76,9 +76,9 @@ func (c Container) String() string {
 	cmdStr := strings.Join(append([]string{"run", c.Image}, c.Command...), " ")
 	tags := []string{cmdStr}
 
-	if c.SchedID != "" {
-		id := util.ShortUUID(c.SchedID)
-		tags = append(tags, fmt.Sprintf("SchedID: %s", id))
+	if c.DockerID != "" {
+		id := util.ShortUUID(c.DockerID)
+		tags = append(tags, fmt.Sprintf("DockerID: %s", id))
 	}
 
 	if c.Pid != 0 {

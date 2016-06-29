@@ -10,10 +10,10 @@ import (
 func TestNoConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:      1,
-		SchedID: "abcdefghijklmnopqrstuvwxyz",
-		IP:      "1.1.1.1",
-		Labels:  []string{"green"},
+		ID:       1,
+		DockerID: "abcdefghijklmnopqrstuvwxyz",
+		IP:       "1.1.1.1",
+		Labels:   []string{"green"},
 	}
 
 	actual := generateEtcHosts(dbc, labels, connections)
@@ -28,10 +28,10 @@ func TestNoConnections(t *testing.T) {
 func TestImplementsSingleLabel(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:      2,
-		SchedID: "abcdefghijklmnopqrstuvwxyz",
-		IP:      "1.1.1.1",
-		Labels:  []string{"red"},
+		ID:       2,
+		DockerID: "abcdefghijklmnopqrstuvwxyz",
+		IP:       "1.1.1.1",
+		Labels:   []string{"red"},
 	}
 
 	actual := generateEtcHosts(dbc, labels, connections)
@@ -48,10 +48,10 @@ func TestImplementsSingleLabel(t *testing.T) {
 func TestImplementsMultipleLabels(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:      3,
-		SchedID: "abcdefghijklmnopqrstuvwxyz",
-		IP:      "1.1.1.1",
-		Labels:  []string{"red", "blue"},
+		ID:       3,
+		DockerID: "abcdefghijklmnopqrstuvwxyz",
+		IP:       "1.1.1.1",
+		Labels:   []string{"red", "blue"},
 	}
 
 	actual := generateEtcHosts(dbc, labels, connections)
@@ -71,10 +71,10 @@ func TestImplementsMultipleLabels(t *testing.T) {
 func TestDuplicateConnections(t *testing.T) {
 	labels, connections := defaultLabelsConnections()
 	dbc := db.Container{
-		ID:      4,
-		SchedID: "abcdefghijklmnopqrstuvwxyz",
-		IP:      "1.1.1.1",
-		Labels:  []string{"red", "blue"},
+		ID:       4,
+		DockerID: "abcdefghijklmnopqrstuvwxyz",
+		IP:       "1.1.1.1",
+		Labels:   []string{"red", "blue"},
 	}
 
 	connections["blue"] = append(connections["blue"], "green")

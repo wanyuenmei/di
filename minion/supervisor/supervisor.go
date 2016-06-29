@@ -128,7 +128,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 	var tearDowns []string
 
 	dbKey := func(val interface{}) interface{} {
-		return val.(db.Container).SchedID
+		return val.(db.Container).DockerID
 	}
 	dkKey := func(val interface{}) interface{} {
 		return val.(docker.Container).ID
@@ -141,7 +141,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 	for _, iface := range dbcs {
 		dbc := iface.(db.Container)
 
-		tearDowns = append(tearDowns, dbc.SchedID)
+		tearDowns = append(tearDowns, dbc.DockerID)
 		view.Remove(dbc)
 	}
 
@@ -153,7 +153,7 @@ func (sv *supervisor) runAppTransact(view db.Database,
 		dbc := pair.L.(db.Container)
 		dkc := pair.R.(docker.Container)
 
-		dbc.SchedID = dkc.ID
+		dbc.DockerID = dkc.ID
 		dbc.Pid = dkc.Pid
 		dbc.Image = dkc.Image
 		dbc.Command = append([]string{dkc.Path}, dkc.Args...)

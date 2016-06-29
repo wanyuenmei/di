@@ -395,7 +395,7 @@ func TestRunAppTransact(t *testing.T) {
 		var ids []string
 		dbcs := view.SelectFromContainer(nil)
 		for _, dbc := range dbcs {
-			ids = append(ids, dbc.SchedID)
+			ids = append(ids, dbc.DockerID)
 		}
 		sort.Sort(sort.StringSlice(ids))
 
@@ -412,7 +412,7 @@ func TestRunAppTransact(t *testing.T) {
 		ids = nil
 		dbcs = view.SelectFromContainer(nil)
 		for _, dbc := range dbcs {
-			ids = append(ids, dbc.SchedID)
+			ids = append(ids, dbc.DockerID)
 		}
 		sort.Sort(sort.StringSlice(ids))
 
