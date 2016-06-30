@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/NetSys/quilt/stitch"
+)
+
 // A node in the communiction graph.
 type node struct {
 	name        string
@@ -21,7 +25,7 @@ type graph struct {
 	availability []availabilitySet
 	// Constraints on which containers can be placed together.
 	placement map[string][]string
-	machines  []machine
+	machines  []stitch.Machine
 }
 
 func makeGraph() graph {
@@ -30,7 +34,7 @@ func makeGraph() graph {
 		// One global availability set by default.
 		availability: []availabilitySet{{}},
 		placement:    map[string][]string{},
-		machines:     []machine{},
+		machines:     []stitch.Machine{},
 	}
 }
 
