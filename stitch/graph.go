@@ -1,70 +1,113 @@
 package stitch
 
-// A node in the communiction graph.
-type node struct {
-	name        string
-	label       string
-	connections map[string]node
+import (
+	"fmt"
+)
+
+// A Node in the communiction Graph.
+type Node struct {
+	Name        string
+	Label       string
+	Connections map[string]Node
 }
 
-// A connection is an edge in the communication graph.
-type connection struct {
-	from string
-	to   string
+// An Edge in the communication Graph.
+type Edge struct {
+	From string
+	To   string
 }
 
-// A graph represents permission to communicate across a series of nodes.
-// Each node is a container and each edge is permissions to
+// A Graph represents permission to communicate across a series of Nodes.
+// Each Node is a container and each edge is permissions to
 // initiate a connection.
-type graph struct {
-	nodes map[string]node
+type Graph struct {
+	Nodes map[string]Node
 	// A set of containers which can be placed together on a VM.
-	availability []availabilitySet
+	Availability []AvailabilitySet
 	// Constraints on which containers can be placed together.
-	placement map[string][]string
-	machines  []Machine
+	Placement map[string][]string
+	Machines  []Machine
 }
 
-func makeGraph() graph {
-	return graph{
-		nodes: map[string]node{},
+// InitializeGraph queries the Stitch to fill in the Graph structure.
+func InitializeGraph(spec Stitch) (Graph, error) {
+	g := Graph{
+		Nodes: map[string]Node{},
 		// One global availability set by default.
-		availability: []availabilitySet{{}},
-		placement:    map[string][]string{},
-		machines:     []Machine{},
+		Availability: []AvailabilitySet{{}},
+		Placement:    map[string][]string{},
+		Machines:     []Machine{},
 	}
+
+	for label, cids := range spec.QueryLabels() {
+		for _, cid := range cids {
+			g.addNode(fmt.Sprintf("%d", cid), label)
+		}
+	}
+	g.addNode(PublicInternetLabel, PublicInternetLabel)
+
+	for _, conn := range spec.QueryConnections() {
+		err := g.addConnection(conn.From, conn.To)
+		if err != nil {
+			return Graph{}, err
+		}
+	}
+
+	for _, pl := range spec.QueryPlacements() {
+		err := g.addPlacementRule(pl)
+		if err != nil {
+			return Graph{}, err
+		}
+	}
+
+	for _, m := range spec.QueryMachines() {
+		g.Machines = append(g.Machines, m)
+	}
+
+	return g, nil
 }
 
-func (g graph) copyGraph() graph {
-	newNodes := map[string]node{}
-	for label, node := range g.nodes {
+// GetConnections returns a list of the edges in the Graph.
+func (g Graph) GetConnections() []Edge {
+	var res []Edge
+	for _, n := range g.getNodes() {
+		for _, edge := range n.Connections {
+			res = append(res, Edge{From: n.Name, To: edge.Name})
+		}
+	}
+	return res
+}
+
+func (g Graph) copyGraph() Graph {
+	newNodes := map[string]Node{}
+	for label, node := range g.Nodes {
 		newNodes[label] = node
 	}
 
-	newAvail := make([]availabilitySet, len(g.availability))
-	copy(newAvail, g.availability)
+	newAvail := make([]AvailabilitySet, len(g.Availability))
+	copy(newAvail, g.Availability)
 
-	return graph{nodes: newNodes, availability: newAvail}
+	return Graph{Nodes: newNodes, Availability: newAvail}
 }
 
-func (g *graph) addConnection(from string, to string) error {
+func (g *Graph) addConnection(from string, to string) error {
 	// from and to are labels
-	var fromContainers []node
-	var toContainers []node
+	var fromContainers []Node
+	var toContainers []Node
 
-	for _, node := range g.nodes {
-		if node.label == from {
+	for _, node := range g.Nodes {
+		if node.Label == from {
 			fromContainers = append(fromContainers, node)
 		}
-		if node.label == to {
+		if node.Label == to {
 			toContainers = append(toContainers, node)
 		}
 	}
 
 	for _, fromNode := range fromContainers {
 		for _, toNode := range toContainers {
-			if fromNode.name != toNode.name {
-				fromNode.connections[toNode.name] = toNode
+			if fromNode.Name != toNode.Name {
+				fromNode.Connections[toNode.Name] = toNode
 			}
 		}
 	}
@@ -72,53 +115,43 @@ func (g *graph) addConnection(from string, to string) error {
 	return nil
 }
 
-func (g graph) getNodes() []node {
-	var res []node
-	for _, n := range g.nodes {
+func (g Graph) getNodes() []Node {
+	var res []Node
+	for _, n := range g.Nodes {
 		res = append(res, n)
 	}
 	return res
 }
 
-func (g graph) getConnections() []connection {
-	var res []connection
-	for _, n := range g.getNodes() {
-		for _, edge := range n.connections {
-			res = append(res, connection{from: n.name, to: edge.name})
-		}
+func (g *Graph) addNode(cid string, label string) Node {
+	n := Node{
+		Name:        cid,
+		Label:       label,
+		Connections: map[string]Node{},
 	}
-	return res
-}
-
-func (g *graph) addNode(cid string, label string) node {
-	n := node{
-		name:        cid,
-		label:       label,
-		connections: map[string]node{},
-	}
-	g.nodes[cid] = n
-	g.availability[0].insert(cid)
+	g.Nodes[cid] = n
+	g.Availability[0].Insert(cid)
 	g.placeNodes()
 
 	return n
 }
 
-func (g *graph) removeNode(label string) {
-	delete(g.nodes, label)
+func (g *Graph) removeNode(label string) {
+	delete(g.Nodes, label)
 
-	// Delete edges to this node.
+	// Delete edges to this Node.
 	for _, n := range g.getNodes() {
-		delete(n.connections, label)
+		delete(n.Connections, label)
 	}
 }
 
 // Find all nodes reachable from the given node.
-func (n node) dfs() []string {
+func (n Node) dfs() []string {
 	reached := map[string]struct{}{}
 
-	var explore func(t node)
-	explore = func(t node) {
-		for label, node := range t.connections {
+	var explore func(t Node)
+	explore = func(t Node) {
+		for label, node := range t.Connections {
 			_, explored := reached[label]
 			if !explored {
 				reached[label] = struct{}{}
@@ -136,28 +169,28 @@ func (n node) dfs() []string {
 	return reachable
 }
 
-// Compute all the paths between two nodes.
-func paths(start node, end node) ([][]string, bool) {
+// Compute all the paths between two Nodes.
+func paths(start Node, end Node) ([][]string, bool) {
 	reach := start.dfs()
-	if !contains(reach, end.name) {
+	if !contains(reach, end.Name) {
 		return nil, false
 	}
 
 	var paths [][]string
 
-	var explore func(t node, p []string)
-	explore = func(t node, p []string) {
-		if t.name == end.name {
+	var explore func(t Node, p []string)
+	explore = func(t Node, p []string) {
+		if t.Name == end.Name {
 			paths = append(paths, p)
 			return
 		}
 
-		for label, node := range t.connections {
+		for label, node := range t.Connections {
 			if !contains(p, label) { // Discount self-reachability.
 				explore(node, append(p, label))
 			}
 		}
 	}
-	explore(start, []string{start.name})
+	explore(start, []string{start.Name})
 	return paths, true
 }

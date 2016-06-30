@@ -1,10 +1,12 @@
-package stitch
+package inspect
 
 import (
 	"bufio"
 	"fmt"
 	"os"
 	"text/scanner"
+
+	"github.com/NetSys/quilt/stitch"
 )
 
 const quiltPath = "QUILT_PATH"
@@ -21,39 +23,8 @@ Dependencies
 	os.Exit(1)
 }
 
-func initializeGraph(spec Stitch) (graph, error) {
-	g := makeGraph()
-
-	for label, cids := range spec.QueryLabels() {
-		for _, cid := range cids {
-			g.addNode(fmt.Sprintf("%d", cid), label)
-		}
-	}
-	g.addNode(PublicInternetLabel, PublicInternetLabel)
-
-	for _, conn := range spec.QueryConnections() {
-		err := g.addConnection(conn.From, conn.To)
-		if err != nil {
-			return graph{}, err
-		}
-	}
-
-	for _, pl := range spec.QueryPlacements() {
-		err := g.addPlacementRule(pl)
-		if err != nil {
-			return graph{}, err
-		}
-	}
-
-	for _, m := range spec.QueryMachines() {
-		g.machines = append(g.machines, m)
-	}
-
-	return g, nil
-}
-
-// InspectMain is the main function for inspect tool. Helps visualize stitches.
-func InspectMain(opts []string) {
+// Main is the main function for inspect tool. Helps visualize stitches.
+func Main(opts []string) {
 	if arglen := len(opts); arglen < 3 {
 		fmt.Println("not enough arguments: ", arglen-1)
 		usage()
@@ -74,13 +45,13 @@ func InspectMain(opts []string) {
 		},
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
-	spec, err := New(*sc.Init(bufio.NewReader(f)), pathStr, false)
+	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr, false)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	graph, err := initializeGraph(spec)
+	graph, err := stitch.InitializeGraph(spec)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -22,7 +22,7 @@ type query struct {
 
 var queryFormKeywords map[string]queryType
 var queryFormImpls map[queryType]func(
-	graph graph,
+	graph Graph,
 	invs []invariant,
 	query query,
 ) *invariant
@@ -34,7 +34,7 @@ func init() {
 	}
 
 	queryFormImpls = map[queryType]func(
-		graph graph,
+		graph Graph,
 		invs []invariant,
 		query query,
 	) *invariant{
@@ -43,7 +43,7 @@ func init() {
 	}
 }
 
-func ask(graph graph, invs []invariant, path string) (*query, *invariant, error) {
+func ask(graph Graph, invs []invariant, path string) (*query, *invariant, error) {
 	queries, err := parseQueries(graph, path)
 	if err != nil {
 		return nil, nil, err
@@ -52,7 +52,7 @@ func ask(graph graph, invs []invariant, path string) (*query, *invariant, error)
 	return askQueries(graph, invs, queries)
 }
 
-func askQueries(graph graph, invs []invariant, queries []query) (*query, *invariant,
+func askQueries(graph Graph, invs []invariant, queries []query) (*query, *invariant,
 	error) {
 	for _, query := range queries {
 		if val := queryFormImpls[query.form](graph, invs, query); val != nil {
@@ -67,9 +67,9 @@ func askQueries(graph graph, invs []invariant, queries []query) (*query, *invari
 	return nil, nil, nil
 }
 
-func parseQueryLine(graph graph, line string) (query, error) {
+func parseQueryLine(graph Graph, line string) (query, error) {
 	sp := strings.Split(line, " ")
-	if _, ok := graph.nodes[sp[1]]; !ok {
+	if _, ok := graph.Nodes[sp[1]]; !ok {
 		return query{}, fmt.Errorf("malformed query (unknown label): %s", sp[1])
 	}
 
@@ -79,7 +79,7 @@ func parseQueryLine(graph graph, line string) (query, error) {
 	return query{}, fmt.Errorf("could not parse query: %s", line)
 }
 
-func parseQueries(graph graph, path string) ([]query, error) {
+func parseQueries(graph Graph, path string) ([]query, error) {
 	var queries []query
 
 	parse := func(line string) error {
@@ -98,7 +98,7 @@ func parseQueries(graph graph, path string) ([]query, error) {
 	return queries, nil
 }
 
-func whatIfRemoveOne(graph graph, invs []invariant, query query) *invariant {
+func whatIfRemoveOne(graph Graph, invs []invariant, query query) *invariant {
 	graphCopy := graph.copyGraph()
 	graphCopy.removeNode(query.target)
 
@@ -108,7 +108,7 @@ func whatIfRemoveOne(graph graph, invs []invariant, query query) *invariant {
 	return nil
 }
 
-func whatIfRemoveSet(graph graph, invs []invariant, query query) *invariant {
+func whatIfRemoveSet(graph Graph, invs []invariant, query query) *invariant {
 	graphCopy := graph.copyGraph()
 	node := query.target
 	avSet := graphCopy.findAvailabilitySet(node)

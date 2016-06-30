@@ -31,7 +31,7 @@ func (i invariant) eval(ctx *evalCtx) (ast, error) {
 }
 
 var formKeywords map[string]invariantType
-var formImpls map[invariantType]func(graph graph, inv invariant) bool
+var formImpls map[invariantType]func(graph Graph, inv invariant) bool
 
 func init() {
 	formKeywords = map[string]invariantType{
@@ -40,14 +40,14 @@ func init() {
 		"enough":  schedulabilityInvariant,
 	}
 
-	formImpls = map[invariantType]func(graph graph, inv invariant) bool{
+	formImpls = map[invariantType]func(graph Graph, inv invariant) bool{
 		reachInvariant:          reachImpl,
 		betweenInvariant:        betweenImpl,
 		schedulabilityInvariant: schedulabilityImpl,
 	}
 }
 
-func checkInvariants(graph graph, invs []invariant) ([]invariant, *invariant, error) {
+func checkInvariants(graph Graph, invs []invariant) ([]invariant, *invariant, error) {
 	for _, asrt := range invs {
 		if val := formImpls[asrt.form](graph, asrt); !val {
 			return invs, &asrt, fmt.Errorf("invariant failed")
@@ -57,14 +57,14 @@ func checkInvariants(graph graph, invs []invariant) ([]invariant, *invariant, er
 	return invs, nil, nil
 }
 
-func reachImpl(graph graph, inv invariant) bool {
-	var fromNodes []node
-	var toNodes []node
-	for _, node := range graph.nodes {
-		if node.label == inv.nodes[0] {
+func reachImpl(graph Graph, inv invariant) bool {
+	var fromNodes []Node
+	var toNodes []Node
+	for _, node := range graph.Nodes {
+		if node.Label == inv.nodes[0] {
 			fromNodes = append(fromNodes, node)
 		}
-		if node.label == inv.nodes[1] {
+		if node.Label == inv.nodes[1] {
 			toNodes = append(toNodes, node)
 		}
 	}
@@ -72,7 +72,7 @@ func reachImpl(graph graph, inv invariant) bool {
 	allPassed := true
 	for _, from := range fromNodes {
 		for _, to := range toNodes {
-			pass := contains(from.dfs(), to.name) == inv.target
+			pass := contains(from.dfs(), to.Name) == inv.target
 			allPassed = allPassed && pass
 		}
 	}
@@ -80,12 +80,12 @@ func reachImpl(graph graph, inv invariant) bool {
 	return allPassed
 }
 
-func betweenImpl(graph graph, inv invariant) bool {
-	var fromNodes []node
-	var toNodes []node
-	var betweenNodes []node
-	for _, node := range graph.nodes {
-		switch node.label {
+func betweenImpl(graph Graph, inv invariant) bool {
+	var fromNodes []Node
+	var toNodes []Node
+	var betweenNodes []Node
+	for _, node := range graph.Nodes {
+		switch node.Label {
 		case inv.nodes[0]:
 			fromNodes = append(fromNodes, node)
 		case inv.nodes[1]:
@@ -109,7 +109,7 @@ func betweenImpl(graph graph, inv invariant) bool {
 	return allPassed
 }
 
-func betweenPathsHelper(betweenNodes []node, from node, to node, target bool) bool {
+func betweenPathsHelper(betweenNodes []Node, from Node, to Node, target bool) bool {
 	paths, ok := paths(from, to)
 	if !ok {
 		// No path between source and dest.
@@ -121,7 +121,7 @@ func betweenPathsHelper(betweenNodes []node, from node, to node, target bool) bo
 	pathsAll:
 		for _, path := range paths {
 			for _, between := range betweenNodes {
-				if ok := contains(path, between.name); ok {
+				if ok := contains(path, between.Name); ok {
 					break
 				} else {
 					allPaths = false
@@ -136,7 +136,7 @@ func betweenPathsHelper(betweenNodes []node, from node, to node, target bool) bo
 pathsAny:
 	for _, path := range paths {
 		for _, between := range betweenNodes {
-			if ok := contains(path, between.name); ok {
+			if ok := contains(path, between.Name); ok {
 				noPaths = false
 				break pathsAny
 			}
@@ -145,10 +145,10 @@ pathsAny:
 	return noPaths
 }
 
-func schedulabilityImpl(graph graph, inv invariant) bool {
-	machines := graph.machines
-	avSets := graph.availability
-	if _, ok := graph.nodes["public"]; ok {
+func schedulabilityImpl(graph Graph, inv invariant) bool {
+	machines := graph.Machines
+	avSets := graph.Availability
+	if _, ok := graph.Nodes["public"]; ok {
 		return len(machines) >= (len(avSets) - 1)
 	}
 	return len(machines) >= len(avSets)

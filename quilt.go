@@ -15,6 +15,7 @@ import (
 	"github.com/NetSys/quilt/cluster"
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/engine"
+	"github.com/NetSys/quilt/inspect"
 	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 
@@ -68,7 +69,7 @@ func main() {
 	case "get":
 		getSpec(flag.Arg(1))
 	case "inspect":
-		stitch.InspectMain(flag.Args())
+		inspect.Main(flag.Args())
 		return
 	default:
 		usage()

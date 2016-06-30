@@ -4,10 +4,11 @@ import (
 	"fmt"
 )
 
-// A set of containers which can be placed together on a VM.
-type availabilitySet map[string]struct{}
+// AvailabilitySet represents a set of containers which can be placed together on a VM.
+type AvailabilitySet map[string]struct{}
 
-func (avSet availabilitySet) nodes() []string {
+// Nodes returns the membership of the set.
+func (avSet AvailabilitySet) Nodes() []string {
 	var labels []string
 	for l := range avSet {
 		labels = append(labels, l)
@@ -15,16 +16,19 @@ func (avSet availabilitySet) nodes() []string {
 	return labels
 }
 
-func (avSet availabilitySet) str() string {
-	return fmt.Sprint(avSet.nodes())
+// Str returns the string representation of the set.
+func (avSet AvailabilitySet) Str() string {
+	return fmt.Sprint(avSet.Nodes())
 }
 
-func (avSet availabilitySet) check(label string) bool {
+// Check checks set membership.
+func (avSet AvailabilitySet) Check(label string) bool {
 	_, ok := avSet[label]
 	return ok
 }
 
-func (avSet availabilitySet) copyAvSet() availabilitySet {
+// CopyAvSet returns a copy of the set.
+func (avSet AvailabilitySet) CopyAvSet() AvailabilitySet {
 	newAvSet := map[string]struct{}{}
 	for label := range avSet {
 		newAvSet[label] = struct{}{}
@@ -32,22 +36,24 @@ func (avSet availabilitySet) copyAvSet() availabilitySet {
 	return newAvSet
 }
 
-func (avSet availabilitySet) insert(labels ...string) {
+// Insert inserts labels into the set.
+func (avSet AvailabilitySet) Insert(labels ...string) {
 	for _, label := range labels {
 		avSet[label] = struct{}{}
 	}
 }
 
-func (avSet availabilitySet) remove(labels ...string) {
+// Remove removes labels from the set.
+func (avSet AvailabilitySet) Remove(labels ...string) {
 	for _, label := range labels {
 		delete(avSet, label)
 	}
 }
 
-func (avSet availabilitySet) removeAndCheck(labels ...string) []string {
+func (avSet AvailabilitySet) removeAndCheck(labels ...string) []string {
 	var toMove []string
 	for _, label := range labels {
-		if avSet.check(label) {
+		if avSet.Check(label) {
 			toMove = append(toMove, label)
 			delete(avSet, label)
 		}
@@ -55,16 +61,16 @@ func (avSet availabilitySet) removeAndCheck(labels ...string) []string {
 	return toMove
 }
 
-func (g *graph) removeAvailabiltySet(av availabilitySet) {
-	toRemove := av.nodes()
+func (g *Graph) removeAvailabiltySet(av AvailabilitySet) {
+	toRemove := av.Nodes()
 	for _, n := range toRemove {
 		g.removeNode(n)
 	}
 }
 
-func (g graph) findAvailabilitySet(label string) availabilitySet {
-	for _, av := range g.availability {
-		if av.check(label) {
+func (g Graph) findAvailabilitySet(label string) AvailabilitySet {
+	for _, av := range g.Availability {
+		if av.Check(label) {
 			return av
 		}
 	}
@@ -72,7 +78,7 @@ func (g graph) findAvailabilitySet(label string) availabilitySet {
 }
 
 // Merge all placement rules such that each label appears as a target only once
-func (g *graph) addPlacementRule(rule Placement) error {
+func (g *Graph) addPlacementRule(rule Placement) error {
 	if !rule.Exclusive {
 		return nil
 	}
@@ -82,46 +88,46 @@ func (g *graph) addPlacementRule(rule Placement) error {
 	for _, target := range targetNodes {
 		for _, sep := range sepNodes {
 			if target != sep {
-				g.placement[target] = append(
+				g.Placement[target] = append(
 					[]string{sep},
-					g.placement[target]...,
+					g.Placement[target]...,
 				)
-				g.placement[sep] = append(g.placement[sep], target)
+				g.Placement[sep] = append(g.Placement[sep], target)
 			}
 		}
 	}
 
 	// Add extra rule separating "public" into its own availability set.
 	// Remove once "implicit placement rules" are incorporated into dsl.
-	if _, ok := g.nodes[PublicInternetLabel]; ok {
-		allLabels := make([]string, 0, len(g.nodes))
+	if _, ok := g.Nodes[PublicInternetLabel]; ok {
+		allLabels := make([]string, 0, len(g.Nodes))
 		for _, lab := range g.getNodes() {
-			if lab.name != PublicInternetLabel {
-				allLabels = append(allLabels, lab.name)
-				g.placement[lab.name] = append(
-					g.placement[lab.name],
+			if lab.Name != PublicInternetLabel {
+				allLabels = append(allLabels, lab.Name)
+				g.Placement[lab.Name] = append(
+					g.Placement[lab.Name],
 					PublicInternetLabel,
 				)
 			}
 		}
-		g.placement[PublicInternetLabel] = allLabels
+		g.Placement[PublicInternetLabel] = allLabels
 	}
 
 	g.placeNodes()
 	return nil
 }
 
-func validateRule(place Placement, g graph) ([]string, []string) {
+func validateRule(place Placement, g Graph) ([]string, []string) {
 	var targetNodes []string
 	var otherNodes []string
 
-	for _, node := range g.nodes {
-		if node.label == place.TargetLabel {
-			targetNodes = append(targetNodes, node.name)
+	for _, node := range g.Nodes {
+		if node.Label == place.TargetLabel {
+			targetNodes = append(targetNodes, node.Name)
 		}
 
-		if node.label == place.OtherLabel {
-			otherNodes = append(otherNodes, node.name)
+		if node.Label == place.OtherLabel {
+			otherNodes = append(otherNodes, node.Name)
 		}
 	}
 
@@ -136,9 +142,9 @@ func validateRule(place Placement, g graph) ([]string, []string) {
 //   - If so, remove those nodes from the availability set.
 //   - For each removed node, try to find another availability set to move it to.
 //   - Create a new set for nodes that could not be moved to an existing set.
-func (g *graph) placeNodes() {
-	for node, wantExclusives := range g.placement {
-		if _, ok := g.nodes[node]; !ok {
+func (g *Graph) placeNodes() {
+	for node, wantExclusives := range g.Placement {
+		if _, ok := g.Nodes[node]; !ok {
 			panic(
 				fmt.Errorf(
 					"invalid node: %s, nodes: %s",
@@ -155,17 +161,17 @@ func (g *graph) placeNodes() {
 		toMove := av.removeAndCheck(wantExclusives...)
 
 		for ind, move := range toMove {
-			avoids := g.placement[move]
-			for _, avMoveTo := range g.availability {
+			avoids := g.Placement[move]
+			for _, avMoveTo := range g.Availability {
 				noConflicts := true
 				for _, avoid := range avoids {
-					if avMoveTo.check(avoid) {
+					if avMoveTo.Check(avoid) {
 						noConflicts = false
 						break
 					}
 				}
 				if noConflicts {
-					avMoveTo.insert(move)
+					avMoveTo.Insert(move)
 					if ind+1 >= len(toMove) {
 						toMove = toMove[:ind]
 					} else {
@@ -178,9 +184,9 @@ func (g *graph) placeNodes() {
 		}
 
 		if len(toMove) > 0 {
-			newAv := make(availabilitySet)
-			newAv.insert(toMove...)
-			g.availability = append(g.availability, newAv)
+			newAv := make(AvailabilitySet)
+			newAv.Insert(toMove...)
+			g.Availability = append(g.Availability, newAv)
 		}
 	}
 }

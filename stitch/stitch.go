@@ -96,7 +96,7 @@ func New(sc scanner.Scanner, path string, download bool) (Stitch, error) {
 	}
 
 	spec := Stitch{astRoot(parsed).String(), ctx}
-	graph, err := initializeGraph(spec)
+	graph, err := InitializeGraph(spec)
 	if err != nil {
 		return Stitch{}, err
 	}
