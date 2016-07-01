@@ -12,7 +12,7 @@ DOCKER = docker
 SHELL := /bin/bash
 
 .PHONY: all
-all: inspect minion quilt
+all: quilt minion inspect
 
 .PHONY: quilt
 quilt:
