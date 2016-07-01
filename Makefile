@@ -29,7 +29,7 @@ inspect:
 install:
 	cd -P . && go install . && go install ./inspect && go install ./minion
 
-check:
+check: format-check
 	go test $(PACKAGES)
 
 COV_SKIP= /minion/pb /minion/pprofile
