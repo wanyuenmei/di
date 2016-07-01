@@ -505,32 +505,52 @@ func connectImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	for _, from := range fromLabels {
 		for _, to := range toLabels {
-
-			if (from.ident == PublicInternetLabel ||
-				to.ident == PublicInternetLabel) &&
-				(min != max) {
-				return nil, fmt.Errorf(
-					"public internet cannot connect on port ranges")
-			}
-
-			if from.ident == PublicInternetLabel &&
-				to.ident == PublicInternetLabel {
-				err := fmt.Errorf(
-					"cannot connect public internet to itself")
+			if err := connectPair(ctx, from, to, min, max); err != nil {
 				return nil, err
 			}
-
-			cn := Connection{
-				From:    string(from.ident),
-				To:      string(to.ident),
-				MinPort: min,
-				MaxPort: max,
-			}
-			ctx.globalCtx().connections[cn] = struct{}{}
 		}
 	}
 
 	return astList{}, nil
+}
+
+func connectPair(ctx *evalCtx, from, to astLabel, min, max int) error {
+	global := ctx.globalCtx()
+
+	if from.ident == PublicInternetLabel && to.ident == PublicInternetLabel {
+		return fmt.Errorf("cannot connect public internet to itself")
+	}
+
+	if from.ident == PublicInternetLabel || to.ident == PublicInternetLabel {
+		if min != max {
+			return fmt.Errorf(
+				"public internet cannot connect on port ranges")
+		}
+
+		target := from
+		if target.ident == PublicInternetLabel {
+			target = to
+		}
+
+		global.ports[min] = append(global.ports[min], target)
+
+		for _, label := range global.ports[min] {
+			global.placements[Placement{
+				Exclusive:   true,
+				TargetLabel: string(target.ident),
+				OtherLabel:  string(label.ident),
+			}] = struct{}{}
+		}
+	}
+
+	global.connections[Connection{
+		From:    string(from.ident),
+		To:      string(to.ident),
+		MinPort: min,
+		MaxPort: max,
+	}] = struct{}{}
+
+	return nil
 }
 
 func labelImpl(ctx *evalCtx, args []ast) (ast, error) {

@@ -448,14 +448,60 @@ func TestPlacementTxn(t *testing.T) {
 	checkPlacement(spec,
 		db.Placement{
 			TargetLabel: "foo",
-			Rule: db.PortRule{
-				Port: 80,
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
 			},
 		},
+	)
+
+	spec = `(label "foo" (docker "foo"))
+                (label "bar" (docker "bar"))
+                (label "baz" (docker "baz"))
+                (connect 80 "public" "foo")
+                (connect 80 "public" "bar")
+		((lambda ()
+			(connect 81 "public" "bar")
+			(connect 81 "public" "baz")))`
+
+	checkPlacement(spec,
 		db.Placement{
 			TargetLabel: "foo",
-			Rule: db.PortRule{
-				Port: 81,
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
+			},
+		},
+
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "bar",
+			},
+		},
+
+		db.Placement{
+			TargetLabel: "bar",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "foo",
+			},
+		},
+
+		db.Placement{
+			TargetLabel: "baz",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "baz",
+			},
+		},
+
+		db.Placement{
+			TargetLabel: "baz",
+			Rule: db.LabelRule{
+				Exclusive:  true,
+				OtherLabel: "bar",
 			},
 		},
 	)

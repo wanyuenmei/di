@@ -1055,6 +1055,96 @@ func TestConnect(t *testing.T) {
 	runtimeErr(t, `(connect 80 "foo" "foo")`, "1: expected label, found: \"foo\"")
 }
 
+func TestPublic(t *testing.T) {
+	code := `(progn
+                 (label "foo" (docker "foo"))
+                 (label "bar" (docker "bar"))
+                 (label "baz" (docker "baz"))
+                 (connect 80 "public" "foo")
+                 (connect 80 "bar" "public")
+                 ((lambda ()
+                          (connect 81 "bar" "public")
+                          (connect 81 "public" "baz"))))`
+	ctx := parseTest(t, code, `(list)`)
+
+	expCon := map[Connection]struct{}{
+		Connection{
+			From:    "public",
+			To:      "foo",
+			MinPort: 80,
+			MaxPort: 80,
+		}: {},
+
+		Connection{
+			From:    "bar",
+			To:      "public",
+			MinPort: 80,
+			MaxPort: 80,
+		}: {},
+
+		Connection{
+			From:    "bar",
+			To:      "public",
+			MinPort: 81,
+			MaxPort: 81,
+		}: {},
+
+		Connection{
+			From:    "public",
+			To:      "baz",
+			MinPort: 81,
+			MaxPort: 81,
+		}: {},
+	}
+	if !reflect.DeepEqual(ctx.connections, expCon) {
+		t.Error(spew.Sprintf("Public connection \nexp %v,\ngot %v",
+			expCon, ctx.connections))
+	}
+
+	expPlace := map[Placement]struct{}{
+		Placement{
+			Exclusive:   true,
+			TargetLabel: "foo",
+			OtherLabel:  "foo",
+		}: {},
+
+		Placement{
+			Exclusive:   true,
+			TargetLabel: "bar",
+			OtherLabel:  "foo",
+		}: {},
+
+		Placement{
+			Exclusive:   true,
+			TargetLabel: "bar",
+			OtherLabel:  "bar",
+		}: {},
+
+		Placement{
+			Exclusive:   true,
+			TargetLabel: "baz",
+			OtherLabel:  "baz",
+		}: {},
+
+		Placement{
+			Exclusive:   true,
+			TargetLabel: "baz",
+			OtherLabel:  "bar",
+		}: {},
+	}
+	if !reflect.DeepEqual(ctx.placements, expPlace) {
+		t.Error(spew.Sprintf("Public placement \nexp %v,\ngot %v",
+			expPlace, ctx.placements))
+	}
+
+	runtimeErr(t, `(label "bar" (docker "bar"))
+		(connect (list 80 90) "public" "bar")`,
+		"2: public internet cannot connect on port ranges")
+
+	runtimeErr(t, `(connect 80 "public" "public")`,
+		"1: cannot connect public internet to itself")
+}
+
 func TestImport(t *testing.T) {
 	// Test module keyword
 	code := `(module "math" (define Square (lambda (x) (* x x)))) (math.Square 2)`

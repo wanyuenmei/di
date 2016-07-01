@@ -7,6 +7,7 @@ type evalCtx struct {
 
 	binds       map[astIdent]ast
 	labels      map[string]astLabel
+	ports       map[int][]astLabel
 	connections map[Connection]struct{}
 	placements  map[Placement]struct{}
 	machines    *[]*astMachine
@@ -35,6 +36,7 @@ func (ctx *evalCtx) deepCopy() *evalCtx {
 
 	return &evalCtx{
 		binds:       bindsCopy,
+		ports:       ctx.ports,
 		labels:      ctx.labels,
 		connections: ctx.connections,
 		machines:    ctx.machines,
@@ -289,6 +291,7 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		parent,
 		make(map[astIdent]ast),
 		make(map[string]astLabel),
+		make(map[int][]astLabel),
 		make(map[Connection]struct{}),
 		make(map[Placement]struct{}),
 		&[]*astMachine{},

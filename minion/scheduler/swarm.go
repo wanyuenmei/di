@@ -7,7 +7,6 @@ import (
 
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/minion/docker"
-	"github.com/NetSys/quilt/stitch"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -86,15 +85,6 @@ func makeLabels(dbc db.Container, connections []db.Connection) map[string]string
 	for _, lb := range dbc.Labels {
 		// Add DSL labels
 		labels[docker.UserLabel(lb)] = docker.LabelTrueValue
-
-		// Add labels for doing placement based on ports
-		for _, conn := range connections {
-			if conn.From == stitch.PublicInternetLabel && conn.To == lb {
-				for p := conn.MinPort; p <= conn.MaxPort; p++ {
-					labels[docker.PortLabel(p)] = docker.LabelTrueValue
-				}
-			}
-		}
 	}
 
 	return labels

@@ -72,22 +72,6 @@ func (mr MachineRule) String() string {
 	return mr.AffinityStr()
 }
 
-// A PortRule constrains container placement relative to public network ports they will
-// need.
-type PortRule struct {
-	Port int
-}
-
-// AffinityStr is passed to Docker Swarm to implement the PortRule.
-func (pr PortRule) AffinityStr() string {
-	return toAffinity(docker.PortLabel(pr.Port), false, docker.LabelTrueValue)
-}
-
-// String returns the AffinityStr of 'pr'.
-func (pr PortRule) String() string {
-	return pr.AffinityStr()
-}
-
 func toAffinity(left string, eq bool, right string) string {
 	eqStr := "!="
 	if eq {

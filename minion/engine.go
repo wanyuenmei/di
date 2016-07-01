@@ -82,27 +82,8 @@ func toDBPlacements(stitchPlacements []stitch.Placement) db.PlacementSlice {
 	return placements
 }
 
-func makeConnectionPlacements(conns []db.Connection) db.PlacementSlice {
-	var dbPlacements db.PlacementSlice
-	for _, conn := range conns {
-		if conn.From == stitch.PublicInternetLabel {
-			for p := conn.MinPort; p <= conn.MaxPort; p++ {
-				dbPlacements = append(dbPlacements, db.Placement{
-					TargetLabel: conn.To,
-					Rule: db.PortRule{
-						Port: p,
-					},
-				})
-			}
-		}
-	}
-
-	return dbPlacements
-}
-
 func updatePlacements(view db.Database, spec stitch.Stitch) {
 	stitchPlacements := toDBPlacements(spec.QueryPlacements())
-	connPlacements := makeConnectionPlacements(view.SelectFromConnection(nil))
 	key := func(val interface{}) interface{} {
 		pVal := val.(db.Placement)
 		return struct {
@@ -111,7 +92,7 @@ func updatePlacements(view db.Database, spec stitch.Stitch) {
 		}{pVal.TargetLabel, pVal.Rule}
 	}
 
-	_, addSet, removeSet := join.HashJoin(append(stitchPlacements, connPlacements...),
+	_, addSet, removeSet := join.HashJoin(stitchPlacements,
 		db.PlacementSlice(view.SelectFromPlacement(nil)), key, key)
 
 	for _, toAddIntf := range addSet {
