@@ -38,24 +38,33 @@ func updatePolicy(view db.Database, role db.Role, spec string) {
 
 func toDBPlacements(stitchPlacements []stitch.Placement) db.PlacementSlice {
 	placementSet := make(map[db.Placement]struct{})
-	for _, stitchP := range stitchPlacements {
-		rule := stitchP.Rule
-		for _, label := range rule.OtherLabels {
+	for _, rule := range stitchPlacements {
+		if rule.OtherLabel != "" {
 			placement := db.Placement{
-				TargetLabel: stitchP.TargetLabel,
+				TargetLabel: rule.TargetLabel,
 				Rule: db.LabelRule{
-					OtherLabel: label,
+					OtherLabel: rule.OtherLabel,
 					Exclusive:  rule.Exclusive,
 				},
 			}
 			placementSet[placement] = struct{}{}
 		}
-		for attr, val := range rule.MachineAttributes {
+
+		// XXX: This is somewhat of a hack to avoid having to change
+		// db/placement.go.  In a future patch, when we ditch docker swarm, a
+		// much cleaner permanent solution is comint.
+		machineAttributes := map[string]string{
+			"provider": rule.Provider,
+			"size":     rule.Size,
+			"region":   rule.Region,
+		}
+
+		for attr, val := range machineAttributes {
 			if val == "" {
 				continue
 			}
 			placement := db.Placement{
-				TargetLabel: stitchP.TargetLabel,
+				TargetLabel: rule.TargetLabel,
 				Rule: db.MachineRule{
 					Exclusive: rule.Exclusive,
 					Attribute: attr,

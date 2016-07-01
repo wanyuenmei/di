@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/NetSys/quilt/stitch"
 )
 
@@ -58,15 +59,13 @@ func (avSet availabilitySet) removeAndCheck(labels ...string) []string {
 
 // Merge all placement rules such that each label appears as a target only once
 func (g *graph) addPlacementRule(rule stitch.Placement) {
-	if !rule.Rule.Exclusive {
+	if !rule.Exclusive {
 		return
 	}
 
-	target, toSeparate := validateRule(rule, *g)
-	g.placement[target] = append(toSeparate, g.placement[target]...)
-	for _, sep := range toSeparate {
-		g.placement[sep] = append(g.placement[sep], target)
-	}
+	target, sep := validateRule(rule, *g)
+	g.placement[target] = append([]string{sep}, g.placement[target]...)
+	g.placement[sep] = append(g.placement[sep], target)
 
 	// Add extra rule separating "public" into its own availability set.
 	// Remove once "implicit placement rules" are incorporated into dsl.
@@ -84,25 +83,25 @@ func (g *graph) addPlacementRule(rule stitch.Placement) {
 	g.placeNodes()
 }
 
-func validateRule(place stitch.Placement, g graph) (string, []string) {
+func validateRule(place stitch.Placement, g graph) (string, string) {
 	targetNode, ok := g.nodes[place.TargetLabel]
 	if !ok {
 		panic(fmt.Errorf("placement constraint: node not found: %s", place.TargetLabel))
 	}
 
-	var wantExclusives []string
-	for _, v := range place.Rule.OtherLabels {
-		other, ok := g.nodes[v]
+	var wantExclusive string
+	if place.OtherLabel != "" {
+		other, ok := g.nodes[place.OtherLabel]
 		if !ok {
 			panic(fmt.Errorf("placement constraint: node not found: %s", other))
 		}
 
 		if other.name != targetNode.name {
-			wantExclusives = append(wantExclusives, other.name)
+			wantExclusive = other.name
 		}
 	}
 
-	return targetNode.name, wantExclusives
+	return targetNode.name, wantExclusive
 }
 
 func (g *graph) removeAvailabiltySet(av availabilitySet) {

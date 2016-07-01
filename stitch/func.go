@@ -310,30 +310,28 @@ func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	globalCtx := ctx.globalCtx()
 	for _, targetLabel := range targetLabels {
-		var rule Rule
+		var placements []Placement
 		switch ruleAst := args[0].(type) {
 		case astLabelRule:
-			rule.Exclusive = bool(ruleAst.exclusive)
-
-			var otherLabels []string
 			for _, l := range ruleAst.otherLabels {
-				otherLabels = append(otherLabels, string(l))
+				placements = append(placements, Placement{
+					TargetLabel: targetLabel,
+					Exclusive:   bool(ruleAst.exclusive),
+					OtherLabel:  string(l),
+				})
 			}
-			rule.OtherLabels = otherLabels
 		case astMachineRule:
-			rule.Exclusive = bool(ruleAst.exclusive)
-
-			rule.MachineAttributes = make(map[string]string)
-			rule.MachineAttributes["provider"] = string(ruleAst.provider)
-			rule.MachineAttributes["size"] = string(ruleAst.size)
-			rule.MachineAttributes["region"] = string(ruleAst.region)
+			placements = append(placements, Placement{
+				TargetLabel: targetLabel,
+				Exclusive:   bool(ruleAst.exclusive),
+				Provider:    string(ruleAst.provider),
+				Size:        string(ruleAst.size),
+				Region:      string(ruleAst.region),
+			})
 		default:
 			return nil, fmt.Errorf("invalid place rule: %s", args[0])
 		}
-		*globalCtx.placements = append(*globalCtx.placements, Placement{
-			TargetLabel: targetLabel,
-			Rule:        rule,
-		})
+		*globalCtx.placements = append(*globalCtx.placements, placements...)
 	}
 
 	return astList{}, nil

@@ -832,10 +832,8 @@ func TestPlacement(t *testing.T) {
 	checkPlacement(code, expCode,
 		Placement{
 			TargetLabel: "blue",
-			Rule: Rule{
-				Exclusive:   true,
-				OtherLabels: []string{"red"},
-			},
+			Exclusive:   true,
+			OtherLabel:  "red",
 		},
 	)
 
@@ -849,10 +847,8 @@ func TestPlacement(t *testing.T) {
 	checkPlacement(code, expCode,
 		Placement{
 			TargetLabel: "blue",
-			Rule: Rule{
-				Exclusive:   false,
-				OtherLabels: []string{"red"},
-			},
+			Exclusive:   false,
+			OtherLabel:  "red",
 		})
 
 	// Test placement by direct reference to labels
@@ -863,33 +859,25 @@ func TestPlacement(t *testing.T) {
 	checkPlacement(code, "(list)",
 		Placement{
 			TargetLabel: "blue",
-			Rule: Rule{
-				Exclusive:   true,
-				OtherLabels: []string{"red"},
-			},
+			Exclusive:   true,
+			OtherLabel:  "red",
 		},
 	)
 
 	// Test multiple target labels
-	code = `(place
-	(labelRule "exclusive"
-	  (label "red" (docker "foo")))
-	(label "blue" (docker "bar"))
-	(label "purple" (docker "baz")))`
+	code = `(place (labelRule "exclusive" (label "red" (docker "foo")))
+	               (label "blue" (docker "bar"))
+	               (label "purple" (docker "baz")))`
 	checkPlacement(code, "(list)",
 		Placement{
+			Exclusive:   true,
 			TargetLabel: "blue",
-			Rule: Rule{
-				Exclusive:   true,
-				OtherLabels: []string{"red"},
-			},
+			OtherLabel:  "red",
 		},
 		Placement{
+			Exclusive:   true,
 			TargetLabel: "purple",
-			Rule: Rule{
-				Exclusive:   true,
-				OtherLabels: []string{"red"},
-			},
+			OtherLabel:  "red",
 		})
 
 	// Test machine rule
@@ -899,14 +887,10 @@ func TestPlacement(t *testing.T) {
 	checkPlacement(code, "(list)",
 		Placement{
 			TargetLabel: "blue",
-			Rule: Rule{
-				Exclusive: false,
-				MachineAttributes: map[string]string{
-					"region":   "us-west-2",
-					"provider": "AmazonSpot",
-					"size":     "m4.large",
-				},
-			},
+			Exclusive:   false,
+			Region:      "us-west-2",
+			Provider:    "AmazonSpot",
+			Size:        "m4.large",
 		},
 	)
 }

@@ -17,14 +17,16 @@ type Stitch struct {
 // the labels of other containers, or the machine the container will run on.
 type Placement struct {
 	TargetLabel string
-	Rule        Rule
-}
 
-// A Rule specifies the specific constraint used in a Placement.
-type Rule struct {
-	Exclusive         bool
-	OtherLabels       []string
-	MachineAttributes map[string]string
+	Exclusive bool
+
+	// Label Constraint
+	OtherLabel string
+
+	// Machine Constraints
+	Provider string
+	Size     string
+	Region   string
 }
 
 // A Container may be instantiated in the stitch and queried by users.
