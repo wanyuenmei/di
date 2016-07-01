@@ -31,12 +31,12 @@ func UpdatePolicy(conn db.Conn, stitch stitch.Stitch) error {
 }
 
 func updateTxn(view db.Database, stitch stitch.Stitch) error {
-	cluster, err := clusterTxn(view, stitch)
+	err := clusterTxn(view, stitch)
 	if err != nil {
 		return err
 	}
 
-	if err = machineTxn(view, stitch, cluster); err != nil {
+	if err = machineTxn(view, stitch); err != nil {
 		return err
 	}
 
@@ -45,14 +45,14 @@ func updateTxn(view db.Database, stitch stitch.Stitch) error {
 	// the database. If we didn't, inter-machine ACLs would get removed
 	// when the Quilt controller restarts, even if there are running cloud
 	// machines that still need to communicate.
-	if err = aclTxn(view, stitch, cluster); err != nil {
+	if err = aclTxn(view, stitch); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func clusterTxn(view db.Database, stitch stitch.Stitch) (int, error) {
+func clusterTxn(view db.Database, stitch stitch.Stitch) error {
 	namespace := stitch.QueryString("Namespace")
 	if namespace == "" {
 		namespace = "DEFAULT_NAMESPACE"
@@ -60,35 +60,25 @@ func clusterTxn(view db.Database, stitch stitch.Stitch) (int, error) {
 		log.Warn(fmt.Sprintf(msg, namespace))
 	}
 
-	var cluster db.Cluster
-	clusters := view.SelectFromCluster(nil)
-	switch len(clusters) {
-	case 1:
-		cluster = clusters[0]
-	case 0:
+	cluster, err := view.GetCluster()
+	if err != nil {
 		cluster = view.InsertCluster()
-	default:
-		panic("Unimplemented")
 	}
 
 	cluster.Namespace = namespace
 	cluster.Spec = stitch.String()
 	view.Commit(cluster)
-	return cluster.ID, nil
+	return nil
 }
 
-func aclTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
-	clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-		return c.ID == clusterID
-	})
-
-	if len(clusters) == 0 {
-		return fmt.Errorf("could not find cluster with ID %d", clusterID)
+func aclTxn(view db.Database, stitch stitch.Stitch) error {
+	cluster, err := view.GetCluster()
+	if err != nil {
+		return err
 	}
 
-	cluster := clusters[0]
 	machines := view.SelectFromMachine(func(m db.Machine) bool {
-		return m.ClusterID == cluster.ID && m.PublicIP != ""
+		return m.PublicIP != ""
 	})
 	acls := resolveACLs(stitch.QueryStrSlice("AdminACL"))
 
@@ -163,14 +153,12 @@ func toDBMachine(machines []stitch.Machine, maxPrice float64) []db.Machine {
 	return dbMachines
 }
 
-func machineTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
+func machineTxn(view db.Database, stitch stitch.Stitch) error {
 	// XXX: How best to deal with machines that don't specify enough information?
 	maxPrice, _ := stitch.QueryFloat("MaxPrice")
 	stitchMachines := toDBMachine(stitch.QueryMachines(), maxPrice)
 
-	dbMachines := view.SelectFromMachine(func(m db.Machine) bool {
-		return m.ClusterID == clusterID
-	})
+	dbMachines := view.SelectFromMachine(nil)
 
 	scoreFun := func(left, right interface{}) int {
 		stitchMachine := left.(db.Machine)
@@ -219,7 +207,6 @@ func machineTxn(view db.Database, stitch stitch.Stitch, clusterID int) error {
 		dbMachine.Provider = stitchMachine.Provider
 		dbMachine.Region = stitchMachine.Region
 		dbMachine.SSHKeys = stitchMachine.SSHKeys
-		dbMachine.ClusterID = clusterID
 		view.Commit(dbMachine)
 	}
 

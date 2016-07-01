@@ -11,83 +11,73 @@ import (
 
 var sleep = time.Sleep
 
+// Store the providers in a variable so we can change it in the tests
+var allProviders = []db.Provider{db.Amazon, db.Azure, db.Google, db.Vagrant}
+
 type cluster struct {
-	id      int
 	conn    db.Conn
 	trigger db.Trigger
 	fm      foreman
 
+	namespace string
 	providers map[db.Provider]provider.Provider
-
-	mark bool /* For mark and sweep garbage collection. */
 }
 
-// Run continually checks 'conn' for new clusters and implements the policies they
-// dictate.
+// Run continually checks 'conn' for cluster changes and recreates the cluster as
+// needed.
 func Run(conn db.Conn) {
-	clusters := make(map[int]*cluster)
-
+	var clst *cluster
 	for range conn.TriggerTick(60, db.ClusterTable).C {
-		var dbClusters []db.Cluster
-		conn.Transact(func(db db.Database) error {
-			dbClusters = db.SelectFromCluster(nil)
-			return nil
+		var dbCluster db.Cluster
+		err := conn.Transact(func(db db.Database) error {
+			var err error
+			dbCluster, err = db.GetCluster()
+			return err
 		})
 
-		/* Mark and sweep garbage collect the clusters. */
-		for _, row := range dbClusters {
-			clst, ok := clusters[row.ID]
-			if !ok {
-				new := newCluster(conn, row.ID, row.Namespace)
-				clst = &new
-				clusters[row.ID] = clst
-			}
-
-			clst.mark = true
-		}
-
-		for k, clst := range clusters {
-			if clst.mark {
-				clst.mark = false
-			} else {
+		if err == nil && clst.namespace != dbCluster.Namespace {
+			if clst != nil {
 				clst.fm.stop()
 				clst.trigger.Stop()
-				delete(clusters, k)
 			}
+			clst = newCluster(conn, dbCluster.Namespace)
+			go clst.listen()
 		}
 	}
 }
 
-func newCluster(conn db.Conn, id int, namespace string) cluster {
-	clst := cluster{
-		id:        id,
+func newCluster(conn db.Conn, namespace string) *cluster {
+	clst := &cluster{
 		conn:      conn,
 		trigger:   conn.TriggerTick(30, db.ClusterTable, db.MachineTable),
-		fm:        newForeman(conn, id),
+		fm:        createForeman(conn),
+		namespace: namespace,
 		providers: make(map[db.Provider]provider.Provider),
 	}
 
-	for _, p := range []db.Provider{db.Amazon, db.Google, db.Azure, db.Vagrant} {
+	for _, p := range allProviders {
 		inst := provider.New(p)
-		err := inst.Connect(namespace)
-		if err == nil {
+		if err := inst.Connect(namespace); err == nil {
 			clst.providers[p] = inst
 		} else {
 			log.Debugf("Failed to connect to provider %s: %s", p, err)
 		}
 	}
-	go func() {
-		rateLimit := time.NewTicker(5 * time.Second)
-		defer rateLimit.Stop()
-		for range clst.trigger.C {
-			clst.sync()
-			<-rateLimit.C
-		}
-		for _, p := range clst.providers {
-			p.Disconnect()
-		}
-	}()
+
 	return clst
+}
+
+func (clst *cluster) listen() {
+	rateLimit := time.NewTicker(5 * time.Second)
+	defer rateLimit.Stop()
+
+	clst.sync()
+	clst.fm.init()
+	for range clst.trigger.C {
+		<-rateLimit.C
+		clst.sync()
+		clst.fm.runOnce()
+	}
 }
 
 func (clst cluster) get() ([]provider.Machine, error) {
@@ -118,12 +108,12 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 	noFailures := true
 	groupedMachines := provider.GroupBy(machines)
 	for p, providerMachines := range groupedMachines {
-		if _, ok := clst.providers[p]; !ok {
+		providerInst, ok := clst.providers[p]
+		if !ok {
 			noFailures = false
 			log.Warnf("Provider %s is unavailable.", p)
 			continue
 		}
-		providerInst := clst.providers[p]
 		var err error
 		if boot {
 			err = providerInst.Boot(providerMachines)
@@ -149,22 +139,9 @@ func (clst cluster) sync() {
 	var acls []string
 	var machines []db.Machine
 	clst.conn.Transact(func(view db.Database) error {
-		clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-			return c.ID == clst.id
-		})
-
-		machines = view.SelectFromMachine(func(m db.Machine) bool {
-			return m.ClusterID == clst.id
-		})
-
-		if len(clusters) == 0 {
-			log.Warn("Undefined cluster.")
-			return nil
-		} else if len(clusters) > 1 {
-			panic("Duplicate Clusters")
-		}
-
-		acls = clusters[0].ACLs
+		dbCluster, _ := view.GetCluster()
+		machines = view.SelectFromMachine(nil)
+		acls = dbCluster.ACLs
 		return nil
 	})
 
@@ -190,9 +167,7 @@ func (clst cluster) sync() {
 
 		var dbMachines []db.Machine
 		clst.conn.Transact(func(view db.Database) error {
-			dbMachines = view.SelectFromMachine(func(m db.Machine) bool {
-				return m.ClusterID == clst.id
-			})
+			dbMachines = view.SelectFromMachine(nil)
 			return nil
 		})
 

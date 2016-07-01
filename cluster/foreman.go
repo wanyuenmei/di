@@ -29,9 +29,7 @@ type clientImpl struct {
 }
 
 type foreman struct {
-	clusterID int
-	conn      db.Conn
-	trigger   db.Trigger
+	conn db.Conn
 
 	minions map[string]*minion
 	spec    string
@@ -50,47 +48,24 @@ type minion struct {
 	mark bool /* Mark and sweep garbage collection. */
 }
 
-func newForeman(conn db.Conn, clusterID int) foreman {
-	fm := createForeman(conn, clusterID)
-	go func() {
-		fm.init()
-
-		for range fm.trigger.C {
-			fm.runOnce()
-		}
-
-		for _, minion := range fm.minions {
-			minion.client.Close()
-		}
-	}()
-
-	return fm
-}
-
-func createForeman(conn db.Conn, clusterID int) foreman {
+func createForeman(conn db.Conn) foreman {
 	return foreman{
-		clusterID: clusterID,
 		conn:      conn,
-		trigger:   conn.TriggerTick(60, db.MachineTable, db.ClusterTable),
 		minions:   make(map[string]*minion),
 		newClient: newClient,
 	}
 }
 
 func (fm *foreman) stop() {
-	fm.trigger.Stop()
+	for _, minion := range fm.minions {
+		minion.client.Close()
+	}
 }
 
 func (fm *foreman) init() {
-	// XXX: We HAVE to fix this.  The core problem here is that the foreman lives in
-	// its own thread.  The cluster code is a mess and it's slowing our boot times
-	// and making us unreliable.
-	time.Sleep(10 * time.Second)
-
 	fm.conn.Transact(func(view db.Database) error {
 		machines := view.SelectFromMachine(func(m db.Machine) bool {
-			return m.ClusterID == fm.clusterID && m.PublicIP != "" &&
-				m.PrivateIP != "" && m.CloudID != ""
+			return m.PublicIP != "" && m.PrivateIP != "" && m.CloudID != ""
 		})
 
 		fm.updateMinionMap(machines)
@@ -116,19 +91,12 @@ func (fm *foreman) runOnce() {
 	var machines []db.Machine
 	fm.conn.Transact(func(view db.Database) error {
 		machines = view.SelectFromMachine(func(m db.Machine) bool {
-			return m.ClusterID == fm.clusterID && m.PublicIP != "" &&
-				m.PrivateIP != "" && m.CloudID != ""
-		})
-
-		clusters := view.SelectFromCluster(func(c db.Cluster) bool {
-			return c.ID == fm.clusterID
+			return m.PublicIP != "" && m.PrivateIP != "" && m.CloudID != ""
 		})
 
 		fm.spec = ""
-		if len(clusters) == 1 {
-			fm.spec = clusters[0].Spec
-		}
-
+		clst, _ := view.GetCluster()
+		fm.spec = clst.Spec
 		return nil
 	})
 
@@ -147,16 +115,6 @@ func (fm *foreman) runOnce() {
 		m.connected = connected
 	})
 
-	anyConnected := false
-	for _, m := range fm.minions {
-		anyConnected = anyConnected || m.connected
-	}
-
-	/* Don't bother writing configuration if we can't contact the minions. */
-	if !anyConnected {
-		return
-	}
-
 	var etcdIPs []string
 	for _, m := range fm.minions {
 		if m.machine.Role == db.Master && m.machine.PrivateIP != "" {
@@ -164,6 +122,7 @@ func (fm *foreman) runOnce() {
 		}
 	}
 
+	// Assign all of the minions their new configs
 	fm.forEachMinion(func(m *minion) {
 		if !m.connected {
 			return
@@ -182,14 +141,12 @@ func (fm *foreman) runOnce() {
 			return
 		}
 
-		err := m.client.setMinion(newConfig)
-		if err != nil {
+		if err := m.client.setMinion(newConfig); err != nil {
 			return
 		}
-		err = m.client.bootEtcd(pb.EtcdMembers{IPs: etcdIPs})
-		if err != nil {
+
+		if err := m.client.bootEtcd(pb.EtcdMembers{IPs: etcdIPs}); err != nil {
 			log.WithError(err).Warn("Failed send etcd members.")
-			return
 		}
 	})
 }

@@ -88,10 +88,8 @@ func (p *fakeProvider) ChooseSize(ram stitch.Range, cpu stitch.Range,
 }
 
 func newTestCluster() cluster {
-	id := 0
 	conn := db.New()
 	clst := cluster{
-		id:        id,
 		conn:      conn,
 		providers: make(map[db.Provider]provider.Provider),
 	}
@@ -101,6 +99,19 @@ func newTestCluster() cluster {
 
 	sleep = func(t time.Duration) {}
 	return clst
+}
+
+func TestPanicBadProvider(t *testing.T) {
+	temp := allProviders
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("newCluster did not panic on bad provider")
+		}
+		allProviders = temp
+	}()
+	allProviders = []db.Provider{FakeAmazon}
+	conn := db.New()
+	newCluster(conn, "test")
 }
 
 func TestSyncDB(t *testing.T) {
@@ -191,7 +202,6 @@ func TestSync(t *testing.T) {
 	clst := newTestCluster()
 	clst.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
-		m.ClusterID = clst.id
 		m.Role = db.Master
 		m.Provider = FakeAmazon
 		m.Size = "m4.large"
@@ -204,7 +214,6 @@ func TestSync(t *testing.T) {
 	// Test adding a machine with the same provider
 	clst.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
-		m.ClusterID = clst.id
 		m.Role = db.Master
 		m.Provider = FakeAmazon
 		m.Size = "m4.xlarge"
@@ -217,7 +226,6 @@ func TestSync(t *testing.T) {
 	// Test adding a machine with a different provider
 	clst.conn.Transact(func(view db.Database) error {
 		m := view.InsertMachine()
-		m.ClusterID = clst.id
 		m.Role = db.Master
 		m.Provider = FakeVagrant
 		m.Size = "vagrant.large"
@@ -246,7 +254,6 @@ func TestSync(t *testing.T) {
 		view.Remove(toRemove)
 
 		m := view.InsertMachine()
-		m.ClusterID = clst.id
 		m.Role = db.Worker
 		m.Provider = FakeAmazon
 		m.Size = "m4.xlarge"

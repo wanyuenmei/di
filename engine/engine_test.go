@@ -30,7 +30,7 @@ func TestEngine(t *testing.T) {
 
 	UpdatePolicy(conn, prog(t, code))
 	err := conn.Transact(func(view db.Database) error {
-		clusters := view.SelectFromCluster(nil)
+		cluster, err := view.GetCluster()
 		masters := view.SelectFromMachine(func(m db.Machine) bool {
 			return m.Role == db.Master
 		})
@@ -38,8 +38,10 @@ func TestEngine(t *testing.T) {
 			return m.Role == db.Worker
 		})
 
-		if len(clusters) != 1 || len(clusters[0].ACLs) != 1 {
-			return fmt.Errorf("bad clusters: %s", spew.Sdump(clusters))
+		if err != nil {
+			return err
+		} else if len(cluster.ACLs) != 1 {
+			return fmt.Errorf("bad cluster: %s", spew.Sdump(cluster))
 		}
 
 		if len(masters) != 2 {
@@ -474,12 +476,11 @@ func TestACLs(t *testing.T) {
 	}
 	UpdatePolicy(conn, prog(t, code))
 	err := conn.Transact(func(view db.Database) error {
-		clusters := view.SelectFromCluster(nil)
+		cluster, err := view.GetCluster()
 
-		if len(clusters) != 1 {
-			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
+		if err != nil {
+			return err
 		}
-		cluster := clusters[0]
 
 		if !reflect.DeepEqual(cluster.ACLs,
 			[]string{"1.2.3.4/32", "5.6.7.8/32"}) {
@@ -498,12 +499,11 @@ func TestACLs(t *testing.T) {
 	}
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
-		clusters := view.SelectFromCluster(nil)
+		cluster, err := view.GetCluster()
 
-		if len(clusters) != 1 {
-			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
+		if err != nil {
+			return err
 		}
-		cluster := clusters[0]
 
 		if !reflect.DeepEqual(cluster.ACLs, []string{"1.2.3.4/32"}) {
 			return fmt.Errorf("bad ACLs: %s",
@@ -528,12 +528,11 @@ func TestACLs(t *testing.T) {
 	})
 	UpdatePolicy(conn, prog(t, code))
 	err = conn.Transact(func(view db.Database) error {
-		clusters := view.SelectFromCluster(nil)
+		cluster, err := view.GetCluster()
 
-		if len(clusters) != 1 {
-			return fmt.Errorf("bad clusters : %s", spew.Sdump(clusters))
+		if err != nil {
+			return err
 		}
-		cluster := clusters[0]
 
 		if !reflect.DeepEqual(cluster.ACLs,
 			[]string{"1.2.3.4/32", "8.8.8.8/32"}) {

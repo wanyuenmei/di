@@ -106,9 +106,9 @@ The public IP of the Worker VM can be deduced from the console output. The
 following output shows the Worker VM's public IP to be 52.39.213.45:
 ```
 INFO [Jun  7 17:24:43.660] New connection.
-machine=Machine-3{ClusterID=1, Role=Worker, Provider=Amazon, Region=us-west-2, Size=m3.medium, DiskSize=32, CloudID=sir-03hg1gw1, PublicIP=52.39.213.45, PrivateIP=172.31.6.254}
+machine=Machine-3{Role=Worker, Provider=Amazon, Region=us-west-2, Size=m3.medium, DiskSize=32, CloudID=sir-03hg1gw1, PublicIP=52.39.213.45, PrivateIP=172.31.6.254}
 INFO [Jun  7 17:24:43.660] New connection.
-machine=Machine-2{ClusterID=1, Role=Master, Provider=Amazon, Region=us-west-2, Size=m3.medium, DiskSize=32, CloudID=sir-03hdcezk, PublicIP=52.25.237.134, PrivateIP=172.31.1.198}
+machine=Machine-2{Role=Master, Provider=Amazon, Region=us-west-2, Size=m3.medium, DiskSize=32, CloudID=sir-03hdcezk, PublicIP=52.25.237.134, PrivateIP=172.31.1.198}
 ```
 
 Run `ssh quilt@<WORKER_PUBLIC_IP>` to access a privileged shell on the Worker VM.

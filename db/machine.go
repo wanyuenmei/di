@@ -10,13 +10,12 @@ type Machine struct {
 	ID int //Database ID
 
 	/* Populated by the policy engine. */
-	ClusterID int //Parent Cluster ID
-	Role      Role
-	Provider  Provider
-	Region    string
-	Size      string
-	DiskSize  int
-	SSHKeys   []string `rowStringer:"omit"`
+	Role     Role
+	Provider Provider
+	Region   string
+	Size     string
+	DiskSize int
+	SSHKeys  []string `rowStringer:"omit"`
 
 	/* Populated by the cloud provider. */
 	CloudID   string //Cloud Provider ID

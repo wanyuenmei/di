@@ -3,7 +3,7 @@
 import os, sys, re, json
 
 QUILT_CTL_TMP='/tmp/quilt-ctl'
-machine_regex = re.compile(r'Machine-(\d+){ClusterID=(.*), Role=(.*), CloudID=(.*), PublicIP=(.*), PrivateIP=(.*)}')
+machine_regex = re.compile(r'Machine-(\d+){Role=(.*), CloudID=(.*), PublicIP=(.*), PrivateIP=(.*)}')
 machines = {}
 while True:
     line = sys.stdin.readline()

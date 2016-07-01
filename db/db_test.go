@@ -22,15 +22,14 @@ func TestMachine(t *testing.T) {
 		t.FailNow()
 	}
 
-	if m.ID != 1 || m.ClusterID != 0 || m.Role != None || m.CloudID != "" ||
-		m.PublicIP != "" || m.PrivateIP != "" {
+	if m.ID != 1 || m.Role != None || m.CloudID != "" || m.PublicIP != "" ||
+		m.PrivateIP != "" {
 		t.Errorf("Invalid Machine: %s", spew.Sdump(m))
 		return
 	}
 
 	old := m
 
-	m.ClusterID = 2
 	m.Role = Worker
 	m.CloudID = "something"
 	m.PublicIP = "1.2.3.4"
@@ -62,29 +61,30 @@ func TestMachine(t *testing.T) {
 
 func TestMachineSelect(t *testing.T) {
 	conn := New()
+	regions := []string{"here", "there", "anywhere", "everywhere"}
 
 	var machines []Machine
-	err := conn.Transact(func(db Database) error {
+	conn.Transact(func(db Database) error {
 		for i := 0; i < 4; i++ {
 			m := db.InsertMachine()
-			m.ClusterID = i
+			m.Region = regions[i]
 			db.Commit(m)
 			machines = append(machines, m)
 		}
 		return nil
 	})
 
-	err = conn.Transact(func(db Database) error {
+	err := conn.Transact(func(db Database) error {
 		err := SelectMachineCheck(db, func(m Machine) bool {
-			return m.ClusterID%2 == 0
-		}, []Machine{machines[0], machines[2]})
+			return m.Region == "there"
+		}, []Machine{machines[1]})
 		if err != nil {
 			return err
 		}
 
 		err = SelectMachineCheck(db, func(m Machine) bool {
-			return m.ClusterID%2 == 1
-		}, []Machine{machines[1], machines[3]})
+			return m.Region != "there"
+		}, []Machine{machines[0], machines[2], machines[3]})
 		if err != nil {
 			return err
 		}

@@ -52,8 +52,8 @@ the Master's public IP is `54.183.162.8`:
 ```
 INFO [Jun  8 10:41:09.268] Successfully booted machines.
 INFO [Jun  8 10:41:20.820] db.Machine:
-    Machine-2{ClusterID=1, Role=Master, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041ecz1b, PublicIP=54.183.162.8, PrivateIP=172.31.11.161}
-    Machine-8{ClusterID=1, Role=Worker, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041f2tpn, PublicIP=54.67.99.218, PrivateIP=172.31.15.97}
+    Machine-2{Role=Master, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041ecz1b, PublicIP=54.183.162.8, PrivateIP=172.31.11.161}
+    Machine-8{Role=Worker, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041f2tpn, PublicIP=54.67.99.218, PrivateIP=172.31.15.97}
 
 [truncated]
 ```
@@ -63,7 +63,7 @@ booted and has began communicating with Quilt:
 
 ```
 INFO [Jun  8 10:44:10.523] New connection.
-    machine=Machine-2{ClusterID=1, Role=Master, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041ecz1b, PublicIP=54.183.162.8, PrivateIP=172.31.11.161}
+    machine=Machine-2{Role=Master, Provider=Amazon, Region=us-west-1, Size=m4.2xlarge, DiskSize=32, CloudID=sir-041ecz1b, PublicIP=54.183.162.8, PrivateIP=172.31.11.161}
 ```
 
 Once you see the "New connection" message, you can connect to the Machines with the command
