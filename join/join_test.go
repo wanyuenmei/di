@@ -110,6 +110,19 @@ func TestHashJoinNilKeyFunc(t *testing.T) {
 	}
 }
 
+func TestHashJoinUnHashableKey(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("HashJoin did not panic on unhashable key")
+		}
+	}()
+
+	keyFunc := func(val interface{}) interface{} {
+		return make([]int, 16)
+	}
+	HashJoin(JoinList{10, 11, 12}, JoinList{10, 11, 12}, keyFunc, keyFunc)
+}
+
 func ExampleJoin() {
 	lefts := []string{"a", "bc", "def"}
 	rights := []int{0, 2, 4}
