@@ -359,7 +359,7 @@ func generateCurrentVeths(containers []db.Container) (netdevSlice, error) {
 				log.WithFields(log.Fields{
 					"namespace": cfg.peerNS,
 					"error":     err,
-				}).Error("error searching for namespace")
+				}).Error("error while searching for namespace")
 				continue
 			} else if nsExists {
 				lkExists, err := linkExists(cfg.peerNS, innerVeth)
@@ -368,7 +368,8 @@ func generateCurrentVeths(containers []db.Container) (netdevSlice, error) {
 						"namespace": cfg.peerNS,
 						"link":      innerVeth,
 						"error":     err,
-					}).Error("error checking if link exists in namespace")
+					}).Error("error while checking " +
+						"whether link exists in namespace")
 					continue
 				} else if lkExists {
 					cfg.peerMTU, err = getLinkMTU(cfg.peerNS, innerVeth)
