@@ -264,8 +264,8 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 }
 
 func syncDir(store consensus.Store, dir directory, path string, idsArg []string) {
-	_, dirKeys, ids := join.HashJoin(StringSlice(dir.keys()), StringSlice(idsArg), nil,
-		nil)
+	_, dirKeys, ids := join.HashJoin(StringSlice(dir.keys()), StringSlice(idsArg),
+		nil, nil)
 
 	var etcdLog string
 	for _, dirKey := range dirKeys {

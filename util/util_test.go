@@ -21,12 +21,14 @@ func TestToTar(t *testing.T) {
 
 	for tr := tar.NewReader(out); err != io.EOF; _, err = tr.Next() {
 		if err != nil {
-			t.Errorf("Error %#v while reading tar archive, expected nil", err.Error())
+			t.Errorf("Error %#v while reading tar archive, expected nil",
+				err.Error())
 		}
 
 		_, err = io.Copy(writer, tr)
 		if err != nil {
-			t.Errorf("Error %#v while reading tar archive, expected nil", err.Error())
+			t.Errorf("Error %#v while reading tar archive, expected nil",
+				err.Error())
 		}
 	}
 

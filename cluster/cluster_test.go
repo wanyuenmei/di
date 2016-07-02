@@ -106,17 +106,20 @@ func newTestCluster() cluster {
 func TestSyncDB(t *testing.T) {
 	spew := spew.NewDefaultConfig()
 	spew.MaxDepth = 2
-	checkSyncDB := func(cloudMachines []provider.Machine, databaseMachines []db.Machine,
-		expectedBoot, expectedStop []provider.Machine) {
+	checkSyncDB := func(cloudMachines []provider.Machine,
+		databaseMachines []db.Machine, expectedBoot,
+		expectedStop []provider.Machine) {
 		_, bootResult, stopResult := syncDB(cloudMachines, databaseMachines)
-		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult,
-			expectedBoot) {
-			t.Error(spew.Sprintf("booted wrong machines. Expected %v, got %v.",
+		if !emptySlices(bootResult, expectedBoot) &&
+			!reflect.DeepEqual(bootResult, expectedBoot) {
+			t.Error(spew.Sprintf(
+				"booted wrong machines. Expected %v, got %v.",
 				expectedBoot, bootResult))
 		}
-		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult,
-			expectedStop) {
-			t.Error(spew.Sprintf("stopped wrong machines. Expected %v, got %v.",
+		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(
+			stopResult, expectedStop) {
+			t.Error(spew.Sprintf(
+				"stopped wrong machines. Expected %v, got %v.",
 				expectedStop, stopResult))
 		}
 	}
@@ -136,8 +139,8 @@ func TestSyncDB(t *testing.T) {
 		noMachines)
 
 	// Test mixed boot
-	checkSyncDB(noMachines, []db.Machine{dbNoSize, dbLarge}, []provider.Machine{cmNoSize,
-		cmLarge}, noMachines)
+	checkSyncDB(noMachines, []db.Machine{dbNoSize, dbLarge}, []provider.Machine{
+		cmNoSize, cmLarge}, noMachines)
 
 	// Test partial boot
 	checkSyncDB([]provider.Machine{cmNoSize}, []db.Machine{dbNoSize, dbLarge},
@@ -162,14 +165,17 @@ func TestSync(t *testing.T) {
 		bootResult := providerInst.bootRequests
 		stopResult := providerInst.stopRequests
 		providerInst.clearLogs()
-		if !emptySlices(bootResult, expectedBoot) && !reflect.DeepEqual(bootResult,
-			expectedBoot) {
-			t.Error(spew.Sprintf("booted wrong machines. Expected %s, got %s.",
+		if !emptySlices(bootResult, expectedBoot) &&
+			!reflect.DeepEqual(bootResult, expectedBoot) {
+			t.Error(spew.Sprintf(
+				"booted wrong machines. Expected %s, got %s.",
 				expectedBoot, bootResult))
 		}
-		if !emptySlices(stopResult, expectedStop) && !reflect.DeepEqual(stopResult,
-			expectedStop) {
-			t.Error(spew.Sprintf("stopped wrong machines. Expected %s, got %s.",
+		if !emptySlices(stopResult, expectedStop) &&
+			!reflect.DeepEqual(stopResult,
+				expectedStop) {
+			t.Error(spew.Sprintf(
+				"stopped wrong machines. Expected %s, got %s.",
 				expectedStop, stopResult))
 		}
 	}

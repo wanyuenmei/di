@@ -51,7 +51,8 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 				ident += "."
 				if s.Scan() != scanner.Ident {
 					return nil, stitchError{pos: s.Pos(),
-						err: fmt.Errorf("bad ident name: %s", ident)}
+						err: fmt.Errorf("bad ident name: %s",
+							ident)}
 				}
 				ident += s.TokenText()
 			}
@@ -66,8 +67,9 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 			str := strings.Trim(s.TokenText(), "\"")
 			slice = append(slice, astString(str))
 		case '(':
-			// We need to save our position before recursing because the scanner
-			// will have moved on by the time the recursive call returns.
+			// We need to save our position before recursing because the
+			// scanner will have moved on by the time the recursive call
+			// returns.
 			pos := s.Pos()
 			sexp, err := parseText(s, depth+1)
 			if err != nil {
@@ -88,7 +90,8 @@ func parseText(s *scanner.Scanner, depth int) ([]ast, error) {
 			return slice, nil
 
 		default:
-			return nil, stitchError{s.Pos(), fmt.Errorf("bad element: %s", s.TokenText())}
+			return nil, stitchError{s.Pos(), fmt.Errorf("bad element: %s",
+				s.TokenText())}
 		}
 	}
 }

@@ -200,7 +200,9 @@ func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
 		case astString, astLabel:
 			label, ok := ctx.resolveLabel(val)
 			if !ok {
-				return nil, fmt.Errorf("cannot setEnv on invalid label: %s", val)
+				return nil,
+					fmt.Errorf("cannot setEnv on invalid label: %s",
+						val)
 			}
 			for _, c := range label.elems {
 				if err := setEnvHelper(c, args[1], args[2]); err != nil {
@@ -212,7 +214,9 @@ func setEnvImpl(ctx *evalCtx, args []ast) (ast, error) {
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("setEnv target must be either a label or container: %s", val)
+			return nil, fmt.Errorf(
+				"setEnv target must be either a label or container: %s",
+				val)
 		}
 	}
 	return astList{}, nil
@@ -237,13 +241,16 @@ func sshkeyImpl(ctx *evalCtx, args []ast) (ast, error) {
 func parseExclusive(arg ast) (astBool, error) {
 	exclusiveAst, ok := arg.(astString)
 	if !ok {
-		return astBool(false), fmt.Errorf("exclusiveness must be a string: %s", arg)
+		return astBool(false), fmt.Errorf("exclusiveness must be a string: %s",
+			arg)
 	}
 
 	exclusiveStr := string(exclusiveAst)
 	if exclusiveStr != "exclusive" && exclusiveStr != "on" {
 		return astBool(false),
-			fmt.Errorf("exclusiveness must be one of \"exclusive\" or \"on\": %s",
+			fmt.Errorf(
+				"exclusiveness must be one of "+
+					"\"exclusive\" or \"on\": %s",
 				exclusiveAst)
 	}
 
@@ -289,7 +296,8 @@ func labelRuleImpl(ctx *evalCtx, args []ast) (ast, error) {
 	for _, label := range flatten(args[1:]) {
 		l, ok := ctx.resolveLabel(label)
 		if !ok {
-			return nil, fmt.Errorf("labelRule constrains on labels: %s", label)
+			return nil, fmt.Errorf("labelRule constrains on labels: %s",
+				label)
 		}
 		labelRule.otherLabels = append(labelRule.otherLabels, l.ident)
 	}
@@ -355,12 +363,15 @@ func setMachineAttributes(machine *astMachine, args []ast) error {
 			case "cpu":
 				machine.cpu = val
 			default:
-				return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
+				return fmt.Errorf(
+					"unrecognized argument to machine definition: %s",
+					arg)
 			}
 		case key:
 			machine.sshKeys = append(machine.sshKeys, val)
 		default:
-			return fmt.Errorf("unrecognized argument to machine definition: %s", arg)
+			return fmt.Errorf(
+				"unrecognized argument to machine definition: %s", arg)
 		}
 	}
 	return nil
@@ -386,7 +397,8 @@ func machineAttributeImpl(ctx *evalCtx, args []ast) (ast, error) {
 	for _, m := range list {
 		machine, ok := m.(*astMachine)
 		if !ok {
-			return nil, fmt.Errorf("bad type, cannot change machine attributes: %s", m)
+			return nil, fmt.Errorf(
+				"bad type, cannot change machine attributes: %s", m)
 		}
 		err := setMachineAttributes(machine, args[1:])
 		if err != nil {
@@ -451,7 +463,8 @@ func rangeTypeImpl(rangeType string) func(*evalCtx, []ast) (ast, error) {
 		min, minErr := toFloat(args[0])
 
 		if minErr != nil || maxErr != nil {
-			return nil, fmt.Errorf("range arguments must be convertable to floats: %v",
+			return nil, fmt.Errorf(
+				"range arguments must be convertable to floats: %v",
 				args)
 		}
 
@@ -560,10 +573,12 @@ func labelImpl(ctx *evalCtx, args []ast) (ast, error) {
 	}
 	label := string(str)
 	if label != strings.ToLower(label) {
-		log.Error("Labels must be lowercase. https://github.com/docker/swarm/issues/1795")
+		log.Error("Labels must be lowercase. " +
+			"https://github.com/docker/swarm/issues/1795")
 	}
 	if label == PublicInternetLabel {
-		return nil, fmt.Errorf("the \"public\" label is reserved for the public internet")
+		return nil, fmt.Errorf(
+			"the \"public\" label is reserved for the public internet")
 	}
 
 	if _, ok := ctx.resolveLabel(str); ok {
@@ -778,7 +793,8 @@ func logImpl(ctx *evalCtx, args []ast) (ast, error) {
 		log.Errorln(msg)
 	default:
 		return nil,
-			fmt.Errorf("log level must be one of [print, info, debug, warn, error]: %s",
+			fmt.Errorf("log level must be one of "+
+				"[print, info, debug, warn, error]: %s",
 				level)
 	}
 
@@ -870,7 +886,8 @@ func parseBindings(ctx *evalCtx, bindings astSexp) ([]binding, error) {
 	for _, astBinding := range bindings.sexp {
 		bind, ok := astBinding.(astSexp)
 		if !ok || len(bind.sexp) != 2 {
-			return nil, fmt.Errorf("binds must be exactly 2 arguments: %s", astBinding)
+			return nil, fmt.Errorf("binds must be exactly 2 arguments: %s",
+				astBinding)
 		}
 		binds = append(binds, binding{bind.sexp[0], bind.sexp[1]})
 	}

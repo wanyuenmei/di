@@ -134,7 +134,8 @@ func toDBMachine(machines []stitch.Machine, maxPrice float64) []db.Machine {
 
 		if m.Size == "" {
 			providerInst := provider.New(p)
-			m.Size = providerInst.ChooseSize(stitchm.RAM, stitchm.CPU, maxPrice)
+			m.Size = providerInst.ChooseSize(
+				stitchm.RAM, stitchm.CPU, maxPrice)
 			if m.Size == "" {
 				log.Errorf("No valid size for %v, skipping.", m)
 				continue

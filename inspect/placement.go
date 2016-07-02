@@ -74,7 +74,8 @@ func (g *graph) addPlacementRule(rule stitch.Placement) {
 		for _, lab := range g.getNodes() {
 			if lab.name != stitch.PublicInternetLabel {
 				allLabels = append(allLabels, lab.name)
-				g.placement[lab.name] = append(g.placement[lab.name], stitch.PublicInternetLabel)
+				g.placement[lab.name] = append(g.placement[lab.name],
+					stitch.PublicInternetLabel)
 			}
 		}
 		g.placement[stitch.PublicInternetLabel] = allLabels
@@ -86,14 +87,16 @@ func (g *graph) addPlacementRule(rule stitch.Placement) {
 func validateRule(place stitch.Placement, g graph) (string, string) {
 	targetNode, ok := g.nodes[place.TargetLabel]
 	if !ok {
-		panic(fmt.Errorf("placement constraint: node not found: %s", place.TargetLabel))
+		panic(fmt.Errorf("placement constraint: node not found: %s",
+			place.TargetLabel))
 	}
 
 	var wantExclusive string
 	if place.OtherLabel != "" {
 		other, ok := g.nodes[place.OtherLabel]
 		if !ok {
-			panic(fmt.Errorf("placement constraint: node not found: %s", other))
+			panic(fmt.Errorf("placement constraint: node not found: %s",
+				other))
 		}
 
 		if other.name != targetNode.name {
@@ -151,7 +154,8 @@ func (g *graph) placeNodes() {
 					if ind+1 >= len(toMove) {
 						toMove = toMove[:ind]
 					} else {
-						toMove = append(toMove[:ind], toMove[ind+1:]...)
+						toMove = append(toMove[:ind],
+							toMove[ind+1:]...)
 					}
 					break
 				}

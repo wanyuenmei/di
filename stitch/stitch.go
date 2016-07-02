@@ -166,8 +166,10 @@ func convertAstMachine(machineAst astMachine) Machine {
 		Size:     string(machineAst.size),
 		Role:     string(machineAst.role),
 		Region:   string(machineAst.region),
-		RAM:      Range{Min: float64(machineAst.ram.min), Max: float64(machineAst.ram.max)},
-		CPU:      Range{Min: float64(machineAst.cpu.min), Max: float64(machineAst.cpu.max)},
+		RAM: Range{Min: float64(machineAst.ram.min),
+			Max: float64(machineAst.ram.max)},
+		CPU: Range{Min: float64(machineAst.cpu.min),
+			Max: float64(machineAst.cpu.max)},
 		DiskSize: int(machineAst.diskSize),
 		SSHKeys:  parseKeys(machineAst.sshKeys),
 	}

@@ -65,7 +65,8 @@ func TestReach(t *testing.T) {
 	specPath := "./test/reach.spec"
 	invariantPath := "./test/reach.inv"
 	// Correct result: all invariants pass.
-	if failer, err := runInvTest(specPath, invariantPath); err != nil || failer != "" {
+	if failer, err := runInvTest(specPath, invariantPath); err != nil ||
+		failer != "" {
 		t.Errorf("%s %s", err, failer)
 	}
 }
@@ -74,7 +75,8 @@ func TestBetween(t *testing.T) {
 	specPath := "./test/between.spec"
 	invariantPath := "./test/between.inv"
 	// Correct result: all invariants pass.
-	if failer, err := runInvTest(specPath, invariantPath); err != nil || failer != "" {
+	if failer, err := runInvTest(specPath, invariantPath); err != nil ||
+		failer != "" {
 		t.Errorf("%s %s", err, failer)
 	}
 }
@@ -95,7 +97,8 @@ func TestEnough(t *testing.T) {
 	specPath := "./test/placement.spec"
 	invariantPath := "./test/enough.inv"
 	// correct result: all invariants pass
-	if failer, err := runInvTest(specPath, invariantPath); err != nil || failer != "" {
+	if failer, err := runInvTest(specPath, invariantPath); err != nil ||
+		failer != "" {
 		t.Errorf("%s %s", err, failer)
 	}
 }

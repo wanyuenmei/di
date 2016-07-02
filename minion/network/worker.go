@@ -372,9 +372,11 @@ func generateCurrentVeths(containers []db.Container) (netdevSlice, error) {
 						"whether link exists in namespace")
 					continue
 				} else if lkExists {
-					cfg.peerMTU, err = getLinkMTU(cfg.peerNS, innerVeth)
+					cfg.peerMTU, err = getLinkMTU(cfg.peerNS,
+						innerVeth)
 					if err != nil {
-						log.WithError(err).Error("failed to get link mtu")
+						log.WithError(err).Error(
+							"failed to get link mtu")
 						continue
 					}
 				}
@@ -478,8 +480,10 @@ func generateTargetNatRules(containers []db.Container,
 	for ip, ports := range portsFromWeb {
 		for port := range ports {
 			for _, protocol := range protocols {
-				strRules = append(strRules, fmt.Sprintf("-A PREROUTING -i eth0 "+
-					"-p %s -m %s --dport %d -j DNAT --to-destination %s:%d",
+				strRules = append(strRules, fmt.Sprintf(
+					"-A PREROUTING -i eth0 "+
+						"-p %s -m %s --dport %d -j "+
+						"DNAT --to-destination %s:%d",
 					protocol, protocol, port, ip, port))
 			}
 		}
@@ -580,7 +584,8 @@ func generateCurrentPorts(odb ovsdb.Ovsdb) (ovsPortSlice, error) {
 		for _, port := range ports {
 			cfg, err := populatePortConfig(odb, bridge, port)
 			if err != nil {
-				return nil, fmt.Errorf("error populating port config: %s", err)
+				return nil, fmt.Errorf(
+					"error populating port config: %s", err)
 			}
 			configs = append(configs, *cfg)
 		}
@@ -786,7 +791,8 @@ func updateContainerIPs(containers []db.Container, labels []db.Label) {
 
 		if currMac != dbc.Mac {
 			if err := setMac(ns, innerVeth, dbc.Mac); err != nil {
-				log.WithError(err).Errorf("failed to set MAC for %s in %s",
+				log.WithError(err).Errorf(
+					"failed to set MAC for %s in %s",
 					innerVeth, namespaceName(ns))
 				continue
 			}
@@ -817,7 +823,8 @@ func updateRoutes(containers []db.Container) {
 			continue
 		}
 
-		_, routesDel, routesAdd := join.HashJoin(currentRoutes, targetRoutes, nil, nil)
+		_, routesDel, routesAdd := join.HashJoin(currentRoutes, targetRoutes,
+			nil, nil)
 
 		for _, l := range routesDel {
 			if err := deleteRoute(ns, l.(route)); err != nil {
@@ -841,9 +848,11 @@ func generateCurrentRoutes(namespace string) (routeSlice, error) {
 	}
 
 	var routes routeSlice
-	routeRE := regexp.MustCompile("((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\" +
-		"s(\\S+)")
-	gwRE := regexp.MustCompile("default via ((?:[0-9]{1,3}\\.){3}[0-9]{1,3}) dev (\\S+)")
+	routeRE := regexp.MustCompile(
+		"((?:[0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2})\\sdev\\" +
+			"s(\\S+)")
+	gwRE := regexp.MustCompile(
+		"default via ((?:[0-9]{1,3}\\.){3}[0-9]{1,3}) dev (\\S+)")
 	for _, r := range routeRE.FindAllSubmatch(stdout, -1) {
 		routes = append(routes, route{
 			ip:        string(r[1]),
@@ -907,7 +916,8 @@ func updateOpenFlow(dk docker.Client, odb ovsdb.Ovsdb, containers []db.Container
 
 func generateCurrentOpenFlow(dk docker.Client) (OFRuleSlice, error) {
 	args := "ovs-ofctl dump-flows " + quiltBridge
-	stdout, _, err := dk.ExecVerbose(supervisor.Ovsvswitchd, strings.Split(args, " ")...)
+	stdout, _, err := dk.ExecVerbose(
+		supervisor.Ovsvswitchd, strings.Split(args, " ")...)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list OpenFlow flows: %s",
@@ -987,16 +997,19 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 		portsFromWeb := make(map[int]struct{})
 		for _, l := range dbc.Labels {
 			for _, conn := range connections {
-				if conn.From == l && conn.To == stitch.PublicInternetLabel {
+				if conn.From == l &&
+					conn.To == stitch.PublicInternetLabel {
 					portsToWeb[conn.MinPort] = struct{}{}
-				} else if conn.From == stitch.PublicInternetLabel && conn.To == l {
+				} else if conn.From ==
+					stitch.PublicInternetLabel && conn.To == l {
 					portsFromWeb[conn.MinPort] = struct{}{}
 				}
 			}
 		}
 
 		// LOCAL is the default quilt-int port created with the bridge.
-		egressRule := fmt.Sprintf("table=0 priority=%d,in_port=%d,", 5000, ofVeth) +
+		egressRule := fmt.Sprintf("table=0 priority=%d,in_port=%d,",
+			5000, ofVeth) +
 			"%s,%s," + fmt.Sprintf("dl_dst=%s actions=LOCAL", dflGatewayMAC)
 		ingressRule := fmt.Sprintf("table=0 priority=%d,in_port=LOCAL,", 5000) +
 			"%s,%s," + fmt.Sprintf("dl_dst=%s actions=%d", dbcMac, ofVeth)
@@ -1004,20 +1017,24 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 		for port := range portsFromWeb {
 			for _, protocol := range protocols {
 				egressPort := fmt.Sprintf("tp_src=%d", port)
-				rules = append(rules, fmt.Sprintf(egressRule, protocol, egressPort))
+				rules = append(rules, fmt.Sprintf(egressRule, protocol,
+					egressPort))
 
 				ingressPort := fmt.Sprintf("tp_dst=%d", port)
-				rules = append(rules, fmt.Sprintf(ingressRule, protocol, ingressPort))
+				rules = append(rules, fmt.Sprintf(ingressRule, protocol,
+					ingressPort))
 			}
 		}
 
 		for port := range portsToWeb {
 			for _, protocol := range protocols {
 				egressPort := fmt.Sprintf("tp_dst=%d", port)
-				rules = append(rules, fmt.Sprintf(egressRule, protocol, egressPort))
+				rules = append(rules, fmt.Sprintf(egressRule, protocol,
+					egressPort))
 
 				ingressPort := fmt.Sprintf("tp_src=%d", port)
-				rules = append(rules, fmt.Sprintf(ingressRule, protocol, ingressPort))
+				rules = append(rules, fmt.Sprintf(ingressRule, protocol,
+					ingressPort))
 			}
 		}
 
@@ -1025,11 +1042,15 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 		if len(portsToWeb) > 0 || len(portsFromWeb) > 0 {
 			// Allow ICMP
 			rules = append(rules,
-				fmt.Sprintf("table=0 priority=%d,icmp,in_port=%d,dl_dst=%s"+
-					" actions=LOCAL", 5000, ofVeth, dflGatewayMAC))
+				fmt.Sprintf(
+					"table=0 priority=%d,icmp,in_port=%d,dl_dst=%s"+
+						" actions=LOCAL",
+					5000, ofVeth, dflGatewayMAC))
 			rules = append(rules,
-				fmt.Sprintf("table=0 priority=%d,icmp,in_port=LOCAL,dl_dst=%s"+
-					" actions=output:%d", 5000, dbcMac, ofVeth))
+				fmt.Sprintf(
+					"table=0 priority=%d,icmp,in_port=LOCAL,"+
+						"dl_dst=%s actions=output:%d",
+					5000, dbcMac, ofVeth))
 
 			arpDst = fmt.Sprintf("%d,LOCAL", ofQuilt)
 		} else {
@@ -1038,14 +1059,20 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 
 		if len(portsFromWeb) > 0 {
 			// Allow default gateway to ARP for containers
-			rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=LOCAL,"+
-				"dl_dst=ff:ff:ff:ff:ff:ff actions=output:%d", 4500, ofVeth))
+			rules = append(rules, fmt.Sprintf(
+				"table=0 priority=%d,arp,in_port=LOCAL,"+
+					"dl_dst=ff:ff:ff:ff:ff:ff actions=output:%d",
+				4500, ofVeth))
 		}
 
-		rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=%d "+
-			"actions=output:%s", 4500, ofVeth, arpDst))
-		rules = append(rules, fmt.Sprintf("table=0 priority=%d,arp,in_port=LOCAL,"+
-			"dl_dst=%s actions=output:%d", 4500, dbcMac, ofVeth))
+		rules = append(rules, fmt.Sprintf(
+			"table=0 priority=%d,arp,in_port=%d "+
+				"actions=output:%s",
+			4500, ofVeth, arpDst))
+		rules = append(rules, fmt.Sprintf(
+			"table=0 priority=%d,arp,in_port=LOCAL,"+
+				"dl_dst=%s actions=output:%d",
+			4500, dbcMac, ofVeth))
 	}
 
 	LabelMacs := make(map[string]map[string]struct{})
@@ -1080,8 +1107,10 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 		mpa := fmt.Sprintf("multipath(symmetric_l3l4,0,modulo_n,%d,0,"+
 			"NXM_NX_REG0[%s])", n, nxmRange)
 
-		rules = append(rules, fmt.Sprintf("table=0 priority=%d,dl_dst=%s,ip,nw_dst=%s "+
-			"actions=%s,resubmit(,1)", 4000, labelMac, ip, mpa))
+		rules = append(rules, fmt.Sprintf(
+			"table=0 priority=%d,dl_dst=%s,ip,nw_dst=%s "+
+				"actions=%s,resubmit(,1)",
+			4000, labelMac, ip, mpa))
 
 		// We need the order to make diffing consistent.
 		macList := make([]string, 0, n)
@@ -1094,13 +1123,16 @@ func generateTargetOpenFlow(dk docker.Client, odb ovsdb.Ovsdb,
 		regPrefix := ""
 		for _, mac := range macList {
 			if i > 0 {
-				// dump-flows puts a 0x prefix for all register values except for 0.
+				// dump-flows puts a 0x prefix for all register values
+				// except for 0.
 				regPrefix = "0x"
 			}
 			reg0 := fmt.Sprintf("%s%x", regPrefix, i)
 
-			rules = append(rules, fmt.Sprintf("table=1 priority=5000,ip,nw_dst=%s,"+
-				"reg0=%s actions=mod_dl_dst:%s,resubmit(,2)", ip, reg0, mac))
+			rules = append(rules, fmt.Sprintf(
+				"table=1 priority=5000,ip,nw_dst=%s,"+
+					"reg0=%s actions=mod_dl_dst:%s,resubmit(,2)",
+				ip, reg0, mac))
 			i++
 		}
 	}
@@ -1138,9 +1170,11 @@ func updateNameservers(dk docker.Client, containers []db.Container) {
 		}
 
 		if newNameservers != currNameservers {
-			err = dk.WriteToContainer(id, newNameservers, "/etc", "resolv.conf", 0644)
+			err = dk.WriteToContainer(id, newNameservers, "/etc",
+				"resolv.conf", 0644)
 			if err != nil {
-				log.WithError(err).Error("failed to update /etc/resolv.conf")
+				log.WithError(err).Error(
+					"failed to update /etc/resolv.conf")
 			}
 		}
 	}
@@ -1160,7 +1194,8 @@ func updateEtcHosts(dk docker.Client, containers []db.Container, labels []db.Lab
 	}
 
 	for _, conn := range connections {
-		if conn.To == stitch.PublicInternetLabel || conn.From == stitch.PublicInternetLabel {
+		if conn.To == stitch.PublicInternetLabel ||
+			conn.From == stitch.PublicInternetLabel {
 			continue
 		}
 		conns[conn.From] = append(conns[conn.From], conn.To)
@@ -1374,7 +1409,8 @@ func deleteNatRule(rule ipRule) error {
 
 	stdout, _, err := shVerbose(command)
 	if err != nil {
-		return fmt.Errorf("failed to delete NAT rule %s: %s", command, string(stdout))
+		return fmt.Errorf("failed to delete NAT rule %s: %s", command,
+			string(stdout))
 	}
 	return nil
 }

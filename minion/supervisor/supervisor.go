@@ -134,7 +134,8 @@ func (sv *supervisor) runAppTransact(view db.Database,
 		return val.(docker.Container).ID
 	}
 
-	pairs, dbcs, dkcs := join.HashJoin(db.ContainerSlice(view.SelectFromContainer(nil)),
+	pairs, dbcs, dkcs := join.HashJoin(db.ContainerSlice(
+		view.SelectFromContainer(nil)),
 		docker.ContainerSlice(dkcsArgs), dbKey, dkKey)
 
 	for _, iface := range dbcs {

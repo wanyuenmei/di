@@ -134,7 +134,8 @@ func TestMakeIPRule(t *testing.T) {
 			expOpts, rule.opts)
 	}
 
-	inp = "-A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT --to-destination 10.31.0.23:80"
+	inp = "-A PREROUTING -i eth0 -p tcp --dport 80 -j DNAT " +
+		"--to-destination 10.31.0.23:80"
 	rule, _ = makeIPRule(inp)
 	expCmd = "-A"
 	expChain = "PREROUTING"
@@ -229,14 +230,17 @@ func TestGenerateCurrentNatRules(t *testing.T) {
 func TestMakeOFRule(t *testing.T) {
 	flows := []string{
 		"cookie=0x0, duration=997.526s, table=0, n_packets=0, " +
-			"n_bytes=0, idle_age=997, priority=5000,in_port=3 actions=output:7",
+			"n_bytes=0, idle_age=997, priority=5000,in_port=3 " +
+			"actions=output:7",
 
 		"cookie=0x0, duration=997.351s, table=1, n_packets=0, " +
-			"n_bytes=0, idle_age=997, priority=4000,ip,dl_dst=0a:00:00:00:00:00," +
+			"n_bytes=0, idle_age=997, priority=4000,ip," +
+			"dl_dst=0a:00:00:00:00:00," +
 			"nw_dst=10.1.4.66 actions=LOCAL",
 
 		"cookie=0x0, duration=159.314s, table=2, n_packets=0, n_bytes=0, " +
-			"idle_age=159, priority=4000,ip,dl_dst=0a:00:00:00:00:00,nw_dst=10.1.4.66 " +
+			"idle_age=159, priority=4000,ip,dl_dst=0a:00:00:00:00:00," +
+			"nw_dst=10.1.4.66 " +
 			"actions=mod_dl_dst:02:00:0a:00:96:72,resubmit(,2)",
 
 		"cookie=0x0, duration=159.314s, table=2, n_packets=0, n_bytes=0, " +
@@ -275,9 +279,10 @@ func TestMakeOFRule(t *testing.T) {
 	}
 
 	exp3 := OFRule{
-		table:   "table=2",
-		match:   "in_port=6,priority=5000",
-		actions: "multipath(symmetric_l3l4,0,modulo_n,2,0,NXM_NX_REG0[0..1]),resubmit(,1)",
+		table: "table=2",
+		match: "in_port=6,priority=5000",
+		actions: "multipath(symmetric_l3l4,0,modulo_n,2,0,NXM_NX_REG0[0..1])," +
+			"resubmit(,1)",
 	}
 
 	exp4 := OFRule{

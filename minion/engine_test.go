@@ -242,7 +242,8 @@ func testConnectionTxn(conn db.Conn, spec string) string {
 		for i, c := range connections {
 			if e.From == c.From && e.To == c.To && e.MinPort == c.MinPort &&
 				e.MaxPort == c.MaxPort {
-				connections = append(connections[:i], connections[i+1:]...)
+				connections = append(
+					connections[:i], connections[i+1:]...)
 				found = true
 				break
 			}

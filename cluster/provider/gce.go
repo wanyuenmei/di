@@ -113,8 +113,9 @@ func (clst *gceCluster) List() ([]Machine, error) {
 			machineSplitURL := strings.Split(item.MachineType, "/")
 			mtype := machineSplitURL[len(machineSplitURL)-1]
 			mList = append(mList, Machine{
-				ID:        item.Name,
-				PublicIP:  item.NetworkInterfaces[0].AccessConfigs[0].NatIP,
+				ID: item.Name,
+				PublicIP: item.NetworkInterfaces[0].
+					AccessConfigs[0].NatIP,
 				PrivateIP: item.NetworkInterfaces[0].NetworkIP,
 				Size:      mtype,
 				Region:    zone,
@@ -255,7 +256,8 @@ func (clst *gceCluster) operationWait(ops []*compute.Operation, domain int) erro
 				switch {
 				case domain == local:
 					op, err = gceService.ZoneOperations.
-						Get(clst.projID, ops[0].Zone, ops[0].Name).Do()
+						Get(clst.projID, ops[0].Zone,
+							ops[0].Name).Do()
 				case domain == global:
 					op, err = gceService.GlobalOperations.
 						Get(clst.projID, ops[0].Name).Do()

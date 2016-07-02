@@ -192,9 +192,10 @@ func (clst amazonCluster) Stop(machines []Machine) error {
 			}
 		}
 
-		_, err = session.CancelSpotInstanceRequests(&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: aws.StringSlice(spotIDs),
-		})
+		_, err = session.CancelSpotInstanceRequests(
+			&ec2.CancelSpotInstanceRequestsInput{
+				SpotInstanceRequestIds: aws.StringSlice(spotIDs),
+			})
 		if err != nil {
 			return err
 		}
@@ -247,21 +248,24 @@ func (clst amazonCluster) List() ([]Machine, error) {
 				inst = instMap[*spot.InstanceId]
 			}
 
-			// Due to a race condition in the AWS API, it's possible that spot
-			// requests might lose their Tags.  If handled naively, those spot
-			// requests would technically be without a namespace, meaning the
-			// instances they create would be live forever as zombies.
+			// Due to a race condition in the AWS API, it's possible that
+			// spot requests might lose their Tags. If handled naively,
+			// those spot requests would technically be without a namespace,
+			// meaning the instances they create would be live forever as
+			// zombies.
 			//
-			// To mitigate this issue, we rely not only on the spot request tags, but
-			// additionally on the instance security group.  If a spot request has a
-			// running instance in the appropriate security group, it is by
-			// definition in our namespace.  Thus, we only check the tags for spot
-			// requests without running instances.
+			// To mitigate this issue, we rely not only on the spot request
+			// tags, but additionally on the instance security group. If a
+			// spot request has a running instance in the appropriate
+			// security group, it is by definition in our namespace.
+			// Thus, we only check the tags for spot requests without
+			// running instances.
 			if inst == nil {
 				var isOurs bool
 				for _, tag := range spot.Tags {
 					ns := clst.namespace
-					if tag != nil && tag.Key != nil && *tag.Key == ns {
+					if tag != nil && tag.Key != nil &&
+						*tag.Key == ns {
 						isOurs = true
 						break
 					}
@@ -278,40 +282,47 @@ func (clst amazonCluster) List() ([]Machine, error) {
 				Provider: db.Amazon,
 			}
 
-			if inst != nil {
-				if *inst.State.Name != ec2.InstanceStateNamePending &&
-					*inst.State.Name != ec2.InstanceStateNameRunning {
-					continue
-				}
+			if inst == nil {
+				continue
+			}
+			if *inst.State.Name != ec2.InstanceStateNamePending &&
+				*inst.State.Name != ec2.InstanceStateNameRunning {
+				continue
+			}
 
-				if inst.PublicIpAddress != nil {
-					machine.PublicIP = *inst.PublicIpAddress
-				}
+			if inst.PublicIpAddress != nil {
+				machine.PublicIP = *inst.PublicIpAddress
+			}
 
-				if inst.PrivateIpAddress != nil {
-					machine.PrivateIP = *inst.PrivateIpAddress
-				}
+			if inst.PrivateIpAddress != nil {
+				machine.PrivateIP = *inst.PrivateIpAddress
+			}
 
-				if inst.InstanceType != nil {
-					machine.Size = *inst.InstanceType
-				}
+			if inst.InstanceType != nil {
+				machine.Size = *inst.InstanceType
+			}
 
-				if len(inst.BlockDeviceMappings) != 0 {
-					volumeID := inst.BlockDeviceMappings[0].Ebs.VolumeId
-					volumeInfo, err := session.DescribeVolumes(&ec2.DescribeVolumesInput{
-						Filters: []*ec2.Filter{
-							{
-								Name:   aws.String("volume-id"),
-								Values: []*string{aws.String(*volumeID)},
-							},
+			if len(inst.BlockDeviceMappings) != 0 {
+				volumeID := inst.BlockDeviceMappings[0].Ebs.VolumeId
+				filters := []*ec2.Filter{
+					{
+						Name: aws.String("volume-id"),
+						Values: []*string{
+							aws.String(*volumeID),
 						},
+					},
+				}
+
+				volumeInfo, err := session.DescribeVolumes(
+					&ec2.DescribeVolumesInput{
+						Filters: filters,
 					})
-					if err != nil {
-						return nil, err
-					}
-					if len(volumeInfo.Volumes) == 1 {
-						machine.DiskSize = int(*volumeInfo.Volumes[0].Size)
-					}
+				if err != nil {
+					return nil, err
+				}
+				if len(volumeInfo.Volumes) == 1 {
+					machine.DiskSize = int(
+						*volumeInfo.Volumes[0].Size)
 				}
 			}
 
@@ -337,7 +348,10 @@ OuterLoop:
 		for i := 0; i < 30; i++ {
 			_, err = session.CreateTags(&ec2.CreateTagsInput{
 				Tags: []*ec2.Tag{
-					{Key: aws.String(clst.namespace), Value: aws.String("")},
+					{
+						Key:   aws.String(clst.namespace),
+						Value: aws.String(""),
+					},
 				},
 				Resources: aws.StringSlice(spotIDs),
 			})
@@ -402,8 +416,10 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			&ec2.DescribeSecurityGroupsInput{
 				Filters: []*ec2.Filter{
 					{
-						Name:   aws.String("group-name"),
-						Values: []*string{aws.String(clst.namespace)},
+						Name: aws.String("group-name"),
+						Values: []*string{
+							aws.String(clst.namespace),
+						},
 					},
 				},
 			})
@@ -415,8 +431,9 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 		ingress := []*ec2.IpPermission{}
 		groups := resp.SecurityGroups
 		if len(groups) > 1 {
-			return errors.New("Multiple Security Groups with the same name: " +
-				clst.namespace)
+			return errors.New(
+				"Multiple Security Groups with the same name: " +
+					clst.namespace)
 		} else if len(groups) == 0 {
 			_, err := session.CreateSecurityGroup(
 				&ec2.CreateSecurityGroupInput{
@@ -443,7 +460,8 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 				log.Debug("Amazon: Revoke ingress security group: ", *p)
 				_, err = session.RevokeSecurityGroupIngress(
 					&ec2.RevokeSecurityGroupIngressInput{
-						GroupName:     aws.String(clst.namespace),
+						GroupName: aws.String(
+							clst.namespace),
 						IpPermissions: []*ec2.IpPermission{p}})
 				if err != nil {
 					return err
@@ -455,10 +473,12 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			for _, ipr := range p.IpRanges {
 				ip := *ipr.CidrIp
 				if !permMap[ip] {
-					log.Debug("Amazon: Revoke ingress security group: ", ip)
+					log.Debug("Amazon: Revoke "+
+						"ingress security group: ", ip)
 					_, err = session.RevokeSecurityGroupIngress(
 						&ec2.RevokeSecurityGroupIngressInput{
-							GroupName:  aws.String(clst.namespace),
+							GroupName: aws.String(
+								clst.namespace),
 							CidrIp:     aws.String(ip),
 							FromPort:   p.FromPort,
 							IpProtocol: p.IpProtocol,
@@ -471,21 +491,26 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 				}
 			}
 
-			if len(groups) > 0 {
-				for _, grp := range p.UserIdGroupPairs {
-					if *grp.GroupId != *groups[0].GroupId {
-						log.Debug("Amazon: Revoke ingress security group GroupID: ",
-							*grp.GroupId)
-						_, err = session.RevokeSecurityGroupIngress(
-							&ec2.RevokeSecurityGroupIngressInput{
-								GroupName:               aws.String(clst.namespace),
-								SourceSecurityGroupName: grp.GroupName})
-						if err != nil {
-							return err
-						}
-					} else {
-						groupIngressExists = true
+			if len(groups) == 0 {
+				continue
+			}
+			for _, grp := range p.UserIdGroupPairs {
+				if *grp.GroupId != *groups[0].GroupId {
+					log.Debug("Amazon: Revoke "+
+						"ingress security group GroupID: ",
+						*grp.GroupId)
+					options := &ec2.RevokeSecurityGroupIngressInput{
+						GroupName: aws.String(
+							clst.namespace),
+						SourceSecurityGroupName: grp.GroupName,
 					}
+					_, err = session.RevokeSecurityGroupIngress(
+						options)
+					if err != nil {
+						return err
+					}
+				} else {
+					groupIngressExists = true
 				}
 			}
 		}
@@ -494,8 +519,10 @@ func (clst *amazonCluster) SetACLs(acls []string) error {
 			log.Debug("Amazon: Add intragroup ACL")
 			_, err = session.AuthorizeSecurityGroupIngress(
 				&ec2.AuthorizeSecurityGroupIngressInput{
-					GroupName:               aws.String(clst.namespace),
-					SourceSecurityGroupName: aws.String(clst.namespace)})
+					GroupName: aws.String(
+						clst.namespace),
+					SourceSecurityGroupName: aws.String(
+						clst.namespace)})
 		}
 
 		for perm, install := range permMap {

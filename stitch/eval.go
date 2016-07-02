@@ -82,7 +82,8 @@ func (list astList) eval(ctx *evalCtx) (ast, error) {
 func evalLambda(fn astLambda, funcArgs []ast) (ast, error) {
 	parentCtx := fn.ctx
 	if len(fn.argNames) != len(funcArgs) {
-		return nil, fmt.Errorf("bad number of arguments: %s %s", fn.argNames, funcArgs)
+		return nil, fmt.Errorf("bad number of arguments: %s %s", fn.argNames,
+			funcArgs)
 	}
 
 	// Modify the eval context with the argument binds.

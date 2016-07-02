@@ -652,7 +652,8 @@ func TestMachineAttribute(t *testing.T) {
 	code = `(define badMachine (docker "foo"))
 	(machineAttribute badMachine (machine (provider "Amazon")))`
 	runtimeErr(t, code,
-		fmt.Sprintf(`2: bad type, cannot change machine attributes: (docker "foo")`))
+		fmt.Sprintf(
+			`2: bad type, cannot change machine attributes: (docker "foo")`))
 
 	// Test setting range attributes
 	code = `(define machines (machine (provider "Amazon")))
@@ -674,7 +675,8 @@ func TestMachineAttribute(t *testing.T) {
 
 	// Test setting attributes from within a lambda
 	code = `(define machines (machine (provider "Amazon")))
-	(define makeLarge (lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
+	(define makeLarge
+		(lambda (machines) (machineAttribute machines (ram 16) (cpu 8))))
 	(makeLarge machines)`
 	expCode = `(list)
 	(list)
@@ -1003,8 +1005,10 @@ func TestEnv(t *testing.T) {
 			code, containerResult, expected))
 	}
 
-	runtimeErr(t, `(setEnv (docker "foo") 1 "value")`, "1: setEnv key must be a string: 1")
-	runtimeErr(t, `(setEnv (docker "foo") "key" 1)`, "1: setEnv value must be a string: 1")
+	runtimeErr(t,
+		`(setEnv (docker "foo") 1 "value")`, "1: setEnv key must be a string: 1")
+	runtimeErr(t,
+		`(setEnv (docker "foo") "key" 1)`, "1: setEnv value must be a string: 1")
 }
 
 func TestConnect(t *testing.T) {
@@ -1201,7 +1205,8 @@ func TestImport(t *testing.T) {
 	// Test import with an import
 	testFs = afero.NewMemMapFs()
 	util.AppFs = testFs
-	util.WriteFile("square.spec", []byte("(define Square (lambda (x) (* x x)))"), 0644)
+	util.WriteFile("square.spec", []byte("(define Square (lambda (x) (* x x)))"),
+		0644)
 	util.WriteFile("cube.spec", []byte(`(import "square")
 	(define Cube (lambda (x) (* x (square.Square x))))`), 0644)
 	parseTestImport(t, `(import "cube") (cube.Cube 2)`,

@@ -187,7 +187,8 @@ func TestWorker(t *testing.T) {
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec),
+			spew.Sdump(exp))
 	}
 }
 
@@ -226,7 +227,8 @@ func TestChange(t *testing.T) {
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec),
+			spew.Sdump(exp))
 	}
 
 	delete(ctx.fd.exec, Ovsvswitchd)
@@ -276,7 +278,8 @@ func TestChange(t *testing.T) {
 		Ovsvswitchd: ovsExecArgs(ip, leaderIP),
 	}
 	if !reflect.DeepEqual(ctx.fd.exec, exp) {
-		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec), spew.Sdump(exp))
+		t.Errorf("fd.exec = %s\n\nwant %s", spew.Sdump(ctx.fd.exec),
+			spew.Sdump(exp))
 	}
 }
 

@@ -133,7 +133,8 @@ func newMutation(column, mutator string, value interface{}) mutation {
 		case reflect.Map:
 			mutateValue, err = ovs.NewOvsMap(typedValue)
 		default:
-			panic(fmt.Sprintf("unhandled value in mutation: value %s, type %s",
+			panic(fmt.Sprintf(
+				"unhandled value in mutation: value %s, type %s",
 				value, typedValue))
 		}
 		if err != nil {
@@ -452,8 +453,9 @@ func (ovsdb Client) ListACLs(lswitch string) ([]Acl, error) {
 			return nil, err
 		}
 		for _, result := range results {
+			goUUID := result["_uuid"].([]interface{})[1].(string)
 			acl := Acl{
-				uuid: ovs.UUID{GoUUID: result["_uuid"].([]interface{})[1].(string)},
+				uuid: ovs.UUID{GoUUID: goUUID},
 				Core: AclCore{
 					Priority:  int(result["priority"].(float64)),
 					Direction: result["direction"].(string),

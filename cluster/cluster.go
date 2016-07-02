@@ -112,7 +112,8 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 		actionString = "boot"
 	}
 
-	log.WithField("count", len(machines)).Infof("Attempt to %s machines.", actionString)
+	log.WithField("count", len(machines)).
+		Infof("Attempt to %s machines.", actionString)
 
 	noFailures := true
 	groupedMachines := provider.GroupBy(machines)
@@ -131,7 +132,8 @@ func (clst cluster) updateCloud(machines []provider.Machine, boot bool) {
 		}
 		if err != nil {
 			noFailures = false
-			log.WithError(err).Warnf("Unable to %s machines on %s.", actionString, p)
+			log.WithError(err).
+				Warnf("Unable to %s machines on %s.", actionString, p)
 		}
 	}
 
@@ -204,8 +206,9 @@ func (clst cluster) sync() {
 				dbm.CloudID = m.ID
 				dbm.PublicIP = m.PublicIP
 				dbm.PrivateIP = m.PrivateIP
-				// If we overwrite the machine's size before the machine has fully
-				// booted, the DSL will flip it back immediately.
+				// If we overwrite the machine's size before the machine
+				// has fully booted, the DSL will flip it back
+				// immediately.
 				if m.Size != "" {
 					dbm.Size = m.Size
 				}

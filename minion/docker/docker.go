@@ -362,8 +362,8 @@ func (dk docker) IsRunning(name string) (bool, error) {
 	return len(containers) != 0, nil
 }
 
-func (dk docker) create(name, image string, args []string,
-	labels map[string]string, env map[string]struct{}, hc *dkc.HostConfig) (string, error) {
+func (dk docker) create(name, image string, args []string, labels map[string]string,
+	env map[string]struct{}, hc *dkc.HostConfig) (string, error) {
 	if err := dk.Pull(image); err != nil {
 		return "", err
 	}
@@ -374,8 +374,12 @@ func (dk docker) create(name, image string, args []string,
 	}
 
 	container, err := dk.CreateContainer(dkc.CreateContainerOptions{
-		Name:       name,
-		Config:     &dkc.Config{Image: string(image), Cmd: args, Labels: labels, Env: envList},
+		Name: name,
+		Config: &dkc.Config{
+			Image:  string(image),
+			Cmd:    args,
+			Labels: labels,
+			Env:    envList},
 		HostConfig: hc,
 	})
 	if err != nil {

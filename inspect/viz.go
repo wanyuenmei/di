@@ -105,9 +105,11 @@ func graphviz(outputFormat string, slug string, graph graph,
 	var writeGraph *exec.Cmd
 	switch outputFormat {
 	case "ascii":
-		writeGraph = exec.Command("graph-easy", "--input="+slug+".dot", "--as_ascii")
+		writeGraph = exec.Command("graph-easy", "--input="+slug+".dot",
+			"--as_ascii")
 	case "pdf":
-		writeGraph = exec.Command("dot", "-Tpdf", "-o", slug+".pdf", slug+".dot")
+		writeGraph = exec.Command("dot", "-Tpdf", "-o", slug+".pdf",
+			slug+".dot")
 	}
 	writeGraph.Stdout = os.Stdout
 	writeGraph.CombinedOutput()

@@ -36,7 +36,8 @@ func TestACL(t *testing.T) {
 
 	// `expACLs` should NOT contain the default rules.
 	checkAcl := func(connections []db.Connection, labels []db.Label,
-		containers []db.Container, coreExpACLs []ovsdb.AclCore, resetClient bool) {
+		containers []db.Container, coreExpACLs []ovsdb.AclCore,
+		resetClient bool) {
 		if resetClient {
 			client = fakeOvsdb{}
 		}
@@ -55,7 +56,8 @@ func TestACL(t *testing.T) {
 		sort.Sort(ACLList(res))
 		if !reflect.DeepEqual(expACLs, res) {
 			_, _, callerLine, _ := runtime.Caller(1)
-			t.Errorf("Test at line %d failed. Expected %v, got %v.", callerLine, expACLs, res)
+			t.Errorf("Test at line %d failed. Expected %v, got %v.",
+				callerLine, expACLs, res)
 		}
 	}
 
@@ -74,7 +76,8 @@ func TestACL(t *testing.T) {
 		IP: purpleLabelIP}
 	redBlueLabel := db.Label{Label: "redBlue",
 		IP: redBlueLabelIP}
-	allLabels := []db.Label{redLabel, blueLabel, yellowLabel, purpleLabel, redBlueLabel}
+	allLabels := []db.Label{redLabel, blueLabel, yellowLabel, purpleLabel,
+		redBlueLabel}
 
 	redContainerIP := "100.1.1.1"
 	blueContainerIP := "100.1.1.2"
@@ -98,10 +101,12 @@ func TestACL(t *testing.T) {
 	matchFmt := "ip4.src==%s && ip4.dst==%s && " +
 		"(icmp || %d <= udp.dst <= %d || %[3]d <= tcp.dst <= %[4]d)"
 	reverseFmt := "ip4.src==%s && ip4.dst==%s && " +
-		"(icmp || %d <= udp.src <= %d || %[3]d <= tcp.src <= %[4]d)"
+		"(icmp || %d <= udp.src <= %d || " +
+		"%[3]d <= tcp.src <= %[4]d)"
 
 	// No connections should result in no ACLs but the default drop rules.
-	checkAcl([]db.Connection{}, []db.Label{}, []db.Container{}, []ovsdb.AclCore{}, true)
+	checkAcl([]db.Connection{}, []db.Label{}, []db.Container{}, []ovsdb.AclCore{},
+		true)
 
 	// Test one connection (with range)
 	checkAcl([]db.Connection{
@@ -113,22 +118,26 @@ func TestACL(t *testing.T) {
 		allContainers,
 		[]ovsdb.AclCore{
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 81),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 81),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 81),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 81),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 81),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 81),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 81),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 81),
 				Action:   "allow",
 				Priority: 1,
 			}},
@@ -144,42 +153,50 @@ func TestACL(t *testing.T) {
 		allContainers,
 		[]ovsdb.AclCore{
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, yellowLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					yellowLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, yellowLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					yellowLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, yellowLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, yellowLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, yellowLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, yellowLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, blueContainerIP, yellowLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, blueContainerIP,
+					yellowLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, blueContainerIP, yellowLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, blueContainerIP,
+					yellowLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, yellowLabelIP, blueContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, yellowLabelIP,
+					blueContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, yellowLabelIP, blueContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, yellowLabelIP,
+					blueContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			}},
@@ -195,22 +212,26 @@ func TestACL(t *testing.T) {
 		allContainers,
 		[]ovsdb.AclCore{
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			}},
@@ -235,42 +256,50 @@ func TestACL(t *testing.T) {
 		allContainers,
 		[]ovsdb.AclCore{
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, redContainerIP, blueLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, redContainerIP,
+					blueLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, blueLabelIP, redContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, blueLabelIP,
+					redContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, yellowContainerIP, purpleLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, yellowContainerIP,
+					purpleLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, yellowContainerIP, purpleLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, yellowContainerIP,
+					purpleLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, purpleLabelIP, yellowContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, purpleLabelIP,
+					yellowContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, purpleLabelIP, yellowContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, purpleLabelIP,
+					yellowContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			}},
@@ -284,22 +313,26 @@ func TestACL(t *testing.T) {
 		allContainers,
 		[]ovsdb.AclCore{
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(matchFmt, yellowContainerIP, purpleLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, yellowContainerIP,
+					purpleLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(matchFmt, yellowContainerIP, purpleLabelIP, 80, 80),
+				Match: fmt.Sprintf(matchFmt, yellowContainerIP,
+					purpleLabelIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "to-lport",
-				Match:    fmt.Sprintf(reverseFmt, purpleLabelIP, yellowContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, purpleLabelIP,
+					yellowContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			},
 			{Direction: "from-lport",
-				Match:    fmt.Sprintf(reverseFmt, purpleLabelIP, yellowContainerIP, 80, 80),
+				Match: fmt.Sprintf(reverseFmt, purpleLabelIP,
+					yellowContainerIP, 80, 80),
 				Action:   "allow",
 				Priority: 1,
 			}},
@@ -366,8 +399,8 @@ func (odb *fakeOvsdb) DeleteACL(lswitch string, dir string, priority int,
 			continue
 		}
 		odb.acls = append(odb.acls[:i], odb.acls[i+1:]...)
-		// Because deleting an element shifts the i+1th element into the ith spot,
-		// we need to stay at the same index to not skip the next element.
+		// Because deleting an element shifts the i+1th element into the ith
+		// spot, we need to stay at the same index to not skip the next element.
 		i--
 	}
 	return nil

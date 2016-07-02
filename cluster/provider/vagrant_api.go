@@ -70,7 +70,8 @@ func (api vagrantAPI) Up(id string) error {
 }
 
 func (api vagrantAPI) Destroy(id string) error {
-	_, err := api.Shell(id, `vagrant --machine-readable destroy -f; cd ../; rm -rf %s`)
+	_, err := api.Shell(id,
+		`vagrant --machine-readable destroy -f; cd ../; rm -rf %s`)
 	if err != nil {
 		return err
 	}
@@ -78,7 +79,8 @@ func (api vagrantAPI) Destroy(id string) error {
 }
 
 func (api vagrantAPI) PublicIP(id string) (string, error) {
-	ip, err := api.Shell(id, `vagrant ssh -c "ip address show eth1 | grep 'inet ' | " +
+	ip, err := api.Shell(id,
+		`vagrant ssh -c "ip address show eth1 | grep 'inet ' | " +
 		"sed -e 's/^.*inet //' -e 's/\/.*$//' | tr -d '\n'"`)
 	if err != nil {
 		return "", err

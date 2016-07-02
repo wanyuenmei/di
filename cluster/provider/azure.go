@@ -83,8 +83,10 @@ func (clst *azureCluster) List() ([]Machine, error) {
 		}
 		id := hs.ServiceName
 
-		// Will return empty string if the hostedservice does not have a deployment.
-		// e.g. some hosted services contains only a storage account, but no deployment.
+		// Will return empty string if the hostedservice does not have a
+		// deployment.
+		// e.g. some hosted services contains only a storage account, but no
+		// deployment.
 		deploymentName, err := clst.vmClient.GetDeploymentName(id)
 		if err != nil {
 			return nil, err
@@ -95,7 +97,8 @@ func (clst *azureCluster) List() ([]Machine, error) {
 			continue
 		}
 
-		deploymentResponse, err := clst.vmClient.GetDeployment(id, deploymentName)
+		deploymentResponse, err := clst.vmClient.GetDeployment(id,
+			deploymentName)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +163,8 @@ func (clst *azureCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 func (clst *azureCluster) instanceNew(name string, vmSize string, region string,
 	cloudConfig string) error {
 	if region != clst.location {
-		return fmt.Errorf("cannot create instance in %s, only %s is supported", region,
+		return fmt.Errorf("cannot create instance in %s, only %s is supported",
+			region,
 			clusterLocation)
 	}
 	// create hostedservice

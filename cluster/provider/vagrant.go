@@ -84,7 +84,9 @@ func (clst vagrantCluster) List() ([]Machine, error) {
 	for _, instanceID := range instanceIDs {
 		ip, err := vagrant.PublicIP(instanceID)
 		if err != nil {
-			log.WithError(err).Infof("Failed to retrieve IP address for %s.", instanceID)
+			log.WithError(err).Infof(
+				"Failed to retrieve IP address for %s.",
+				instanceID)
 		}
 		instance := Machine{
 			ID:        instanceID,

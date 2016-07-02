@@ -58,7 +58,9 @@ func askQueries(graph graph, invs []invariant, queries []query) (*query, *invari
 		if val := queryFormImpls[query.form](graph, invs, query); val != nil {
 			return &query,
 				val,
-				fmt.Errorf("mutation %s failed invariant %s", query.str, val.str)
+				fmt.Errorf(
+					"mutation %s failed invariant %s",
+					query.str, val.str)
 		}
 	}
 
@@ -111,7 +113,8 @@ func whatIfRemoveSet(graph graph, invs []invariant, query query) *invariant {
 	node := query.target
 	avSet := graphCopy.findAvailabilitySet(node)
 	if avSet == nil {
-		return &invariant{str: fmt.Sprintf("could not find availability set: %s", node)}
+		return &invariant{str: fmt.Sprintf(
+			"could not find availability set: %s", node)}
 	}
 
 	graphCopy.removeAvailabiltySet(avSet)

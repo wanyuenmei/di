@@ -65,8 +65,8 @@ func TestDefaultRegion(t *testing.T) {
 }
 
 func TestConstraints(t *testing.T) {
-	checkConstraint := func(descriptions []Description, ram stitch.Range, cpu stitch.Range,
-		maxPrice float64, exp string) {
+	checkConstraint := func(descriptions []Description, ram stitch.Range,
+		cpu stitch.Range, maxPrice float64, exp string) {
 		resSize := pickBestSize(descriptions, ram, cpu, maxPrice)
 		if resSize != exp {
 			t.Errorf("bad size picked. Expected %s, got %s", exp, resSize)

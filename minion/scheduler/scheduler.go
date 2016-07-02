@@ -27,8 +27,9 @@ func Run(conn db.Conn) {
 		db.PlacementTable).C {
 		minions := conn.SelectFromMinion(nil)
 		etcdRows := conn.SelectFromEtcd(nil)
-		if len(minions) != 1 || len(etcdRows) != 1 || minions[0].Role != db.Master ||
-			minions[0].PrivateIP == "" || !etcdRows[0].Leader {
+		if len(minions) != 1 || len(etcdRows) != 1 ||
+			minions[0].Role != db.Master || minions[0].PrivateIP == "" ||
+			!etcdRows[0].Leader {
 			sched = nil
 			continue
 		}

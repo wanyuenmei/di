@@ -176,10 +176,12 @@ func updateACLs(connections []db.Connection, labels []db.Label,
 			max := conn.MaxPort
 
 			match := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
-				"(icmp || %d <= udp.dst <= %d || %[3]d <= tcp.dst <= %[4]d)",
+				"(icmp || %d <= udp.dst <= %d || "+
+				"%[3]d <= tcp.dst <= %[4]d)",
 				fromIP, toIP, min, max)
 			reverse := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
-				"(icmp || %d <= udp.src <= %d || %[3]d <= tcp.src <= %[4]d)",
+				"(icmp || %d <= udp.src <= %d || "+
+				"%[3]d <= tcp.src <= %[4]d)",
 				toIP, fromIP, min, max)
 
 			matchSet[match] = struct{}{}

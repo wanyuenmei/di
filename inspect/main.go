@@ -123,7 +123,8 @@ func main() {
 						if err != nil {
 							fmt.Println(err)
 						} else {
-							fmt.Println("query passed invariants")
+							fmt.Println("query passed " +
+								"invariants")
 						}
 					}
 				}(i)

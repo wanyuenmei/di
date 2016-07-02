@@ -129,7 +129,8 @@ func (r astLabelRule) String() string {
 		otherLabels = append(otherLabels, string(l))
 	}
 
-	return fmt.Sprintf("(labelRule %s %s)", exclusiveStr, strings.Join(otherLabels, " "))
+	return fmt.Sprintf("(labelRule %s %s)", exclusiveStr,
+		strings.Join(otherLabels, " "))
 }
 
 func (r astRegion) String() string {
@@ -188,7 +189,8 @@ func (h astHmap) String() string {
 
 	keyValues := []string{}
 	for key, value := range h {
-		keyValues = append(keyValues, fmt.Sprintf("(%s %s)", key.String(), value.String()))
+		keyValues = append(keyValues, fmt.Sprintf("(%s %s)", key.String(),
+			value.String()))
 	}
 	sort.Strings(keyValues)
 
