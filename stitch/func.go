@@ -310,28 +310,26 @@ func placeImpl(ctx *evalCtx, args []ast) (ast, error) {
 
 	globalCtx := ctx.globalCtx()
 	for _, targetLabel := range targetLabels {
-		var placements []Placement
 		switch ruleAst := args[0].(type) {
 		case astLabelRule:
 			for _, l := range ruleAst.otherLabels {
-				placements = append(placements, Placement{
+				globalCtx.placements[Placement{
 					TargetLabel: targetLabel,
 					Exclusive:   bool(ruleAst.exclusive),
 					OtherLabel:  string(l),
-				})
+				}] = struct{}{}
 			}
 		case astMachineRule:
-			placements = append(placements, Placement{
+			globalCtx.placements[Placement{
 				TargetLabel: targetLabel,
 				Exclusive:   bool(ruleAst.exclusive),
 				Provider:    string(ruleAst.provider),
 				Size:        string(ruleAst.size),
 				Region:      string(ruleAst.region),
-			})
+			}] = struct{}{}
 		default:
 			return nil, fmt.Errorf("invalid place rule: %s", args[0])
 		}
-		*globalCtx.placements = append(*globalCtx.placements, placements...)
 	}
 
 	return astList{}, nil

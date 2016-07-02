@@ -8,8 +8,8 @@ type evalCtx struct {
 	binds       map[astIdent]ast
 	labels      map[string]astLabel
 	connections map[Connection]struct{}
+	placements  map[Placement]struct{}
 	machines    *[]*astMachine
-	placements  *[]Placement
 
 	containers  *[]astContainer
 	containerID *int
@@ -290,8 +290,8 @@ func newEvalCtx(parent *evalCtx) evalCtx {
 		make(map[astIdent]ast),
 		make(map[string]astLabel),
 		make(map[Connection]struct{}),
+		make(map[Placement]struct{}),
 		&[]*astMachine{},
-		&[]Placement{},
 		&[]astContainer{},
 		&id}
 }

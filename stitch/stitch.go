@@ -194,7 +194,7 @@ func (stitch Stitch) QueryConnections() []Connection {
 // QueryPlacements returns the placements declared in the stitch.
 func (stitch Stitch) QueryPlacements() []Placement {
 	var placements []Placement
-	for _, p := range *stitch.ctx.placements {
+	for p := range stitch.ctx.placements {
 		placements = append(placements, p)
 	}
 	return placements
