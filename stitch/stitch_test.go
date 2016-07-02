@@ -813,12 +813,28 @@ func TestLabel(t *testing.T) {
 }
 
 func TestPlacement(t *testing.T) {
+	placementSet := func(placements []Placement) map[Placement]struct{} {
+		mp := map[Placement]struct{}{}
+		for _, p := range placements {
+			mp[p] = struct{}{}
+		}
+		return mp
+	}
+
 	checkPlacement := func(code, expCode string, expected ...Placement) {
 		ctx := parseTest(t, code, expCode)
 		placementResult := Stitch{"", ctx}.QueryPlacements()
-		if !reflect.DeepEqual(placementResult, expected) {
+		set := placementSet(placementResult)
+
+		if len(set) != len(placementResult) {
+			t.Errorf("test: %s: duplicate placement:\n%v\n%v",
+				code, placementResult, set)
+		}
+
+		expSet := placementSet(expected)
+		if !reflect.DeepEqual(set, expSet) {
 			t.Error(spew.Sprintf("test: %s, result: %v, expected: %v",
-				code, placementResult, expected))
+				code, set, expSet))
 		}
 	}
 
