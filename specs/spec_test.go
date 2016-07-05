@@ -5,8 +5,6 @@ import (
 	"testing"
 	"text/scanner"
 
-	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/engine"
 	"github.com/NetSys/quilt/stitch"
 	"github.com/NetSys/quilt/util"
 )
@@ -19,13 +17,7 @@ func configRunOnce(configPath string, quiltPath []string) error {
 	defer f.Close()
 
 	var sc scanner.Scanner
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), quiltPath)
-	if err != nil {
-		return err
-	}
-
-	err = engine.UpdatePolicy(db.New(), spec)
-	if err != nil {
+	if _, err = stitch.New(*sc.Init(bufio.NewReader(f)), quiltPath); err != nil {
 		return err
 	}
 
