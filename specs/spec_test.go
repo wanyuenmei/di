@@ -30,10 +30,21 @@ func TestConfigs(t *testing.T) {
 			t.Errorf("%s failed validation: %s", configPath, err.Error())
 		}
 	}
-	testConfig("example.spec", []string{"specs/stdlib"})
-	testConfig("../quilt-tester/config/config.spec", []string{"specs/stdlib"})
-	testConfig("./spark/sparkPI.spec",
-		[]string{"./stdlib", "./spark", "./zookeeper"})
-	testConfig("./wordpress/main.spec",
-		[]string{"./stdlib", "./wordpress", "./spark", "./zookeeper"})
+
+	path := []string{
+		"./etcd",
+		"./redis",
+		"./spark",
+		"./stdlib",
+		"./wordpress",
+		"./zookeeper",
+	}
+
+	testConfig("example.spec", path)
+	testConfig("../quilt-tester/config/config.spec", path)
+	testConfig("./spark/sparkPI.spec", path)
+	testConfig("./wordpress/main.spec", path)
+	testConfig("./wordpress/main.spec", path)
+	testConfig("./etcd/example.spec", path)
+	testConfig("./redis/example.spec", path)
 }

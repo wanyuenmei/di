@@ -1,7 +1,7 @@
 (import "etcd") // Import etcd.spec
 
-(define nWorker 2)
-(etcd.New "etcdexample" NumWorker)
+(define nWorker 3)
+(etcd.New "etcdexample" nWorker)
 
 // Using unique Namespaces will allow multiple Quilt instances to run on the
 // same cloud provider account without conflict.
