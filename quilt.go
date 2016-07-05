@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	l_mod "log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/scanner"
 	"time"
@@ -116,20 +117,25 @@ func usage() {
 const quiltPath = "QUILT_PATH"
 
 func updateConfig(conn db.Conn, configPath string) error {
+	pathStr, _ := os.LookupEnv(quiltPath)
+	if pathStr == "" {
+		pathStr = stitch.GetQuiltPath()
+	}
+
 	f, err := util.Open(configPath)
 	if err != nil {
-		return err
+		f, err = util.Open(filepath.Join(pathStr, configPath))
+		if err != nil {
+			return err
+		}
 	}
+
 	defer f.Close()
 
 	sc := scanner.Scanner{
 		Position: scanner.Position{
 			Filename: configPath,
 		},
-	}
-	pathStr, _ := os.LookupEnv(quiltPath)
-	if pathStr == "" {
-		pathStr = stitch.GetQuiltPath()
 	}
 
 	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr, false)
