@@ -167,20 +167,30 @@ func updateACLs(connections []db.Connection, labels []db.Label,
 		for _, fromDbc := range labelDbcMap[conn.From] {
 			fromIP := fromDbc.IP
 			toIP := labelIPMap[conn.To]
+			if fromIP == "" || toIP == "" {
+				continue
+			}
+
 			min := conn.MinPort
 			max := conn.MaxPort
 
 			match := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
-				"(icmp || %d <= udp.dst <= %d || "+
-				"%[3]d <= tcp.dst <= %[4]d)",
+				"(%d <= udp.dst <= %d || %[3]d <= tcp.dst <= %[4]d)",
 				fromIP, toIP, min, max)
 			reverse := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && "+
-				"(icmp || %d <= udp.src <= %d || "+
-				"%[3]d <= tcp.src <= %[4]d)",
+				"(%d <= udp.src <= %d || %[3]d <= tcp.src <= %[4]d)",
 				toIP, fromIP, min, max)
 
 			matchSet[match] = struct{}{}
 			matchSet[reverse] = struct{}{}
+
+			icmp := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && icmp",
+				fromIP, toIP)
+			revIcmp := fmt.Sprintf("ip4.src==%s && ip4.dst==%s && icmp",
+				toIP, fromIP)
+
+			matchSet[icmp] = struct{}{}
+			matchSet[revIcmp] = struct{}{}
 		}
 	}
 
