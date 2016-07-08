@@ -1,4 +1,4 @@
-package consensus
+package etcd
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Mock implements a fake consensus.Store interface suitable for unit testing.  It
+// Mock implements a fake etcd.Store interface suitable for unit testing.  It
 // more-or-less attempts to mimic the semantics of the Etcd backend, though it may not
 // be perfect in that respect.  It has several notable limitations listed below:
 //
@@ -20,7 +20,7 @@ type mock struct {
 	root Tree
 }
 
-// NewMock creates a new mock consensus store for use of the unit tests.
+// NewMock creates a new mock etcd store for use of the unit tests.
 func NewMock() Store {
 	m := mock{}
 	m.Mutex = &sync.Mutex{}

@@ -11,7 +11,7 @@ import (
 
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/join"
-	"github.com/NetSys/quilt/minion/consensus"
+	"github.com/NetSys/quilt/minion/etcd"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -24,12 +24,12 @@ const containerDir = "/minion/containers"
 var rand32 = rand.Uint32
 
 // A directory containers the first and seceond level of a Tree requested from the
-// consensus store.
+// etcd store.
 type directory map[string]map[string]string
 
 // wakeChan collapses the various channels these functions wait on into a single
 // channel. Multiple redundant pings will be coalesced into a single message.
-func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
+func wakeChan(conn db.Conn, store etcd.Store) chan struct{} {
 	labelWatch := store.Watch(labelDir, 1*time.Second)
 	containerWatch := store.Watch(labelDir, 1*time.Second)
 	trigg := conn.TriggerTick(30, db.MinionTable, db.ContainerTable, db.LabelTable,
@@ -54,7 +54,7 @@ func wakeChan(conn db.Conn, store consensus.Store) chan struct{} {
 	return c
 }
 
-func readStoreRun(conn db.Conn, store consensus.Store) {
+func readStoreRun(conn db.Conn, store etcd.Store) {
 	// If the directories don't exist, create them so we may watch them.  If they
 	// exist already these will return an error that we won't log, but that's ok
 	// cause the loop will error too.
@@ -101,7 +101,7 @@ func readContainerTransact(view db.Database, dir directory) {
 
 		if worker {
 			// Masters get their labels from the policy, workers from the
-			// consensus store.
+			// etcd store.
 			container.Labels = labels
 		}
 
@@ -133,7 +133,7 @@ func readLabelTransact(view db.Database, dir directory) {
 	}
 }
 
-func writeStoreRun(conn db.Conn, store consensus.Store) {
+func writeStoreRun(conn db.Conn, store etcd.Store) {
 	for range wakeChan(conn, store) {
 		leader := false
 		var containers []db.Container
@@ -156,7 +156,7 @@ func writeStoreRun(conn db.Conn, store consensus.Store) {
 	}
 }
 
-func writeStoreContainers(store consensus.Store, containers []db.Container) error {
+func writeStoreContainers(store etcd.Store, containers []db.Container) error {
 	var ids []string
 	for _, container := range containers {
 		if container.DockerID != "" {
@@ -177,7 +177,7 @@ func writeStoreContainers(store consensus.Store, containers []db.Container) erro
 	return nil
 }
 
-func writeStoreLabels(store consensus.Store, containers []db.Container) error {
+func writeStoreLabels(store etcd.Store, containers []db.Container) error {
 	store.Mkdir(labelDir)
 	dir, err := getDirectory(store, labelDir)
 	if err != nil {
@@ -195,7 +195,7 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 
 	// Labels that point to a single container don't need IPs separate from their
 	// constituent container IP.  Thus the following code marks those labels, by the
-	// absence of the `MultiHost` file in the consensus store, and sets their IP to
+	// absence of the `MultiHost` file in the etcd store, and sets their IP to
 	// whatever is found in the container table.
 
 	// Map from each label to the containers that implement it.
@@ -248,7 +248,7 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 				"label": label,
 				"IP":    dbc.IP,
 				"error": err,
-			}).Warn("Consensus store failed set label IP.")
+			}).Warn("etcd store failed set label IP.")
 		}
 	}
 
@@ -263,7 +263,7 @@ func writeStoreLabels(store consensus.Store, containers []db.Container) error {
 	return nil
 }
 
-func syncDir(store consensus.Store, dir directory, path string, idsArg []string) {
+func syncDir(store etcd.Store, dir directory, path string, idsArg []string) {
 	_, dirKeys, ids := join.HashJoin(StringSlice(dir.keys()), StringSlice(idsArg),
 		nil, nil)
 
@@ -300,7 +300,7 @@ func syncDir(store consensus.Store, dir directory, path string, idsArg []string)
 
 // syncIPs() takes a directory and creates an IP node for every entry that's missing
 // one.
-func syncIPs(store consensus.Store, dir directory, path string, prefixIP net.IP) {
+func syncIPs(store etcd.Store, dir directory, path string, prefixIP net.IP) {
 	prefix := binary.BigEndian.Uint32(prefixIP.To4())
 	mask := uint32(0xffff0000)
 
@@ -347,7 +347,7 @@ func syncIPs(store consensus.Store, dir directory, path string, prefixIP net.IP)
 	}
 }
 
-func syncLabels(store consensus.Store, dir directory, path string,
+func syncLabels(store etcd.Store, dir directory, path string,
 	containers []db.Container) {
 
 	idLabelMap := map[string][]string{}
@@ -383,7 +383,7 @@ func syncLabels(store consensus.Store, dir directory, path string,
 	}
 }
 
-func getDirectory(store consensus.Store, path string) (directory, error) {
+func getDirectory(store etcd.Store, path string) (directory, error) {
 	tree, err := store.GetTree(path)
 	if err != nil {
 		return nil, err

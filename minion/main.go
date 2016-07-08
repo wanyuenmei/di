@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/minion/consensus"
 	"github.com/NetSys/quilt/minion/docker"
 	"github.com/NetSys/quilt/minion/elector"
+	"github.com/NetSys/quilt/minion/etcd"
 	"github.com/NetSys/quilt/minion/network"
 	"github.com/NetSys/quilt/minion/pprofile"
 	"github.com/NetSys/quilt/minion/scheduler"
@@ -31,7 +31,7 @@ func main() {
 	go supervisor.Run(conn, dk)
 	go scheduler.Run(conn)
 
-	store := consensus.NewStore()
+	store := etcd.NewStore()
 	go elector.Run(conn, store)
 	go network.Run(conn, store, dk)
 
