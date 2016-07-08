@@ -37,12 +37,12 @@ func Run(conn db.Conn, dk docker.Client) {
 // and label.  The specialized OpenFlow rules Quilt requires are managed by the workers
 // individuallly.
 func runMaster(conn db.Conn) {
-	var etcds []db.Etcd
+	var leader bool
 	var labels []db.Label
 	var containers []db.Container
 	var connections []db.Connection
 	conn.Transact(func(view db.Database) error {
-		etcds = view.SelectFromEtcd(nil)
+		leader = view.EtcdLeader()
 
 		labels = view.SelectFromLabel(func(label db.Label) bool {
 			return label.IP != ""
@@ -56,7 +56,7 @@ func runMaster(conn db.Conn) {
 		return nil
 	})
 
-	if len(etcds) != 1 || !etcds[0].Leader {
+	if !leader {
 		return
 	}
 

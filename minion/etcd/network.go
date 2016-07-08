@@ -142,8 +142,7 @@ func runNetworkMaster(conn db.Conn, store Store) {
 		leader := false
 		var containers []db.Container
 		conn.Transact(func(view db.Database) error {
-			etcds := view.SelectFromEtcd(nil)
-			leader = len(etcds) == 1 && etcds[0].Leader
+			leader = view.EtcdLeader()
 			containers = view.SelectFromContainer(nil)
 			return nil
 		})
