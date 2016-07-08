@@ -1,4 +1,4 @@
-package network
+package etcd
 
 import (
 	"encoding/binary"
@@ -11,13 +11,17 @@ import (
 
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/join"
-	"github.com/NetSys/quilt/minion/etcd"
 
 	log "github.com/Sirupsen/logrus"
 )
 
 const labelDir = "/minion/labels"
 const containerDir = "/minion/containers"
+
+// XXX: This really shouldn't live in here.  It's just a temporary measure, soon we'll
+// disentangle the etcd logic from the IP allocation logic.  At that point, we can ditch
+// this.
+const gatewayIP = "10.0.0.1"
 
 // We store rand.Uint32() in a variable so it's easily mocked out by the unit tests.
 // Nondeterminism is hard to test.
@@ -29,7 +33,7 @@ type directory map[string]map[string]string
 
 // wakeChan collapses the various channels these functions wait on into a single
 // channel. Multiple redundant pings will be coalesced into a single message.
-func wakeChan(conn db.Conn, store etcd.Store) chan struct{} {
+func wakeChan(conn db.Conn, store Store) chan struct{} {
 	labelWatch := store.Watch(labelDir, 1*time.Second)
 	containerWatch := store.Watch(labelDir, 1*time.Second)
 	trigg := conn.TriggerTick(30, db.MinionTable, db.ContainerTable, db.LabelTable,
@@ -54,7 +58,7 @@ func wakeChan(conn db.Conn, store etcd.Store) chan struct{} {
 	return c
 }
 
-func readStoreRun(conn db.Conn, store etcd.Store) {
+func runNetworkWorker(conn db.Conn, store Store) {
 	// If the directories don't exist, create them so we may watch them.  If they
 	// exist already these will return an error that we won't log, but that's ok
 	// cause the loop will error too.
@@ -114,7 +118,7 @@ func readLabelTransact(view db.Database, dir directory) {
 		return val.(db.Label).Label
 	}
 	pairs, dbls, dirKeys := join.HashJoin(db.LabelSlice(view.SelectFromLabel(nil)),
-		StringSlice(dir.keys()), lKey, nil)
+		join.StringSlice(dir.keys()), lKey, nil)
 
 	for _, dbl := range dbls {
 		view.Remove(dbl.(db.Label))
@@ -133,7 +137,7 @@ func readLabelTransact(view db.Database, dir directory) {
 	}
 }
 
-func writeStoreRun(conn db.Conn, store etcd.Store) {
+func runNetworkMaster(conn db.Conn, store Store) {
 	for range wakeChan(conn, store) {
 		leader := false
 		var containers []db.Container
@@ -156,7 +160,7 @@ func writeStoreRun(conn db.Conn, store etcd.Store) {
 	}
 }
 
-func writeStoreContainers(store etcd.Store, containers []db.Container) error {
+func writeStoreContainers(store Store, containers []db.Container) error {
 	var ids []string
 	for _, container := range containers {
 		if container.DockerID != "" {
@@ -177,7 +181,7 @@ func writeStoreContainers(store etcd.Store, containers []db.Container) error {
 	return nil
 }
 
-func writeStoreLabels(store etcd.Store, containers []db.Container) error {
+func writeStoreLabels(store Store, containers []db.Container) error {
 	store.Mkdir(labelDir)
 	dir, err := getDirectory(store, labelDir)
 	if err != nil {
@@ -263,9 +267,9 @@ func writeStoreLabels(store etcd.Store, containers []db.Container) error {
 	return nil
 }
 
-func syncDir(store etcd.Store, dir directory, path string, idsArg []string) {
-	_, dirKeys, ids := join.HashJoin(StringSlice(dir.keys()), StringSlice(idsArg),
-		nil, nil)
+func syncDir(store Store, dir directory, path string, idsArg []string) {
+	_, dirKeys, ids := join.HashJoin(join.StringSlice(dir.keys()),
+		join.StringSlice(idsArg), nil, nil)
 
 	var etcdLog string
 	for _, dirKey := range dirKeys {
@@ -300,7 +304,7 @@ func syncDir(store etcd.Store, dir directory, path string, idsArg []string) {
 
 // syncIPs() takes a directory and creates an IP node for every entry that's missing
 // one.
-func syncIPs(store etcd.Store, dir directory, path string, prefixIP net.IP) {
+func syncIPs(store Store, dir directory, path string, prefixIP net.IP) {
 	prefix := binary.BigEndian.Uint32(prefixIP.To4())
 	mask := uint32(0xffff0000)
 
@@ -347,7 +351,7 @@ func syncIPs(store etcd.Store, dir directory, path string, prefixIP net.IP) {
 	}
 }
 
-func syncLabels(store etcd.Store, dir directory, path string,
+func syncLabels(store Store, dir directory, path string,
 	containers []db.Container) {
 
 	idLabelMap := map[string][]string{}
@@ -383,7 +387,7 @@ func syncLabels(store etcd.Store, dir directory, path string,
 	}
 }
 
-func getDirectory(store etcd.Store, path string) (directory, error) {
+func getDirectory(store Store, path string) (directory, error) {
 	tree, err := store.GetTree(path)
 	if err != nil {
 		return nil, err
@@ -434,17 +438,4 @@ func (dir directory) keys() []string {
 		keys = append(keys, key)
 	}
 	return keys
-}
-
-// StringSlice is an alias for []string to allow for joins
-type StringSlice []string
-
-// Get returns the value contained at the given index
-func (ss StringSlice) Get(ii int) interface{} {
-	return ss[ii]
-}
-
-// Len returns the number of items in the slice
-func (ss StringSlice) Len() int {
-	return len(ss)
 }

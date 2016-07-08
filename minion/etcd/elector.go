@@ -1,10 +1,9 @@
-package elector
+package etcd
 
 import (
 	"time"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/minion/etcd"
 	"github.com/coreos/etcd/client"
 
 	log "github.com/Sirupsen/logrus"
@@ -15,13 +14,12 @@ const dir = "/minion"
 const leaderKey = dir + "/leader"
 
 // Run blocks implementing leader election.
-func Run(conn db.Conn, store etcd.Store) {
-	<-store.BootWait()
+func runElection(conn db.Conn, store Store) {
 	go watchLeader(conn, store)
 	campaign(conn, store)
 }
 
-func watchLeader(conn db.Conn, store etcd.Store) {
+func watchLeader(conn db.Conn, store Store) {
 	tickRate := electionTTL
 	if tickRate > 30 {
 		tickRate = 30
@@ -47,7 +45,7 @@ func watchLeader(conn db.Conn, store etcd.Store) {
 	}
 }
 
-func campaign(conn db.Conn, store etcd.Store) {
+func campaign(conn db.Conn, store Store) {
 	watch := store.Watch(leaderKey, 1*time.Second)
 	trigg := conn.TriggerTick(electionTTL/2, db.EtcdTable)
 	oldMaster := false

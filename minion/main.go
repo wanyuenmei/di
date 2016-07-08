@@ -6,7 +6,6 @@ import (
 
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/minion/docker"
-	"github.com/NetSys/quilt/minion/elector"
 	"github.com/NetSys/quilt/minion/etcd"
 	"github.com/NetSys/quilt/minion/network"
 	"github.com/NetSys/quilt/minion/pprofile"
@@ -30,10 +29,8 @@ func main() {
 	go minionServerRun(conn)
 	go supervisor.Run(conn, dk)
 	go scheduler.Run(conn)
-
-	store := etcd.NewStore()
-	go elector.Run(conn, store)
-	go network.Run(conn, store, dk)
+	go network.Run(conn, dk)
+	go etcd.Run(conn)
 
 	for range conn.Trigger(db.MinionTable).C {
 		conn.Transact(func(view db.Database) error {

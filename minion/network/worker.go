@@ -727,8 +727,8 @@ func updateDefaultGw(odb ovsdb.Ovsdb) {
 func updateIPs(namespace string, dev string, currIPs []string,
 	targetIPs []string) error {
 
-	_, ipToDel, ipToAdd := join.HashJoin(StringSlice(currIPs), StringSlice(targetIPs),
-		nil, nil)
+	_, ipToDel, ipToAdd := join.HashJoin(join.StringSlice(currIPs),
+		join.StringSlice(targetIPs), nil, nil)
 
 	for _, ip := range ipToDel {
 		if err := delIP(namespace, ip.(string), dev); err != nil {

@@ -1,8 +1,9 @@
-package elector
+package etcd
 
 import (
-	"github.com/NetSys/quilt/db"
 	"testing"
+
+	"github.com/NetSys/quilt/db"
 )
 
 func TestStartElector(t *testing.T) {

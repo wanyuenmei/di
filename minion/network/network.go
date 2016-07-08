@@ -10,7 +10,6 @@ import (
 
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/minion/docker"
-	"github.com/NetSys/quilt/minion/etcd"
 	"github.com/NetSys/quilt/minion/ovsdb"
 	"github.com/NetSys/quilt/util"
 
@@ -25,11 +24,7 @@ const gatewayIP = "10.0.0.1"
 const gatewayMAC = "02:00:0a:00:00:01"
 
 // Run blocks implementing the network services.
-func Run(conn db.Conn, store etcd.Store, dk docker.Client) {
-	<-store.BootWait()
-	go readStoreRun(conn, store)
-	go writeStoreRun(conn, store)
-
+func Run(conn db.Conn, dk docker.Client) {
 	for range conn.TriggerTick(30, db.MinionTable, db.ContainerTable,
 		db.ConnectionTable, db.LabelTable, db.EtcdTable).C {
 		runWorker(conn, dk)

@@ -1,4 +1,4 @@
-package network
+package etcd
 
 import (
 	"math/rand"
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/minion/etcd"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -117,7 +116,7 @@ func testReadLabelTransact(t *testing.T, view db.Database) {
 }
 
 func TestSyncLabels(t *testing.T) {
-	store := etcd.NewMock()
+	store := NewMock()
 	store.Mkdir("/test/a")
 	store.Mkdir("/test/b")
 	store.Mkdir("/test/c")
@@ -167,7 +166,7 @@ func TestSyncLabels(t *testing.T) {
 }
 
 func TestSyncDir(t *testing.T) {
-	store := etcd.NewMock()
+	store := NewMock()
 	store.Mkdir("/test")
 	dir, _ := getDirectory(store, "/test")
 
@@ -209,7 +208,7 @@ func TestSyncDir(t *testing.T) {
 }
 
 func TestSyncIPs(t *testing.T) {
-	store := etcd.NewMock()
+	store := NewMock()
 	prefix := net.IPv4(10, 0, 0, 0)
 
 	nextRand := uint32(0)
@@ -293,7 +292,7 @@ func TestSyncIPs(t *testing.T) {
 }
 
 func TestGetDirectory(t *testing.T) {
-	store := etcd.NewMock()
+	store := NewMock()
 
 	paths := []string{
 		"/a/b",
