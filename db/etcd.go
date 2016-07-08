@@ -1,9 +1,5 @@
 package db
 
-import (
-	"github.com/NetSys/quilt/util"
-)
-
 // The Etcd table contains configuration pertaining to the minion etcd cluster including
 // the members and leadership information.
 type Etcd struct {
@@ -13,14 +9,6 @@ type Etcd struct {
 
 	Leader   bool   // True if this Minion is the leader.
 	LeaderIP string // IP address of the current leader, or ""
-}
-
-func (e Etcd) equal(r row) bool {
-	other := r.(Etcd)
-	return e.ID == other.ID &&
-		util.StrSliceEqual(e.EtcdIPs, other.EtcdIPs) &&
-		e.Leader == other.Leader &&
-		e.LeaderIP == other.LeaderIP
 }
 
 func (e Etcd) String() string {

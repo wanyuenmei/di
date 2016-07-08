@@ -2,8 +2,6 @@ package db
 
 import (
 	"sort"
-
-	"github.com/NetSys/quilt/util"
 )
 
 // Machine represents a physical or virtual machine operated by a cloud provider on
@@ -42,21 +40,6 @@ func (db Database) SelectFromMachine(check func(Machine) bool) []Machine {
 		}
 	}
 	return result
-}
-
-func (m Machine) equal(r row) bool {
-	other := r.(Machine)
-	return m.ID == other.ID &&
-		m.ClusterID == other.ClusterID &&
-		m.Role == other.Role &&
-		m.Provider == other.Provider &&
-		m.Region == other.Region &&
-		m.Size == other.Size &&
-		m.DiskSize == other.DiskSize &&
-		util.StrSliceEqual(m.SSHKeys, other.SSHKeys) &&
-		m.CloudID == other.CloudID &&
-		m.PublicIP == other.PublicIP &&
-		m.PrivateIP == other.PrivateIP
 }
 
 func (m Machine) getID() int {

@@ -37,24 +37,19 @@ var allTables = []TableType{ClusterTable, MachineTable, ContainerTable, MinionTa
 type table struct {
 	rows map[int]row
 
-	triggers map[Trigger]struct{}
-	trigSeq  int
-	seq      int
+	triggers    map[Trigger]struct{}
+	shouldAlert bool
 }
 
 func newTable() *table {
 	return &table{
-		rows:     make(map[int]row),
-		triggers: make(map[Trigger]struct{}),
+		rows:        make(map[int]row),
+		triggers:    make(map[Trigger]struct{}),
+		shouldAlert: false,
 	}
 }
 
 func (t *table) alert() {
-	if t.seq == t.trigSeq {
-		return
-	}
-	t.trigSeq = t.seq
-
 	for trigger := range t.triggers {
 		select {
 		case <-trigger.stop:

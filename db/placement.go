@@ -121,10 +121,6 @@ func (p Placement) getID() int {
 	return p.ID
 }
 
-func (p Placement) equal(r row) bool {
-	return p == r.(Placement)
-}
-
 // Get returns the value contained at the given index
 func (ps PlacementSlice) Get(ii int) interface{} {
 	return ps[ii]

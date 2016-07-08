@@ -34,10 +34,6 @@ func (db Database) SelectFromConnection(check func(Connection) bool) []Connectio
 	return result
 }
 
-func (c Connection) equal(r row) bool {
-	return c == r.(Connection)
-}
-
 func (c Connection) getID() int {
 	return c.ID
 }

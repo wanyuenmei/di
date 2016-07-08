@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,18 +24,15 @@ type Trigger struct {
 
 type row interface {
 	less(row) bool
-	equal(row) bool
 	String() string
 	getID() int
 }
 
-type transaction struct {
-	do   func(db Database) error
-	done chan error
-}
-
 // A Conn is a database handle on which transactions may be executed.
-type Conn chan transaction
+type Conn struct {
+	db   Database
+	lock *sync.Mutex
+}
 
 // New creates a connection to a brand new database.
 func New() Conn {
@@ -43,28 +41,30 @@ func New() Conn {
 		db.tables[t] = newTable()
 	}
 
-	cn := make(Conn)
-	go cn.run(db)
+	cn := Conn{db: db, lock: &sync.Mutex{}}
 	cn.runLogger()
 	return cn
-}
-
-func (cn Conn) run(db Database) {
-	for txn := range cn {
-		txn.done <- txn.do(db)
-		for _, table := range db.tables {
-			table.alert()
-		}
-	}
 }
 
 // Transact executes database transactions.  It takes a closure, 'do', which is operates
 // on its 'db' argument.  Transactions are not concurrent, instead each runs
 // sequentially on it's database without conflicting with other transactions.
 func (cn Conn) Transact(do func(db Database) error) error {
-	txn := transaction{do, make(chan error)}
-	cn <- txn
-	return <-txn.done
+	cn.lock.Lock()
+	err := do(cn.db)
+	var alertTables []*table
+	for _, table := range cn.db.tables {
+		if table.shouldAlert {
+			alertTables = append(alertTables, table)
+			table.shouldAlert = false
+		}
+	}
+	cn.lock.Unlock()
+
+	for _, table := range alertTables {
+		table.alert()
+	}
+	return err
 }
 
 // Trigger registers a new database trigger that watches changes to 'tableName'.  Any
@@ -116,11 +116,11 @@ func (t Trigger) Stop() {
 
 func (db Database) insert(r row) {
 	table := db.tables[getTableType(r)]
-	table.seq++
+	table.shouldAlert = true
 	table.rows[r.getID()] = r
 }
 
-// Commit update the database with the data contained in row.
+// Commit updates the database with the data contained in row.
 func (db Database) Commit(r row) {
 	rid := r.getID()
 	table := db.tables[getTableType(r)]
@@ -130,9 +130,9 @@ func (db Database) Commit(r row) {
 		panic("Type Error")
 	}
 
-	if !r.equal(table.rows[rid]) {
+	if table.shouldAlert || !reflect.DeepEqual(r, old) {
 		table.rows[rid] = r
-		table.seq++
+		table.shouldAlert = true
 	}
 }
 
@@ -140,7 +140,7 @@ func (db Database) Commit(r row) {
 func (db Database) Remove(r row) {
 	table := db.tables[getTableType(r)]
 	delete(table.rows, r.getID())
-	table.seq++
+	table.shouldAlert = true
 }
 
 func (db Database) nextID() int {

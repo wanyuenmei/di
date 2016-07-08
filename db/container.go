@@ -55,19 +55,6 @@ func (conn Conn) SelectFromContainer(check func(Container) bool) []Container {
 	return containers
 }
 
-func (c Container) equal(r row) bool {
-	other := r.(Container)
-	return c.ID == other.ID &&
-		c.Pid == other.Pid &&
-		c.IP == other.IP &&
-		c.Mac == other.Mac &&
-		c.DockerID == other.DockerID &&
-		c.Image == other.Image &&
-		util.StrSliceEqual(c.Command, other.Command) &&
-		util.StrSliceEqual(c.Labels, other.Labels) &&
-		util.StrStrMapEqual(c.Env, other.Env)
-}
-
 func (c Container) getID() int {
 	return c.ID
 }

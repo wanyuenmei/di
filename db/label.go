@@ -42,10 +42,6 @@ func (conn Conn) SelectFromLabel(check func(Label) bool) []Label {
 	return result
 }
 
-func (r Label) equal(r2 row) bool {
-	return r == r2.(Label)
-}
-
 func (r Label) getID() int {
 	return r.ID
 }
