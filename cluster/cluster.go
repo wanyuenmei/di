@@ -207,8 +207,9 @@ func (clst cluster) sync() {
 				dbm.PublicIP = m.PublicIP
 				dbm.PrivateIP = m.PrivateIP
 
-				// If we overwrite the machine's size before the machine has fully
-				// booted, the Stitch will flip it back immediately.
+				// If we overwrite the machine's size before the machine
+				// has fully booted, the Stitch will flip it back
+				// immediately.
 				if m.Size != "" {
 					dbm.Size = m.Size
 				}
