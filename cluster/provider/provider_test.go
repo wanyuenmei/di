@@ -47,21 +47,15 @@ func TestDefaultRegion(t *testing.T) {
 		t.Errorf("expected %s, found %s", exp, m.Region)
 	}
 
-	paniced := false
 	m.Region = ""
 	m.Provider = "Panic"
-	func() {
-		defer func() {
-			r := recover()
-			paniced = r != nil
-		}()
-
-		m = DefaultRegion(m)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("Expected panic")
+		}
 	}()
 
-	if !paniced {
-		t.Error("Expected panic")
-	}
+	m = DefaultRegion(m)
 }
 
 func TestConstraints(t *testing.T) {
@@ -118,4 +112,55 @@ func TestConstraints(t *testing.T) {
 		stitch.Range{}, 0, "size3")
 	checkConstraint(testDescriptions, stitch.Range{Min: 3},
 		stitch.Range{}, 0, "size4")
+}
+
+func TestNewProviderSuccess(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("provider.New panicked on valid provider")
+		}
+	}()
+	New(db.Azure)
+	New(db.Amazon)
+	New(db.Google)
+	New(db.Vagrant)
+}
+
+func TestNewProviderFailure(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("provider.New did not panic on invalid provider")
+		}
+	}()
+	New("FakeAmazon")
+}
+
+func TestGroupBy(t *testing.T) {
+	machines := []Machine{
+		{Provider: db.Google}, {Provider: db.Amazon}, {Provider: db.Google},
+		{Provider: db.Google}, {Provider: db.Azure},
+	}
+	grouped := GroupBy(machines)
+	m := grouped[db.Amazon]
+	if len(m) != 1 || m[0].Provider != machines[1].Provider {
+		t.Errorf("wrong Amazon machines: %v", m)
+	}
+	m = grouped[db.Azure]
+	if len(m) != 1 || m[0].Provider != machines[4].Provider {
+		t.Errorf("wrong Azure machines: %v", m)
+	}
+	m = grouped[db.Google]
+	if len(m) != 3 {
+		t.Errorf("wrong Google machines: %v", m)
+	} else {
+		for _, machine := range m {
+			if machine.Provider != db.Google {
+				t.Errorf("machine provider is not Google: %v", machine)
+			}
+		}
+	}
+	m = grouped[db.Vagrant]
+	if len(m) != 0 {
+		t.Errorf("unexpected Vagrant machines: %v", m)
+	}
 }
