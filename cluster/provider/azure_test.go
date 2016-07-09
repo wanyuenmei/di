@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/arm/compute"
@@ -10,6 +11,8 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/NetSys/quilt/join"
 )
+
+var mutex sync.Mutex
 
 type fakeAzureClient struct {
 	securityGroups map[string]securityGroup
@@ -43,38 +46,52 @@ func newFakeAzureCluster() azureCluster {
 func (client fakeAzureClient) ifaceCreate(rgName string, ifaceName string,
 	param network.Interface, cancel <-chan struct{}) (result autorest.Response,
 	err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) ifaceDelete(rgName string, ifaceName string,
 	cancel <-chan struct{}) (result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) ifaceGet(rgName string, ifaceName string, expand string) (
 	result network.Interface, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return network.Interface{}, nil
 }
 
 func (client fakeAzureClient) publicIPCreate(rgName string, pipAddrName string,
 	param network.PublicIPAddress, cancel <-chan struct{}) (result autorest.Response,
 	err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) publicIPDelete(rgName string, pipAddrName string,
 	cancel <-chan struct{}) (result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) publicIPGet(rgName string, pipAddrName string,
 	expand string) (result network.PublicIPAddress, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return network.PublicIPAddress{}, nil
 }
 
 func (client fakeAzureClient) securityGroupCreate(rgName string, nsgName string,
 	param network.SecurityGroup, cancel <-chan struct{}) (result autorest.Response,
 	err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	client.securityGroups[nsgName] = securityGroup{
 		rgName: rgName,
 		value:  param,
@@ -85,6 +102,8 @@ func (client fakeAzureClient) securityGroupCreate(rgName string, nsgName string,
 
 func (client fakeAzureClient) securityGroupList(rgName string) (
 	result network.SecurityGroupListResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	groups := []network.SecurityGroup{}
 	for _, securityGroup := range client.securityGroups {
 		if securityGroup.rgName == rgName {
@@ -101,6 +120,8 @@ func (client fakeAzureClient) securityRuleCreate(rgName string,
 	nsgName string, secRuleName string,
 	param network.SecurityRule,
 	cancel <-chan struct{}) (result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	securityGroup := client.securityGroups[nsgName]
 	securityGroup.rules[*param.Name] = securityRule{
 		rgName:  rgName,
@@ -114,6 +135,8 @@ func (client fakeAzureClient) securityRuleCreate(rgName string,
 func (client fakeAzureClient) securityRuleDelete(rgName string, nsgName string,
 	secRuleName string, cancel <-chan struct{}) (result autorest.Response,
 	err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	securityGroup := client.securityGroups[nsgName]
 	delete(securityGroup.rules, secRuleName)
 	return autorest.Response{}, nil
@@ -121,6 +144,8 @@ func (client fakeAzureClient) securityRuleDelete(rgName string, nsgName string,
 
 func (client fakeAzureClient) securityRuleList(rgName string, nsgName string) (
 	result network.SecurityRuleListResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	rules := []network.SecurityRule{}
 	securityGroup := client.securityGroups[nsgName]
 	for _, securityRule := range securityGroup.rules {
@@ -135,59 +160,81 @@ func (client fakeAzureClient) securityRuleList(rgName string, nsgName string) (
 func (client fakeAzureClient) vnetCreate(rgName string, virtualNetworkName string,
 	param network.VirtualNetwork, cancel <-chan struct{}) (result autorest.Response,
 	err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) vnetList(rgName string) (
 	result network.VirtualNetworkListResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return network.VirtualNetworkListResult{}, nil
 }
 
 func (client fakeAzureClient) rgCreate(rgName string, param resources.ResourceGroup) (
 	result resources.ResourceGroup, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return resources.ResourceGroup{}, nil
 }
 
 func (client fakeAzureClient) rgDelete(rgName string, cancel <-chan struct{}) (
 	result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) storageListByRg(rgName string) (
 	result storage.AccountListResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return storage.AccountListResult{}, nil
 }
 
 func (client fakeAzureClient) storageCheckName(
 	accountName storage.AccountCheckNameAvailabilityParameters) (
 	result storage.CheckNameAvailabilityResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return storage.CheckNameAvailabilityResult{}, nil
 }
 
 func (client fakeAzureClient) storageCreate(rgName string, accountName string,
 	param storage.AccountCreateParameters, cancel <-chan struct{}) (
 	result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) storageGet(rgName string, accountName string) (
 	result storage.Account, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return storage.Account{}, nil
 }
 
 func (client fakeAzureClient) vmCreate(rgName string, vmName string,
 	param compute.VirtualMachine, cancel <-chan struct{}) (
 	result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) vmDelete(rgName string, vmName string,
 	cancel <-chan struct{}) (result autorest.Response, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return autorest.Response{}, nil
 }
 
 func (client fakeAzureClient) vmList(rgName string) (
 	result compute.VirtualMachineListResult, err error) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	return compute.VirtualMachineListResult{}, nil
 }
 
