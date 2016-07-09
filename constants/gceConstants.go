@@ -1,4 +1,4 @@
-package provider
+package constants
 
 // GoogleDescriptions enumerates Google Compute Engine instance offerings
 var GoogleDescriptions = []Description{

@@ -1,11 +1,12 @@
 export GO15VENDOREXPERIMENT=1
 PACKAGES=$(shell GO15VENDOREXPERIMENT=1 go list ./... | grep -v vendor)
 NOVENDOR=$(shell find . -path ./vendor -prune -o -name '*.go' -print)
-LINE_LENGTH_EXCLUDE=./cluster/provider/constraintConstants.go \
-		    ./cluster/provider/gceConstants.go \
-		    ./minion/pb/pb.pb.go \
+LINE_LENGTH_EXCLUDE=./constants/awsConstants.go \
+		    ./constants/azureDescriptions.go \
+		    ./constants/gceConstants.go \
 		    ./cluster/provider/cloud_config.go \
-		    ./minion/network/link_test.go
+		    ./minion/network/link_test.go \
+		    ./minion/pb/pb.pb.go \
 
 REPO = quilt
 DOCKER = docker
@@ -32,7 +33,7 @@ install:
 check: format-check
 	go test $(PACKAGES)
 
-COV_SKIP= /minion/pb /minion/pprofile /scripts
+COV_SKIP= /minion/pb /minion/pprofile /constants /scripts
 
 COV_PKG = $(subst github.com/NetSys/quilt,,$(PACKAGES))
 coverage: $(addsuffix .cov, $(filter-out $(COV_SKIP), $(COV_PKG)))

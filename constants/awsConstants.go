@@ -1,4 +1,4 @@
-package provider
+package constants
 
 // AwsDescriptions enumerates Amazon EC2 instance offerings
 //
@@ -330,6 +330,3 @@ var AwsDescriptions = []Description{
 	{Size: "d2.4xlarge", CPU: 16, RAM: 122, Disk: "12 x 2000 HDD", Region: "us-gov-west-1", Price: 3.312},
 	{Size: "d2.8xlarge", CPU: 36, RAM: 244, Disk: "24 x 2000 HDD", Region: "us-gov-west-1", Price: 6.624},
 }
-
-// AzureDescriptions enumerates Microsoft Azure instance offerings TODO
-var AzureDescriptions = []Description{}

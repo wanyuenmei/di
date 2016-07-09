@@ -3,6 +3,7 @@ package provider
 import (
 	"testing"
 
+	"github.com/NetSys/quilt/constants"
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/stitch"
 )
@@ -65,7 +66,7 @@ func TestDefaultRegion(t *testing.T) {
 }
 
 func TestConstraints(t *testing.T) {
-	checkConstraint := func(descriptions []Description, ram stitch.Range,
+	checkConstraint := func(descriptions []constants.Description, ram stitch.Range,
 		cpu stitch.Range, maxPrice float64, exp string) {
 		resSize := pickBestSize(descriptions, ram, cpu, maxPrice)
 		if resSize != exp {
@@ -74,7 +75,7 @@ func TestConstraints(t *testing.T) {
 	}
 
 	// Test all constraints specified with valid price
-	testDescriptions := []Description{
+	testDescriptions := []constants.Description{
 		{Size: "size1", Price: 2, RAM: 2, CPU: 2},
 	}
 	checkConstraint(testDescriptions, stitch.Range{Min: 1, Max: 3},
@@ -97,7 +98,7 @@ func TestConstraints(t *testing.T) {
 		stitch.Range{Min: 2}, 1, "")
 
 	// Test multiple matches (should pick cheapest)
-	testDescriptions = []Description{
+	testDescriptions = []constants.Description{
 		{Size: "size2", Price: 2, RAM: 8, CPU: 4},
 		{Size: "size3", Price: 1, RAM: 4, CPU: 4},
 		{Size: "size4", Price: 0.5, RAM: 3, CPU: 4},

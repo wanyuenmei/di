@@ -9,7 +9,7 @@ import os
 
 class GCEParser(object):
     gceURL = "https://cloud.google.com/compute/pricing"
-    goPackage = 'provider'
+    goPackage = 'constants'
 
     machineType = 'Machine type'
     ignoredTypes = ['Custom machine type']

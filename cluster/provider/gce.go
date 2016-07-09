@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NetSys/quilt/constants"
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/stitch"
 
@@ -186,7 +187,7 @@ func (clst *gceCluster) Disconnect() {
 
 func (clst *gceCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
-	return pickBestSize(GoogleDescriptions, ram, cpu, maxPrice)
+	return pickBestSize(constants.GoogleDescriptions, ram, cpu, maxPrice)
 }
 
 // Get() and operationWait() don't always present the same results, so

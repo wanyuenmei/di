@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/NetSys/quilt/constants"
 	"github.com/NetSys/quilt/db"
 	"github.com/NetSys/quilt/stitch"
 
@@ -335,7 +336,7 @@ func (clst amazonCluster) List() ([]Machine, error) {
 
 func (clst *amazonCluster) ChooseSize(ram stitch.Range, cpu stitch.Range,
 	maxPrice float64) string {
-	return pickBestSize(AwsDescriptions, ram, cpu, maxPrice)
+	return pickBestSize(constants.AwsDescriptions, ram, cpu, maxPrice)
 }
 
 func (clst *amazonCluster) tagSpotRequests(awsIDs []awsID) error {
