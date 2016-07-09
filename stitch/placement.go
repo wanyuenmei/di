@@ -1,9 +1,7 @@
-package main
+package stitch
 
 import (
 	"fmt"
-
-	"github.com/NetSys/quilt/stitch"
 )
 
 // A set of containers which can be placed together on a VM.
@@ -58,7 +56,7 @@ func (avSet availabilitySet) removeAndCheck(labels ...string) []string {
 }
 
 // Merge all placement rules such that each label appears as a target only once
-func (g *graph) addPlacementRule(rule stitch.Placement) {
+func (g *graph) addPlacementRule(rule Placement) {
 	if !rule.Exclusive {
 		return
 	}
@@ -69,22 +67,22 @@ func (g *graph) addPlacementRule(rule stitch.Placement) {
 
 	// Add extra rule separating "public" into its own availability set.
 	// Remove once "implicit placement rules" are incorporated into dsl.
-	if _, ok := g.nodes[stitch.PublicInternetLabel]; ok {
+	if _, ok := g.nodes[PublicInternetLabel]; ok {
 		allLabels := make([]string, 0, len(g.nodes))
 		for _, lab := range g.getNodes() {
-			if lab.name != stitch.PublicInternetLabel {
+			if lab.name != PublicInternetLabel {
 				allLabels = append(allLabels, lab.name)
 				g.placement[lab.name] = append(g.placement[lab.name],
-					stitch.PublicInternetLabel)
+					PublicInternetLabel)
 			}
 		}
-		g.placement[stitch.PublicInternetLabel] = allLabels
+		g.placement[PublicInternetLabel] = allLabels
 	}
 
 	g.placeNodes()
 }
 
-func validateRule(place stitch.Placement, g graph) (string, string) {
+func validateRule(place Placement, g graph) (string, string) {
 	targetNode, ok := g.nodes[place.TargetLabel]
 	if !ok {
 		panic(fmt.Errorf("placement constraint: node not found: %s",

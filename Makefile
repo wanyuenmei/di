@@ -13,7 +13,7 @@ DOCKER = docker
 SHELL := /bin/bash
 
 .PHONY: all
-all: quilt minion inspect
+all: quilt minion
 
 .PHONY: quilt
 quilt:
@@ -22,10 +22,6 @@ quilt:
 .PHONY: minion
 minion:
 	cd -P . && go build -o ./minion/minion ./minion
-
-.PHONY: inspect
-inspect:
-	cd -P . && go build -o ./inspect/inspect ./inspect
 
 install:
 	cd -P . && go install . && go install ./inspect && go install ./minion

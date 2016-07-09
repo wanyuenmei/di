@@ -1,12 +1,10 @@
-package main
+package stitch
 
 import (
 	"bufio"
 	"os"
 	"testing"
 	"text/scanner"
-
-	"github.com/NetSys/quilt/stitch"
 )
 
 func initSpec(configPath string) graph {
@@ -21,7 +19,7 @@ func initSpec(configPath string) graph {
 			Filename: configPath,
 		},
 	}
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), "../specs", false)
+	spec, err := New(*sc.Init(bufio.NewReader(f)), "../specs", false)
 	if err != nil {
 		panic(err)
 	}
@@ -74,7 +72,7 @@ func TestBetween(t *testing.T) {
 	}
 }
 
-func TestPlacement(t *testing.T) {
+func TestPlacementInvariant(t *testing.T) {
 	specPath := "./test/placement.spec"
 	invariantPath := "./test/placement.inv"
 	// Correct result: invariant "between true a e d" fails.

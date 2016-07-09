@@ -1,4 +1,4 @@
-package main
+package stitch
 
 import (
 	"bufio"
@@ -7,7 +7,6 @@ import (
 	"text/scanner"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/stitch"
 )
 
 const quiltPath = "QUILT_PATH"
@@ -17,7 +16,7 @@ type argOption struct {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Usage: inspect <path to spec file> [commands]\n"+
+	fmt.Fprintln(os.Stderr, "Usage: quilt inspect <path to spec file> [commands]\n"+
 		"Options\n"+
 		" - viz <pdf|ascii>\n"+
 		" - check <path to invariants file>\n"+
@@ -28,13 +27,14 @@ func usage() {
 	os.Exit(1)
 }
 
-func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("not enough arguments: ", len(os.Args)-1)
+// InspectMain is the main function for the inspect tool.
+func InspectMain(args []string) {
+	if len(args) < 3 {
+		fmt.Println("not enough arguments: ", len(args)-1)
 		usage()
 	}
 
-	configPath := os.Args[1]
+	configPath := args[1]
 
 	f, err := os.Open(configPath)
 	if err != nil {
@@ -48,9 +48,10 @@ func main() {
 		},
 	}
 	pathStr, _ := os.LookupEnv(quiltPath)
-	spec, err := stitch.New(*sc.Init(bufio.NewReader(f)), pathStr, false)
+	spec, err := New(*sc.Init(bufio.NewReader(f)), pathStr, false)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	containers := map[int]*db.Container{}
@@ -87,7 +88,7 @@ func main() {
 	ignoreNext := 0
 	foundFlags := map[string]argOption{}
 	func() {
-		args := os.Args[2:]
+		args := args[2:]
 		for i, arg := range args {
 			switch {
 			case ignoreNext > 0:

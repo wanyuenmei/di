@@ -1,4 +1,4 @@
-package main
+package stitch
 
 import (
 	"fmt"
@@ -6,10 +6,9 @@ import (
 	"os/exec"
 
 	"github.com/NetSys/quilt/db"
-	"github.com/NetSys/quilt/stitch"
 )
 
-func viz(configPath string, spec stitch.Stitch, graph graph, outputFormat string) {
+func viz(configPath string, spec Stitch, graph graph, outputFormat string) {
 	var slug string
 	for i, ch := range configPath {
 		if ch == '.' {

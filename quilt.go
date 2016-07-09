@@ -32,8 +32,9 @@ func main() {
 	log.SetFormatter(util.Formatter{})
 
 	flag.Usage = func() {
-		fmt.Println("Usage: quilt [run <stitch> | stop <namespace>" +
-			" | get <import_path>]" + " [-log-level=<level> | -l=<level>]")
+		fmt.Println("Usage: quilt [inspect <stitch> | run <stitch>" +
+			" | stop <namespace> | get <import_path>]" +
+			" [-log-level=<level> | -l=<level>]")
 		fmt.Println("\nWhen provided a stitch, quilt takes responsibility\n" +
 			"for deploying it as specified.  Alternatively, quilt may be\n" +
 			"instructed to stop all deployments in a given namespace,\n" +
@@ -66,6 +67,9 @@ func main() {
 		stop(conn, flag.Arg(1))
 	case "get":
 		getSpec(flag.Arg(1))
+	case "inspect":
+		stitch.InspectMain(flag.Args())
+		return
 	default:
 		usage()
 	}
