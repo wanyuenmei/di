@@ -38,7 +38,7 @@ const (
 const ovsImage = "quilt/ovs"
 
 var images = map[string]string{
-	Etcd:          "quay.io/coreos/etcd:v2.3.6",
+	Etcd:          "quay.io/coreos/etcd:v3.0.2",
 	Ovncontroller: ovsImage,
 	Ovnnorthd:     ovsImage,
 	Ovsdb:         ovsImage,

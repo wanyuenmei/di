@@ -211,18 +211,18 @@
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
-			"Comment": "v3.0.0-beta.0-344-g2baca91",
-			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+			"Comment": "v3.0.0-beta.0-802-gc47689d",
+			"Rev": "c47689d98fd2b58e06c749871c54118371c78778"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
-			"Comment": "v3.0.0-beta.0-344-g2baca91",
-			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+			"Comment": "v3.0.0-beta.0-802-gc47689d",
+			"Rev": "c47689d98fd2b58e06c749871c54118371c78778"
 		},
 		{
 			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v3.0.0-beta.0-344-g2baca91",
-			"Rev": "2baca91ee21de6a5e456793d7a8ef1d6bbb815c0"
+			"Comment": "v3.0.0-beta.0-802-gc47689d",
+			"Rev": "c47689d98fd2b58e06c749871c54118371c78778"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
