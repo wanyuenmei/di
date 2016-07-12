@@ -1,4 +1,4 @@
-# GETTINe STARTED
+# GETTING STARTED
 This guide explains how to install Quilt, and also serves as a
 brief, hands-on introduction to some Quilt basics.
 
