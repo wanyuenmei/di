@@ -50,7 +50,6 @@ func TestDefaultRegion(t *testing.T) {
 	paniced := false
 	m.Region = ""
 	m.Provider = "Panic"
-	exp = ""
 	func() {
 		defer func() {
 			r := recover()
