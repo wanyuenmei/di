@@ -22,7 +22,7 @@ var download = func(repo *vcs.RepoRoot, dir string) error {
 }
 
 var create = func(repo *vcs.RepoRoot, dir string) error {
-	return repo.VCS.Create(dir, repo.Root)
+	return repo.VCS.Create(dir, repo.Repo)
 }
 
 // GetQuiltPath returns the user-defined QUILT_PATH, or the default absolute QUILT_PATH,
