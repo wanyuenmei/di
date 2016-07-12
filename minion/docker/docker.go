@@ -80,7 +80,6 @@ type RunOptions struct {
 	Labels map[string]string
 	Env    map[string]struct{}
 
-	Binds       []string
 	NetworkMode string
 	PidMode     string
 	Privileged  bool
@@ -152,7 +151,6 @@ func (dk docker) Run(opts RunOptions) error {
 	}
 
 	hc := dkc.HostConfig{
-		Binds:       opts.Binds,
 		NetworkMode: opts.NetworkMode,
 		PidMode:     opts.PidMode,
 		Privileged:  opts.Privileged,
