@@ -585,15 +585,7 @@ func (odb *fakeOvsdb) ListACLs(lswitch string) ([]ovsdb.Acl, error) {
 // Unused in the tests.
 func (odb *fakeOvsdb) Close() {}
 
-func (odb *fakeOvsdb) ListSwitches() ([]string, error) {
-	return []string{}, nil
-}
-
 func (odb *fakeOvsdb) CreateSwitch(lswitch string) error {
-	return nil
-}
-
-func (odb *fakeOvsdb) DeleteSwitch(lswitch string) error {
 	return nil
 }
 

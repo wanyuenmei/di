@@ -16,9 +16,7 @@ import (
 // vSwitchd database.
 type Ovsdb interface {
 	Close()
-	ListSwitches() ([]string, error)
 	CreateSwitch(lswitch string) error
-	DeleteSwitch(lswitch string) error
 	ListPorts(lswitch string) ([]LPort, error)
 	CreatePort(lswitch, name, mac, ip string) error
 	DeletePort(lswitch, name string) error
@@ -264,22 +262,6 @@ func errorCheck(results []ovs.OperationResult, expectedResponses int,
 	return nil
 }
 
-// ListSwitches queries the database for the logical switches in OVN.
-func (ovsdb Client) ListSwitches() ([]string, error) {
-	var switches []string
-	results, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
-		newCondition("_uuid", "!=", "_"))
-	if err != nil {
-		return nil, err
-	}
-	for _, result := range results {
-		// Only return names, because they are effectively UUIDs as OVSDB
-		// enforces their uniqueness.
-		switches = append(switches, result["name"].(string))
-	}
-	return switches, nil
-}
-
 // CreateSwitch creates a new logical switch in OVN.
 func (ovsdb Client) CreateSwitch(lswitch string) error {
 	check, err := ovsdb.selectRows("OVN_Northbound", "Logical_Switch",
@@ -307,22 +289,6 @@ func (ovsdb Client) CreateSwitch(lswitch string) error {
 		return errors.New("transaction error")
 	}
 	return errorCheck(results, 1, 2)
-}
-
-// DeleteSwitch removes a logical switch from OVN.
-func (ovsdb Client) DeleteSwitch(lswitch string) error {
-	deleteOp := ovs.Operation{
-		Op:    "delete",
-		Table: "Logical_Switch",
-		Where: []interface{}{
-			newCondition("name", "==", lswitch),
-		},
-	}
-	results, err := ovsdb.Transact("OVN_Northbound", deleteOp)
-	if err != nil {
-		return err
-	}
-	return errorCheck(results, 1, 1)
 }
 
 // ListPorts lists the logical ports in OVN.
