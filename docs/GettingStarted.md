@@ -31,7 +31,7 @@ Your `QUILT_PATH` will be where Quilt looks for imported specs, and where
 specs you download with `quilt get` get placed. You can set this to be anywhere,
 but by default, your `QUILT_PATH` is `~/.quilt`. To set a custom `QUILT_PATH`,
 follow the instructions
-[here](https://github.com/NetSys/quilt/blob/master/docs/Language.md#quilt_path).
+[here](https://github.com/NetSys/quilt/blob/master/docs/Stitch.md#quilt_path).
 
 ## Configure A Cloud Provider
 
@@ -159,7 +159,7 @@ You can download specs into your QUILT_PATH by executing
 `quilt get <IMPORT_PATH>`, where `<IMPORT_PATH>` is a path to a repository
 containing specs (e.g. `github.com/NetSys/quilt`). Quilt will download files
 into your `QUILT_PATH`. You can read more about its functionality
-[here](https://github.com/NetSys/quilt/blob/master/docs/Language.md#quilt_path).
+[here](https://github.com/NetSys/quilt/blob/master/docs/Stitch.md#quilt_path).
 
 Try `quilt get github.com/NetSys/quilt` and running
 `quilt run github.com/NetSys/quilt/specs/example.spec` (remember to
