@@ -164,3 +164,15 @@ func TestGroupBy(t *testing.T) {
 		t.Errorf("unexpected Vagrant machines: %v", m)
 	}
 }
+
+func TestCloudConfig(t *testing.T) {
+	t.Parallel()
+
+	cloudConfigFormat = "(%v) (%v) (%v)"
+
+	res := cloudConfigUbuntu([]string{"a", "b"}, "1")
+	exp := "(quilt/quilt:latest) (a\nb) (1)"
+	if res != exp {
+		t.Errorf("res: %s\nexp: %s", res, exp)
+	}
+}

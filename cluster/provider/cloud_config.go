@@ -9,8 +9,7 @@ const (
 	quiltImage = "quilt/quilt:latest"
 )
 
-func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {
-	cloudConfig := `#!/bin/bash
+var cloudConfigFormat = `#!/bin/bash
 
 initialize_ovs() {
 	cat <<- EOF > /etc/systemd/system/ovs.service
@@ -131,7 +130,8 @@ systemctl restart {ovs,docker,minion}.service
 echo -n "Completed Boot Script: " >> /var/log/bootscript.log
 date >> /var/log/bootscript.log
     `
-	cloudConfig = fmt.Sprintf(cloudConfig, quiltImage, strings.Join(keys, "\n"), ubuntuVersion)
 
-	return cloudConfig
+func cloudConfigUbuntu(keys []string, ubuntuVersion string) string {
+	keyStr := strings.Join(keys, "\n")
+	return fmt.Sprintf(cloudConfigFormat, quiltImage, keyStr, ubuntuVersion)
 }
