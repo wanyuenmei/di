@@ -249,7 +249,7 @@ func (clst *gceCluster) operationWait(ops []*compute.Operation, domain int) erro
 				case domain == local:
 					op, err = gceService.ZoneOperations.
 						Get(clst.projID, ops[0].Zone,
-							ops[0].Name).Do()
+						ops[0].Name).Do()
 				case domain == global:
 					op, err = gceService.GlobalOperations.
 						Get(clst.projID, ops[0].Name).Do()
